@@ -15,7 +15,6 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 
 
 #========= Dependency Configurations ==========#
-#----------------------------------------------#
 add_subdirectory(submodules/freeglut submodules/freeglut/build EXCLUDE_FROM_ALL)
 add_subdirectory(submodules/glm EXCLUDE_FROM_ALL)
 
@@ -23,11 +22,9 @@ include_directories(
     submodules/freeglut/include
 )
 #========== Targets Configurations ============#
-add_executable(curli EntryPoint.cpp)
-
+add_executable(curli curli/EntryPoint.cpp)
 
 # Set executable dependency libraries
-
 target_link_libraries(curli 
     PRIVATE  freeglut 
     PRIVATE  glm::glm)
