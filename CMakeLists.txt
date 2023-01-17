@@ -20,8 +20,9 @@ add_subdirectory(submodules/glm EXCLUDE_FROM_ALL)
 
 include_directories(
     submodules/freeglut/include
+    curli
 )
-#========== Targets Configurations ============#
+#========== Targets Configurations ====== "curli/GlutHandlers.h"======#
 add_executable(curli curli/EntryPoint.cpp)
 
 # Set executable dependency libraries
