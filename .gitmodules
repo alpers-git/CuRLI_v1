@@ -1,0 +1,9 @@
+[submodule "submodules/freeglut"]
+	path = submodules/freeglut
+	url = https://github.com/FreeGLUTProject/freeglut.git
+[submodule "submodules/imgui"]
+	path = submodules/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "submodules/glm"]
+	path = submodules/glm
+	url = https://github.com/g-truc/glm.git
