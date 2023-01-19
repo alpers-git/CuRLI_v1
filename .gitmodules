@@ -10,3 +10,6 @@
 [submodule "submodules/cyCodeBase"]
 	path = submodules/cyCodeBase
 	url = https://github.com/cemyuksel/cyCodeBase.git
+[submodule "submodules/glfw"]
+	path = submodules/glfw
+	url = https://github.com/glfw/glfw.git
