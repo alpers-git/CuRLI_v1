@@ -1,23 +1,24 @@
-#include <GL/freeglut.h>
 #include <imgui.h>
-#include <backends/imgui_impl_glut.h>
+#include <GLFW/glfw3.h>
+#include <backends/imgui_impl_glfw.h>
 
 namespace gui
 {
-	void InitImgui()
+	void InitImgui(GLFWwindow* window)
 	{
 		ImGui::CreateContext();
 		ImGuiIO& io = ImGui::GetIO(); (void)io;
-
-		ImGui_ImplGLUT_Init();
-		ImGui_ImplGLUT_InstallFuncs();
-		ImGui_ImplOpenGL3_Init();
+		
+		ImGui::StyleColorsDark();
+		ImGui_ImplGlfw_InitForOpenGL(window, true);
+		ImGui_ImplOpenGL3_Init("#version 130");
 	}
 
 	void GetNewImguiFrame()
 	{
 		ImGui_ImplOpenGL3_NewFrame();
-		ImGui_ImplGLUT_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
 	}
 
 	void RenderImgui()
@@ -30,7 +31,7 @@ namespace gui
 	void TerminateImgui()
 	{
 		ImGui_ImplOpenGL3_Shutdown();
-		ImGui_ImplGLUT_Shutdown();
+		ImGui_ImplGlfw_Shutdown();
 		ImGui::DestroyContext();
 	}
 }
