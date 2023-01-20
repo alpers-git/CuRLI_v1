@@ -1,4 +1,5 @@
 #pragma once
+#include <glad/glad.h>
 #include <GLFWHandler.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -16,6 +17,10 @@ public:
 	//Called before render loop
 	void Initialize()
 	{
+		if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+			std::cout << "Failed to initialize OpenGL context" << std::endl;
+			return;
+		}
 		static_cast<T*>(this)->Start();
 		glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
 	}

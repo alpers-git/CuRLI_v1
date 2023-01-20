@@ -1,6 +1,4 @@
 #include <glm/glm.hpp>
-#include <imgui.h>
-#include <backends/imgui_impl_opengl3.h>
 #include <ImguiHelpers.h>
 #include <Renderer.h>
 #include <stdio.h>

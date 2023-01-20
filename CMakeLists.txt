@@ -19,6 +19,12 @@ find_package(OpenGL REQUIRED)
 
 add_subdirectory(submodules/glm EXCLUDE_FROM_ALL)
 
+#--------------------GLAD---------------------#
+#https://glad.dav1d.de/#language=c&specification=gl&api=gl%3D4.6&api=gles1%3Dnone&api=gles2%3Dnone&api=glsc2%3Dnone&profile=compatibility&loader=on
+add_subdirectory(submodules/glad/)
+
+#----------------------------------------------#
+
 #--------------------GLFW---------------------#
 set(GLFW_BUILD_DOCS OFF CACHE STRING "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE STRING "" FORCE)
@@ -54,6 +60,7 @@ add_executable(curli
 # Set executable dependency libraries
 target_link_libraries(curli
     PRIVATE ${OPENGL_LIBRARIES}
+    PRIVATE glad
     PRIVATE glfw
     PRIVATE glm::glm
     PUBLIC ImGui
