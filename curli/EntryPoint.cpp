@@ -24,7 +24,7 @@ int main(int argc, char const *argv[])
 	gui::InitImgui(windowManager.GetWindowPointer());
 	
 	//Create a rendering loop with glfw
-	while (!glfwWindowShouldClose(windowManager.GetWindowPointer()))
+	while (windowManager.IsRunning())
 	{
 		//Render the scene
 		renderer.Render();

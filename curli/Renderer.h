@@ -59,15 +59,25 @@ private:
 	//unsigned int VBO, VAO, EBO;
 	//unsigned int shaderProgram;
 
-	//Called before render loop
+	/*
+	* Called before render loop
+	*/
 	virtual void Start() = 0;
-	//Called During Render
+	/*
+	* Called During Render
+	*/
 	virtual void Update() = 0;
-	//Called During Render after clear buffers calls
+	/*
+	* Called During Render after clear buffers calls
+	*/
 	virtual void PostUpdate() = 0;
-	//Called after render loop
+	/*
+	* Called after render loop
+	*/
 	virtual void End() = 0;
-	//For Imgui components
+	/*
+	* For Imgui components
+	*/
 	void UpdateGUI() {}
 };
 
