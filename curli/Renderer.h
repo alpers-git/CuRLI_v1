@@ -122,3 +122,43 @@ public:
 		ImGui::End();
 	}
 };
+
+class TeapotRenderer : public Renderer<TeapotRenderer>
+{
+public:
+	TeapotRenderer() {}
+	~TeapotRenderer() {}
+	
+private:
+	void Start()
+	{
+		printf("Initializing TeapotRenderer");
+	}
+
+	void Update()
+	{
+	}
+
+	void PostUpdate()
+	{
+	}
+
+	void End()
+	{
+		printf("Shutting down TeapotRenderer");
+	}
+
+	void UpdateGUI()
+	{
+		ImGui::Begin("Test Window");
+		if (ImGui::Button("Recompile Shaders(F6)"))
+		{
+			//Recompile Shaders
+		}
+		if (ImGui::Button("Center Teapot"))
+		{
+			//Center Teapot
+		}
+		ImGui::End();
+	}
+};

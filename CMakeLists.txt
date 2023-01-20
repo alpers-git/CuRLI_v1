@@ -19,12 +19,14 @@ find_package(OpenGL REQUIRED)
 
 add_subdirectory(submodules/glm EXCLUDE_FROM_ALL)
 
+#--------------------GLFW---------------------#
 set(GLFW_BUILD_DOCS OFF CACHE STRING "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE STRING "" FORCE)
 set(GLFW_BUILD_TESTS    OFF CACHE STRING "" FORCE)
 set(GLFW_INSTALL        OFF CACHE STRING "" FORCE)
 add_subdirectory(submodules/glfw)
 set_property(TARGET glfw PROPERTY FOLDER "submodules/GLFW3" )
+#----------------------------------------------#
 
 #--------------------ImGui---------------------#
 # Set where the ImGui files are stored
@@ -36,10 +38,12 @@ add_library("ImGui" STATIC ${IMGUI_SOURCES}
             ${IMGUI_PATH}/backends/imgui_impl_glfw.cpp
             ${IMGUI_PATH}/backends/imgui_impl_opengl3.cpp)
 target_include_directories("ImGui" PUBLIC ${IMGUI_PATH} ${IMGUI_PATH}/backends glfw)
+#----------------------------------------------#
 
 include_directories(
     submodules/imgui
     submodules/glfw/include
+    submodules/cyCodeBase
     curli
 )
 #========== Targets Configurations ===========#
