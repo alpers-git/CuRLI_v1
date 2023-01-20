@@ -26,15 +26,15 @@ int main(int argc, char const *argv[])
 	//Create a rendering loop with glfw
 	while (!glfwWindowShouldClose(windowManager.GetWindowPointer()))
 	{
+		//Render the scene
 		renderer.Render();
 		
 		//Draw the GUI
-		renderer.GUIUpdate();
+		renderer.DrawGUI();
 		
 	}
 	
 	gui::TerminateImgui();
-	//windowManager.Close();
 	renderer.Terminate();
 
     return 0;

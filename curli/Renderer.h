@@ -46,10 +46,10 @@ public:
 		glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
 	}
 	
-	void GUIUpdate()
+	void DrawGUI()
 	{
 		gui::GetNewImguiFrame();
-		static_cast<T*>(this)->DrawGUI();
+		static_cast<T*>(this)->UpdateGUI();
 		gui::RenderImgui();
 	}
 	
@@ -68,7 +68,7 @@ private:
 	//Called after render loop
 	virtual void End() = 0;
 	//For Imgui components
-	void DrawGUI() {}
+	void UpdateGUI() {}
 };
 
 class AnimatedBGRenderer : public Renderer<AnimatedBGRenderer>
@@ -105,7 +105,7 @@ public:
 		printf("Shutting down AnimatedBGRenderer");
 	}
 	
-	void DrawGUI()
+	void UpdateGUI()
 	{
 		ImGui::Begin("Test Window");
 		ImGui::Text("Hello World");
