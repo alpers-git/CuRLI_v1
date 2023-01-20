@@ -26,6 +26,7 @@ namespace gui
 		ImGui::Render();
 		ImGuiIO& io = ImGui::GetIO();
 		glViewport(0, 0, (GLsizei)io.DisplaySize.x, (GLsizei)io.DisplaySize.y);
+		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 	}
 
 	void TerminateImgui()

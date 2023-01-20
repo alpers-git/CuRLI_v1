@@ -28,7 +28,6 @@ public:
 private:
 	GLFWHandler();
 	~GLFWHandler();
-	bool running;
 	GLFWwindow* windowHandle=NULL;
 };
 

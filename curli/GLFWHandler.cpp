@@ -3,7 +3,6 @@
 
 GLFWHandler::GLFWHandler()
 {
-	running = false;
 }
 
 GLFWHandler::~GLFWHandler()
@@ -17,7 +16,6 @@ void GLFWHandler::InitAndCreateWindow(int width, int height, const char* title)
 		std::cout << "Failed to initialize GLFW" << std::endl;
 		return;
 	}
-	running = true;
 	windowHandle = glfwCreateWindow(width, height, title, NULL, NULL);
 	glfwMakeContextCurrent(windowHandle);
 	glfwSwapInterval(1); // Enable vsync
@@ -32,13 +30,12 @@ void GLFWHandler::Update()
 void GLFWHandler::Close()
 {
 	glfwTerminate();
-	running = false;
 }
 
 
 bool GLFWHandler::IsRunning()
 {
-	return running;
+	return !glfwWindowShouldClose(windowHandle);
 }
 
 void GLFWHandler::SetWindowSize(int width, int height)
@@ -74,5 +71,3 @@ void GLFWHandler::SetKeyboardCallback(GLFWkeyfun callback)
 {
 	glfwSetKeyCallback(windowHandle, callback);
 }
-
-// Path: GLFWHandler.h
