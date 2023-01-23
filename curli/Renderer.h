@@ -4,8 +4,50 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
+#include <cyTriMesh.h>
 
-//Implement a renderer class with Init, Render, Shutdown functions
+struct Shader
+{
+	GLuint glID;
+	char* source;
+
+	Shader(char* source = nullptr)
+		:source(source)
+	{
+		glID = 0;
+	}
+	
+	~Shader()
+	{
+		if(!source)
+			delete[] source;
+		glDeleteShader(glID);
+	}
+
+	bool Compile()
+	{
+		glShaderSource(glID, 1, &source, NULL);
+		glCompileShader(glID);
+		int success;
+		char infoLog[512];
+		glGetShaderiv(glID, GL_COMPILE_STATUS, &success);
+		if (!success)
+		{
+			glGetShaderInfoLog(glID, 512, NULL, infoLog);
+			std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
+			return false;
+		}
+		return true;
+	}
+	
+	void AttachShader(GLuint program)
+	{
+		glAttachShader(program, glID);
+	}
+		
+	
+};
+
 template <class T>
 class Renderer
 {
@@ -21,8 +63,9 @@ public:
 			std::cout << "Failed to initialize OpenGL context" << std::endl;
 			return;
 		}
-		static_cast<T*>(this)->Start();
+		program = glCreateProgram();
 		glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
+		static_cast<T*>(this)->Start();
 	}
 	
 	//Renders the Scene and clears the Frame
@@ -58,11 +101,13 @@ public:
 		gui::RenderImgui();
 	}
 	
-private:
+protected:
 	GLbitfield clearFlags = GL_COLOR_BUFFER_BIT;
-	glm::vec4 clearColor = glm::vec4(0.f,0.f,0.f,1.f);
+	glm::vec4 clearColor = glm::vec4(0.02f,0.5f,0.5f,1.f);
 	//unsigned int VBO, VAO, EBO;
-	//unsigned int shaderProgram;
+	GLuint program;
+	Shader vertexShader;
+	Shader fragmentShader;
 
 	/*
 	* Called before render loop
@@ -134,10 +179,18 @@ public:
 	TeapotRenderer() {}
 	~TeapotRenderer() {}
 	
-private:
 	void Start()
 	{
-		printf("Initializing TeapotRenderer");
+		printf("Initializing TeapotRenderer\n");
+		vertexShader.glID = glCreateShader(this->program);
+		fragmentShader.glID = glCreateShader(this->program);
+		
+		//create&bind vertex array object
+		glGenVertexArrays(1, &VAO);
+		glBindVertexArray(VAO);
+		
+		//
+		
 	}
 
 	void Update()
@@ -158,7 +211,16 @@ private:
 		ImGui::Begin("Test Window");
 		if (ImGui::Button("Recompile Shaders(F6)"))
 		{
-			//Recompile Shaders
+			if (vertexShader.Compile())
+			{
+				printf("Vertex Shader Recompiled Succesfully\n");
+				vertexShader.AttachShader(this->program);
+			}
+			if (fragmentShader.Compile())
+			{
+				printf("Fragment Shader Recompiled Succesfully\n");
+				fragmentShader.AttachShader(this->program);
+			}
 		}
 		if (ImGui::Button("Center Teapot"))
 		{
@@ -166,4 +228,14 @@ private:
 		}
 		ImGui::End();
 	}
+	
+	inline void SetMesh(cyTriMesh& mesh)
+	{
+		teapot = mesh;
+	}
+
+private:
+	cyTriMesh teapot;
+	GLuint VAO;
+	GLuint VBO;
 };
