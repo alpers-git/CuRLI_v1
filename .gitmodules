@@ -10,3 +10,6 @@
 [submodule "submodules/glfw"]
 	path = submodules/glfw
 	url = https://github.com/glfw/glfw.git
+[submodule "submodules/gleq"]
+	path = submodules/gleq
+	url = https://github.com/glfw/gleq.git
