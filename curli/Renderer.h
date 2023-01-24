@@ -327,6 +327,7 @@ public:
 	{
 		printf("Initializing TeapotRenderer\n");
 		clearFlags = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT; glGenVertexArrays(1, &VAO);
+
 		vertexShader.glID = glCreateShader(GL_VERTEX_SHADER);
 		fragmentShader.glID = glCreateShader(GL_FRAGMENT_SHADER);
 		
@@ -340,8 +341,8 @@ public:
 
 
 		//create&bind vertex array object
-		glGenVertexArrays(1, &VAO);
-		glBindVertexArray(VAO);
+		//glGenVertexArrays(1, &VAO);
+		//glBindVertexArray(VAO);
 
 		//create&bind vertex buffer object
 		glGenBuffers(1, &VBO);
@@ -349,11 +350,11 @@ public:
 
 		//create a glm::vec3 array of vertices from the teapot
 		float* vertices = new float[teapot.NV()*3];
-		for (int i = 0; i < teapot.NV(); i+=3)
+		for (int i = 0; i < teapot.NV(); i++)
 		{
-			vertices[i] = teapot.V(i).x;
-			vertices[i+1] = teapot.V(i).y;
-			vertices[i+2] = teapot.V(i).z;
+			vertices[i*3] = teapot.V(i).x;
+			vertices[i*3+1] = teapot.V(i).y;
+			vertices[i*3+2] = teapot.V(i).z;
 		}
 		
 		//set buffer data
@@ -372,7 +373,7 @@ public:
 		//Init camera
 		camera = Camera(glm::vec3(0.f, 0.f, 10.0f), glm::vec3(0.0f),
 			glm::vec3(0.f, 1.f, 0.f), 45.f, 0.01f, 100.f,
-			(float)windowWidth / (float)windowHeight, true);
+			(float)windowWidth / (float)windowHeight, false);
 		//create mvp matrix
 		//auto tmp = (teapot.GetBoundMax() + teapot.GetBoundMin()) *.5f;
 		//glm::vec3 center(tmp.x, tmp.y, tmp.z);
