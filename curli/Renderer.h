@@ -101,6 +101,97 @@ struct Shader
 	
 };
 
+struct Camera
+{
+private:
+	
+	glm::vec3 eye = glm::vec3(1.f);
+	glm::vec3 center = glm::vec3(0.f);
+	glm::vec3 up = glm::vec3(0.f, 1.f, 0.f);
+	float fov = 45.f;
+	float aspectRatio = 1.0f;
+	float nearPlane = 0.1f;
+	float farPlane = 100.0f;
+	bool perspective = true;
+	
+	void inline SetViewMatrix()
+	{
+		viewMatrix = glm::lookAt(eye, center, up);
+	}
+	void inline SetProjectionMatrix()
+	{
+		if (perspective)
+			projectionMatrix = glm::perspective(glm::radians(fov), aspectRatio, nearPlane, farPlane);
+		else
+			projectionMatrix = glm::ortho(-aspectRatio, aspectRatio, -1.f, 1.f, nearPlane, farPlane);
+	}
+	
+public:
+	glm::mat4 viewMatrix = glm::lookAt(eye, center, up);
+	glm::mat4 projectionMatrix = glm::perspective(glm::radians(fov), aspectRatio, nearPlane, farPlane);
+
+	Camera()
+	{}
+	Camera(glm::vec3 eye, glm::vec3 center, glm::vec3 up,
+		float fov = 45.f, float near = 0.1f, float far = 100.f, float aspectRatio = 1.f, bool perspective = true)
+		:eye(eye), center(center), up(up), fov(fov), nearPlane(near), farPlane(far), aspectRatio(aspectRatio), perspective(perspective)
+	{
+		viewMatrix = glm::lookAt(eye, center, up);
+		if(perspective)
+			projectionMatrix = glm::perspective(glm::radians(fov), aspectRatio, near, far);
+		else
+			projectionMatrix = glm::ortho(-aspectRatio, aspectRatio, -1.f, 1.f, near, far);
+	}
+	void SetPerspective(bool perspective, bool recalculate=false)
+	{
+		this->perspective = perspective;
+		if(recalculate)
+			SetProjectionMatrix();
+	}
+	void SetFOV(float fov, bool recalculate=false)
+	{
+		this->fov = fov;
+		if(recalculate)
+			SetProjectionMatrix();
+	}
+	void SetAspectRatio(float aspectRatio, bool recalculate=false)
+	{
+		this->aspectRatio = aspectRatio;
+		if(recalculate)
+			SetProjectionMatrix();
+	}
+	void SetNearPlane(float nearPlane, bool recalculate=false)
+	{
+		this->nearPlane = nearPlane;
+		if(recalculate)
+			SetProjectionMatrix();
+	}
+	void SetFarPlane(float farPlane, bool recalculate=false)
+	{
+		this->farPlane = farPlane;
+		if(recalculate)
+			SetProjectionMatrix();
+	}
+	void SetEye(glm::vec3 eye, bool recalculate=false)
+	{
+		this->eye = eye;
+		if(recalculate)
+			SetViewMatrix();
+	}
+	void SetCenter(glm::vec3 center, bool recalculate=false)
+	{
+		this->center = center;
+		if(recalculate)
+			SetViewMatrix();
+	}
+	void SetUp(glm::vec3 up, bool recalculate=false)
+	{
+		this->up = up;
+		if(recalculate)
+			SetViewMatrix();
+	}
+};
+
 template <class T>
 class Renderer
 {
@@ -246,7 +337,6 @@ public:
 		//Attach shaders
 		vertexShader.AttachShader(this->program);
 		fragmentShader.AttachShader(this->program);
-		printf("shaders %d %d\n", vertexShader.glID, fragmentShader.glID);
 
 
 		//create&bind vertex array object
@@ -273,10 +363,44 @@ public:
 		GLuint pos = glGetAttribLocation(this->program, "pos");
 		glEnableVertexAttribArray(pos);
 		glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		printf("pos: %d\n", pos);
 		
 		delete[] vertices;
 
+		int windowWidth, windowHeight;
+		glfwGetWindowSize(GLFWHandler::GetInstance().GetWindowPointer(), &windowWidth, &windowHeight);
+		teapot.ComputeBoundingBox();
+		//Init camera
+		camera = Camera(glm::vec3(0.f, 0.f, 10.0f), glm::vec3(0.0f),
+			glm::vec3(0.f, 1.f, 0.f), 45.f, 0.01f, 100.f,
+			(float)windowWidth / (float)windowHeight, true);
+		//create mvp matrix
+		//auto tmp = (teapot.GetBoundMax() + teapot.GetBoundMin()) *.5f;
+		//glm::vec3 center(tmp.x, tmp.y, tmp.z);
+		//modelMatrix = glm::translate(glm::mat4(1.0), -center);
+
+		modelMatrix = glm::scale(modelMatrix, glm::vec3(0.05f));
+		LookAtMesh();
+
+		mvp = camera.projectionMatrix * camera.viewMatrix * modelMatrix;
+		GLuint mvpID = glGetUniformLocation(this->program, "mvp");
+		glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvp[0][0]);
+
+	}
+
+	void PreUpdate()
+	{
+		int windowWidth, windowHeight;
+		glfwGetWindowSize(GLFWHandler::GetInstance().GetWindowPointer(), &windowWidth, &windowHeight);
+		camera.SetAspectRatio((float)windowWidth/(float)windowHeight, true);
+
+		//rotate around y with time
+		modelMatrix = glm::rotate(glm::mat4(1.0), -(float)glfwGetTime() * 0.5f, glm::vec3(0.f, 0.f, 1.f));
+		//modelMatrix = glm::translate(modelMatrix, center);
+		modelMatrix = glm::scale(modelMatrix, glm::vec3(0.05f));
+		mvp = camera.projectionMatrix * camera.viewMatrix * modelMatrix;
+		//upload mvp to GLSL uniform
+		GLuint mvpID = glGetUniformLocation(this->program, "mvp");
+		glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvp[0][0]);
 	}
 
 	void Update()
@@ -284,47 +408,6 @@ public:
 		//bind GLSL program
 		glUseProgram(this->program);
 		glDrawArrays(GL_POINTS, 0, teapot.NV());
-	}
-
-	void PreUpdate()
-	{
-		GLuint mvpID = glGetUniformLocation(this->program, "mvp");
-		printf("mvpID: %d\n", mvpID);
-
-		//center teapot to 0,0 using its bounding box
-		teapot.ComputeBoundingBox();
-		auto tmp = (teapot.GetBoundMax() + teapot.GetBoundMin()) / 2.0f;
-		glm::vec3 centr(tmp.x, tmp.y, tmp.z);
-		glm::mat4 model = glm::translate(glm::mat4(1.0f), -centr);
-		//scale teapot to fit in a 1x1x1 box
-		float scale = 1.0f / glm::max(glm::max(teapot.GetBoundMax().x - teapot.GetBoundMin().x, teapot.GetBoundMax().y - teapot.GetBoundMin().y), teapot.GetBoundMax().z - teapot.GetBoundMin().z);
-		model = glm::scale(model, glm::vec3(scale, scale, scale));
-		
-		//create view matrix
-		glm::mat4 view = glm::lookAt(
-			glm::vec3(0.0f, 0.0f, 3.0f), //camera position
-			glm::vec3(0.0f, 0.0f, 0.0f), //look at
-			glm::vec3(0.0f, 1.0f, 0.0f)  //up
-		);
-		GLFWHandler& glfw = GLFWHandler::GetInstance();
-		int windowWidth, windowHeight;
-		glfwGetWindowSize(glfw.GetWindowPointer(), &windowWidth, &windowHeight);
-		
-		//create projection matrix
-		glm::mat4 projection = glm::perspective(
-			glm::radians(45.0f), //fov
-			(float)windowWidth / (float)windowHeight, //aspect ratio
-			0.1f, //near plane
-			100.0f //far plane
-		);
-		
-		//create mvp matrix
-		mvp = projection * view * model;
-		
-		
-
-		//upload mvp to GLSL uniform
-		glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvp[0][0]);
 	}
 
 	void End()
@@ -335,6 +418,11 @@ public:
 	void UpdateGUI()
 	{
 		ImGui::Begin("Control panel");
+		if (ImGui::Button("Read Shader Files"))
+		{
+			vertexShader.SetSourceFromFile("../assets/shaders/simple/shader.vert");
+			fragmentShader.SetSourceFromFile("../assets/shaders/simple/shader.frag");
+		}
 		if (ImGui::Button("Recompile Shaders(F6)"))
 		{
 			if (vertexShader.Compile())
@@ -348,9 +436,9 @@ public:
 				fragmentShader.AttachShader(this->program);
 			}
 		}
-		if (ImGui::Button("Center Teapot"))
+		if (ImGui::Button("Look at Teapot"))
 		{
-			//Center Teapot
+			LookAtMesh();
 		}
 		ImGui::End();
 	}
@@ -368,9 +456,20 @@ public:
 	{
 		fragmentShader.SetSource(src);
 	}
+	inline void LookAtMesh()
+	{
+		//Find the center point of the teapot and apply the modelMatrix transform
+		auto tmp = (teapot.GetBoundMax() + teapot.GetBoundMin()) * 0.5f;
+		glm::vec3 center = glm::vec4(tmp.x, tmp.y, tmp.z, 1.0f) * modelMatrix;
+		camera.SetCenter(center);
+		camera.SetEye({ 0.0, 5.f, 0.0f});
+		camera.SetUp({ 0.f, 0.f, 1.f }, true);
+	}
 
 private:
+	Camera camera;
 	cyTriMesh teapot;
+	glm::mat4 modelMatrix = glm::mat4(1.0f);
 	glm::mat4 mvp = glm::mat4(1.0f);
 	GLuint VAO;
 	GLuint VBO;
