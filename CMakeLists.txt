@@ -55,7 +55,8 @@ include_directories(
 #========== Targets Configurations ===========#
 add_executable(curli 
     curli/EntryPoint.cpp
-    curli/GLFWHandler.cpp)
+    curli/GLFWHandler.cpp
+    curli/Application.cpp)
 
 # Set executable dependency libraries
 target_link_libraries(curli

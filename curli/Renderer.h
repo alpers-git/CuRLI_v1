@@ -7,6 +7,7 @@
 #include <cyTriMesh.h>
 #include <fstream>
 #include <string>
+#include <imgui.h>
 
 struct Shader
 {
@@ -254,17 +255,21 @@ protected:
 	Shader fragmentShader;
 
 	/*
+	* Parses arguments called when application starts
+	*/
+	void ParseArguments(int argc, char const* argv[]){}
+	/*
 	* Called before render loop
 	*/
 	virtual void Start() = 0;
 	/*
-	* Called During Render
-	*/
-	virtual void Update() = 0;
-	/*
 	* Called During Render after clear buffers calls
 	*/
 	virtual void PreUpdate() = 0;
+	/*
+	* Called During Render
+	*/
+	virtual void Update() = 0;
 	/*
 	* Called after render loop
 	*/
@@ -323,10 +328,20 @@ public:
 	TeapotRenderer() {}
 	~TeapotRenderer() {}
 
+	//override ParseArguments
+	void ParseArguments(int argc, char const* argv[])
+	{
+		//get first argument and use that to load the mesh using cyTrimesh
+		std::string meshPath = argv[1];
+		cyTriMesh mesh;
+		mesh.LoadFromFileObj(meshPath.c_str());
+		SetMesh(mesh);
+	}
+
 	void Start()
 	{
 		printf("Initializing TeapotRenderer\n");
-		clearFlags = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT; glGenVertexArrays(1, &VAO);
+		clearFlags = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT;
 
 		vertexShader.glID = glCreateShader(GL_VERTEX_SHADER);
 		fragmentShader.glID = glCreateShader(GL_FRAGMENT_SHADER);
@@ -341,8 +356,8 @@ public:
 
 
 		//create&bind vertex array object
-		//glGenVertexArrays(1, &VAO);
-		//glBindVertexArray(VAO);
+		glGenVertexArrays(1, &VAO);
+		glBindVertexArray(VAO);
 
 		//create&bind vertex buffer object
 		glGenBuffers(1, &VBO);
@@ -426,16 +441,7 @@ public:
 		}
 		if (ImGui::Button("Recompile Shaders(F6)"))
 		{
-			if (vertexShader.Compile())
-			{
-				printf("Vertex Shader Recompiled Succesfully\n");
-				vertexShader.AttachShader(this->program);
-			}
-			if (fragmentShader.Compile())
-			{
-				printf("Fragment Shader Recompiled Succesfully\n");
-				fragmentShader.AttachShader(this->program);
-			}
+			
 		}
 		if (ImGui::Button("Look at Teapot"))
 		{
@@ -443,20 +449,44 @@ public:
 		}
 		ImGui::End();
 	}
-
+	
+	/*
+	* Sets the mesh
+	*/
 	inline void SetMesh(cyTriMesh& mesh)
 	{
 		teapot = mesh;
 		printf("Mesh with %d vertices has been set\n", teapot.NV());
 	}
-	inline void ChangeVertexShaderSrc(char* src)
+	/*
+	* Recompile the shaders
+	*/
+	inline void RecompileShaders()
 	{
-		vertexShader.SetSource(src);
+		if (vertexShader.Compile())
+		{
+			printf("Vertex Shader Recompiled Succesfully\n");
+			vertexShader.AttachShader(this->program);
+		}
+		if (fragmentShader.Compile())
+		{
+			printf("Fragment Shader Recompiled Succesfully\n");
+			fragmentShader.AttachShader(this->program);
+		}
 	}
-	inline void ChangeFragmentShaderSrc(char* src)
+	/*
+	* Reloads and recompiles shaders
+	*/
+	inline void ReloadShaders()
 	{
-		fragmentShader.SetSource(src);
+		vertexShader.SetSourceFromFile("../assets/shaders/simple/shader.vert");
+		fragmentShader.SetSourceFromFile("../assets/shaders/simple/shader.frag");
+		RecompileShaders();
 	}
+	
+	/*
+	* Points camera to mesh center
+	*/
 	inline void LookAtMesh()
 	{
 		//Find the center point of the teapot and apply the modelMatrix transform
