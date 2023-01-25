@@ -31,6 +31,7 @@ Most of these dependencies are included as submodules and compiles with CMake. O
 - Keyboard listeners where ‘esc’ is used to call glutLeaveMainLoop();
 - Setting window size, position, name and clear color during initialization.
 - Idle function where animation between two colors are generated using linear interpolation of sine value of time(ms).
+  
 Some Screenshots:
-![](./images/pr1_1.jpg | width=100)
+![]("./images/pr1_1.jpg"|width=300px)
 ![alt text](./images/pr1_2.jpg "")
