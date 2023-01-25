@@ -33,5 +33,5 @@ Most of these dependencies are included as submodules and compiles with CMake. O
 - Idle function where animation between two colors are generated using linear interpolation of sine value of time(ms).
   
 Some Screenshots:
-![]("./images/pr1_1.jpg"|width=300px)
-![alt text](./images/pr1_2.jpg "")
+<img src="./images/pr1_1.jpg" width=80%>
+<img src="./images/pr1_2.jpg" width=80%>
