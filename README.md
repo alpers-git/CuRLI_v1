@@ -1,5 +1,8 @@
 # CuRLI_v1
-CS6610 Interactive Computer Graphics HW repository. Stands for **C**omp**U**ter **R**enders **L**ot of **I**mages. It is inteded as a toy renderer
+CS6610 Interactive Computer Graphics HW repository. Stands for **C**omp**U**ter **R**enders **L**ot of **I**mages. It is inteded as a toy renderer/course-project.
+
+**Note to TAs:** If you are viewing this as a PDF it is the same document as the ReadMe.md so you may use that if it is more convinient. 
+
 
 ### Building CuRLI for Windows
 ---
@@ -27,11 +30,36 @@ Most of these dependencies are included as submodules and compiles with CMake. O
 ### Milestones
 ---
 #### Project 1 - H*llo World
-- Creating Window context
-- Keyboard listeners where ‘esc’ is used to call glutLeaveMainLoop();
-- Setting window size, position, name and clear color during initialization.
-- Idle function where animation between two colors are generated using linear interpolation of sine value of time(ms).
+###### Project 1 requirements:
+- [x] Creating Window context
+- [x] Keyboard listeners where ‘esc’ is used to call `glutLeaveMainLoop();`
+- [x] Setting window size, position, name and clear color during initialization.
+- [x] Idle function where animation between two colors are generated using linear interpolation of sine value of time(ms).
   
 Some Screenshots:
 <img src="./images/pr1_1.jpg" width=80%>
 <img src="./images/pr1_2.jpg" width=80%>
+
+---
+
+#### Project 2 - Transformations
+###### Project 2 requirements:
+- [x] Integrated `cyTriMesh` class to load .obj files from console arguments. Now path to a .obj mesh needs to be given to executable as the first argument as follows: `./curli.exe path/to/mesh`
+- [x] Implemented very simple shaders (/assets/shaders/simple/...) to transform and render vertex points in a constant single color as `GL_POINTS`.
+- [x] Implemented tarball controlled lookAt camera where `left mouse button + drag` adjusts two angles of the camera and `right mouse button + drag` adjusts the distance of the camera to *center*.
+- [x] Programmed a Imgui window and keyboard shortcuts that allows reloading(`F5`) and recompiling(`F6`) of the shader files. This means that one can edit shader files after curli launches, pressing F5 and F6 will use the edited shaders if compilation is successful.
+- [x] Imgui window also includes a button that recenters camera(`F1`) to the mesh center point.
+- [x] Pressing `P` also lets user switch between orthographic and perspective projection types.
+###### Additional Features:
+- [Curiously recurring template pattern](https://en.cppreference.com/w/cpp/language/crtp) has been utulized to have staged renderers and application.
+    - Application stages are: `Initialize()`, `Render()`, `DrawGui()`, `Terminate()`.Render and DrawGui are called in a render loop. 
+  - Each renderer `A` that implements base class `Renderer<A>` will need to override `Start()` `PreUpdate()` `Update()` and `End()`. These functions are called on various stages of the application allowing custimizable renderers to be written.
+- Also programmed a simple event dispatcher system which gets the input&windowing events by `glfw` to be queued. The queued event is resolved in render loop.
+  - Each renderer has the option to override certain event calls dispatched by the system if the fuctions are overriden they are called by the `dispatchEvent()`
+- Inside `PreUpdate()` function of this projects renderer (`TeapotRenderer`) I set the model matrix of the teapot to a rotation matrix that updates the angle over time. This causes teapot to revolve around itself.
+
+Some Screenshots:
+<img src="./images/pr2_1.png" width=80%>
+<img src="./images/pr2_2.png" width=80%>
+
+---
