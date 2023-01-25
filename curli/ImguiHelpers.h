@@ -1,3 +1,4 @@
+#pragma once
 #include <imgui.h>
 #include <glad/glad.h>
 #include <backends/imgui_impl_glfw.h>

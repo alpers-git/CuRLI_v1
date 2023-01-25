@@ -216,7 +216,7 @@ public:
 	//Renders the Scene and clears the Frame
 	void Render()
 	{
-		GLFWHandler::GetInstance().Update();
+		GLFWHandler::GetInstance().SwapBuffers();
 		//Scene changes
 		static_cast<T*>(this)->PreUpdate();
 		glClear(clearFlags);
@@ -278,6 +278,9 @@ protected:
 	* For Imgui components
 	*/
 	void UpdateGUI() {}
+	/*
+	* Called in Event loop in render loop
+	*/
 };
 
 class AnimatedBGRenderer : public Renderer<AnimatedBGRenderer>

@@ -16,14 +16,14 @@ void GLFWHandler::InitAndCreateWindow(int width, int height, const char* title)
 		std::cout << "Failed to initialize GLFW" << std::endl;
 		return;
 	}
+	
 	windowHandle = glfwCreateWindow(width, height, title, NULL, NULL);
 	glfwMakeContextCurrent(windowHandle);
-	glfwSwapInterval(1); // Enable vsync
+	glfwSwapInterval(0); // Enable vsync
 }
 
-void GLFWHandler::Update()
+void GLFWHandler::SwapBuffers()
 {
-	glfwPollEvents();
 	glfwSwapBuffers(windowHandle);
 }
 

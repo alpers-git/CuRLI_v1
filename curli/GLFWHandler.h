@@ -1,5 +1,7 @@
+#pragma once
 #include <stdio.h>
 #include <GLFW/glfw3.h>
+
 
 class GLFWHandler
 {
@@ -12,7 +14,7 @@ public:
 	GLFWHandler(GLFWHandler const&) = delete;
 	void operator=(GLFWHandler const&) = delete;
 	void InitAndCreateWindow(int width=800, int height=600, const char* title="CuRLI");
-	void Update();
+	void SwapBuffers();
 	void Close();
 	bool IsRunning();
 	void SetWindowSize(int width, int height);
@@ -21,6 +23,11 @@ public:
 	void SetWindowIcon(const char* path);
 	void SetWindowIcon(const char* path, int width, int height);
 	void SetKeyboardCallback(GLFWkeyfun callback);
+	template<typename R>
+	void DispatchEvents(R& renderer)
+	{
+		glfwPollEvents();
+	}
 
 	
 	inline GLFWwindow* GetWindowPointer() { return windowHandle; }

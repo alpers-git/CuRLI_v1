@@ -49,6 +49,7 @@ target_include_directories("ImGui" PUBLIC ${IMGUI_PATH} ${IMGUI_PATH}/backends g
 include_directories(
     submodules/imgui
     submodules/glfw/include
+    submodules/gleq
     submodules/cyCodeBase
     curli
 )

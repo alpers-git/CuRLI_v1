@@ -1,38 +1,43 @@
 #pragma once
 #include "Renderer.h"
-#include <queue>
+#include <ImguiHelpers.h>
 
-
-struct Event
-{
-	//todo
-};
-
-//Implement a singleton EventHandler class
-class EventHandler
-{
-public:
-	static EventHandler& GetInstance()
-	{
-		static EventHandler instance;
-		return instance;
-	}
-	EventHandler(EventHandler const&) = delete;
-	void operator=(EventHandler const&) = delete;
-private:
-	std::queue<Event> eventQueue;
-	EventHandler();
-	~EventHandler();
-};
-
-
+template <class T>
 class Application
 {
 public:
-	Application(int argc, char const* argv[]);
-	~Application();
+	Application(int argc, char const* argv[]) 
+	{
+		renderer.ParseArguments(argc, argv);
+	}
+	~Application() {}
 
-	void Run();
+	void Run() 
+	{
+		auto& windowManager = GLFWHandler::GetInstance();
+		windowManager.InitAndCreateWindow(1280, 720, "CuRLI");
+
+		renderer.Initialize();
+
+		//Init imgui
+		gui::InitImgui(windowManager.GetWindowPointer());
+
+		//Create a rendering loop with glfw
+		while (windowManager.IsRunning())
+		{
+			//Render the scene
+			renderer.Render();
+
+			//Draw the GUI
+			renderer.DrawGUI();
+
+			//Event handling
+			windowManager.DispatchEvents(renderer);
+		}
+
+		gui::TerminateImgui();
+		renderer.Terminate();
+	}
 private:
-	TeapotRenderer renderer;
+	T renderer;
 };
