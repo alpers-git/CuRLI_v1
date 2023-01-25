@@ -115,22 +115,29 @@ private:
 	float farPlane = 100.0f;
 	bool perspective = true;
 	
-	void inline SetViewMatrix()
+	bool viewDirty = false;
+	bool projectionDirty = false;
+
+	glm::mat4 viewMatrix = glm::lookAt(eye, center, up);
+	glm::mat4 projectionMatrix = glm::perspective(glm::radians(fov), aspectRatio, nearPlane, farPlane);
+	
+	
+	void inline CalculateViewMatrix()
 	{
 		viewMatrix = glm::lookAt(eye, center, up);
+		viewDirty = false;
 	}
-	void inline SetProjectionMatrix()
+	void inline CalculateProjectionMatrix()
 	{
 		if (perspective)
 			projectionMatrix = glm::perspective(glm::radians(fov), aspectRatio, nearPlane, farPlane);
 		else
 			projectionMatrix = glm::ortho(-aspectRatio, aspectRatio, -1.f, 1.f, nearPlane, farPlane);
+
+		projectionDirty = false;
 	}
 	
 public:
-	glm::mat4 viewMatrix = glm::lookAt(eye, center, up);
-	glm::mat4 projectionMatrix = glm::perspective(glm::radians(fov), aspectRatio, nearPlane, farPlane);
-
 	Camera()
 	{}
 	Camera(glm::vec3 eye, glm::vec3 center, glm::vec3 up,
@@ -147,55 +154,85 @@ public:
 	{
 		this->perspective = perspective;
 		if(recalculate)
-			SetProjectionMatrix();
+			CalculateProjectionMatrix();
+		projectionDirty =!recalculate;
 	}
 	void SetFOV(float fov, bool recalculate=false)
 	{
 		this->fov = fov;
 		if(recalculate)
-			SetProjectionMatrix();
+			CalculateProjectionMatrix();
+		projectionDirty =!recalculate;
 	}
 	void SetAspectRatio(float aspectRatio, bool recalculate=false)
 	{
 		this->aspectRatio = aspectRatio;
 		if(recalculate)
-			SetProjectionMatrix();
+			CalculateProjectionMatrix();
+		projectionDirty =!recalculate;
 	}
 	void SetNearPlane(float nearPlane, bool recalculate=false)
 	{
 		this->nearPlane = nearPlane;
 		if(recalculate)
-			SetProjectionMatrix();
+			CalculateProjectionMatrix();
+		projectionDirty =!recalculate;
 	}
 	void SetFarPlane(float farPlane, bool recalculate=false)
 	{
 		this->farPlane = farPlane;
 		if(recalculate)
-			SetProjectionMatrix();
+			CalculateProjectionMatrix();
+		projectionDirty =!recalculate;
 	}
 	void SetEye(glm::vec3 eye, bool recalculate=false)
 	{
 		this->eye = eye;
 		if(recalculate)
-			SetViewMatrix();
+			CalculateViewMatrix();
+		viewDirty=!recalculate;
 	}
 	void SetCenter(glm::vec3 center, bool recalculate=false)
 	{
 		this->center = center;
 		if(recalculate)
-			SetViewMatrix();
+			CalculateViewMatrix();
+		viewDirty=!recalculate;
 	}
 	void SetUp(glm::vec3 up, bool recalculate=false)
 	{
 		this->up = up;
 		if(recalculate)
-			SetViewMatrix();
+			CalculateViewMatrix();
+		viewDirty = !recalculate;
 	}
+	glm::vec3 GetEye() { return eye; }
+	glm::vec3 GetCenter() { return center; }
+	glm::vec3 GetUp() { return up; }
+	float GetFOV() { return fov; }
+	float GetAspectRatio() { return aspectRatio; }
+	float GetNearPlane() { return nearPlane; }
+	float GetFarPlane() { return farPlane; }
+	bool IsPerspective() { return perspective; }
+	glm::mat4 GetViewMatrix()
+	{
+		if (viewDirty)
+			CalculateViewMatrix();
+		return viewMatrix;
+	}
+	glm::mat4 GetProjectionMatrix()
+	{
+		if (projectionDirty)
+			CalculateProjectionMatrix();
+		return projectionMatrix;
+	}
+	
 };
 
 template <class T>
 class Renderer
 {
+	friend class GLFWHandler;
 public:
 	Renderer()
 	{}
@@ -217,10 +254,12 @@ public:
 	void Render()
 	{
 		GLFWHandler::GetInstance().SwapBuffers();
+
 		//Scene changes
 		static_cast<T*>(this)->PreUpdate();
+
 		glClear(clearFlags);
-		//Post processing
+		//Rendering
 		static_cast<T*>(this)->Update();
 	}
 	//Cleans up after render loop exits
@@ -258,6 +297,7 @@ protected:
 	* Parses arguments called when application starts
 	*/
 	void ParseArguments(int argc, char const* argv[]){}
+//==============================================================
 	/*
 	* Called before render loop
 	*/
@@ -274,13 +314,49 @@ protected:
 	* Called after render loop
 	*/
 	virtual void End() = 0;
+//==============================================================
 	/*
 	* For Imgui components
 	*/
 	void UpdateGUI() {}
+//==============================================================
 	/*
-	* Called in Event loop in render loop
+	* Called by DispatchEvent when window is resized
 	*/
+	void OnWindowResize(int w, int h) {};
+	/*
+	* Called by DispatchEvent when window is moved
+	*/
+	void OnWindowMove(int x, int y) {};
+	/*
+	* Called by DispatchEvent when window is focused
+	*/
+	void OnWindowFocus(bool focused) {};
+	/*
+	* Called by DispatchEvent when window is iconified
+	*/
+	void OnWindowIconify(bool iconified) {};
+	/*
+	* Called by DispatchEvent when window is maximized
+	*/
+	void OnWindowMaximize(bool maximized) {};
+	/*
+	* Called by DispatchEvent when mouse buttons are used
+	*/
+	void OnMouseButton(int button, int action, int mods) {};
+	/*
+	* Called by DispatchEvent when mouse is scrolled
+	*/
+	void OnMouseScroll(double xoffset, double yoffset) {};
+	/*
+	* Called by DispatchEvent when mouse is moved
+	*/
+	void OnMouseMove(double xpos, double ypos) {};
+	/*
+	* Called by DispatchEvent when keyboard is used
+	*/
+	void OnKeyboard(int key, int scancode, int action, int mods) {};
+	
 };
 
 class AnimatedBGRenderer : public Renderer<AnimatedBGRenderer>
@@ -292,6 +368,10 @@ public:
 	void Start()
 	{
 		printf("Initializing AnimatedBGRenderer");
+	}
+	
+	void PreUpdate()
+	{
 	}
 
 	void Update()
@@ -308,9 +388,6 @@ public:
 			value), 1.0f));
 	}
 
-	void PreUpdate()
-	{
-	}
 
 	void End()
 	{
@@ -322,6 +399,12 @@ public:
 		ImGui::Begin("Test Window");
 		ImGui::Text("Hello World");
 		ImGui::End();
+	}
+	void OnKeyboard(int key, int scancode, int action, int mods)
+	{
+		// if GLFW_ESC is pressed exit the application
+		if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+			glfwSetWindowShouldClose(GLFWHandler::GetInstance().GetWindowPointer(), true);
 	}
 };
 
@@ -390,8 +473,8 @@ public:
 		teapot.ComputeBoundingBox();
 		//Init camera
 		camera = Camera(glm::vec3(0.f, 0.f, 10.0f), glm::vec3(0.0f),
-			glm::vec3(0.f, 1.f, 0.f), 45.f, 0.01f, 100.f,
-			(float)windowWidth / (float)windowHeight, false);
+			glm::vec3(0.f, 1.f, 0.f), 45.f, 0.01f, 100000.f,
+			(float)windowWidth / (float)windowHeight, true);
 		//create mvp matrix
 		//auto tmp = (teapot.GetBoundMax() + teapot.GetBoundMin()) *.5f;
 		//glm::vec3 center(tmp.x, tmp.y, tmp.z);
@@ -400,7 +483,7 @@ public:
 		modelMatrix = glm::scale(modelMatrix, glm::vec3(0.05f));
 		LookAtMesh();
 
-		mvp = camera.projectionMatrix * camera.viewMatrix * modelMatrix;
+		mvp = camera.GetProjectionMatrix() * camera.GetViewMatrix() * modelMatrix;
 		GLuint mvpID = glGetUniformLocation(this->program, "mvp");
 		glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvp[0][0]);
 
@@ -408,15 +491,12 @@ public:
 
 	void PreUpdate()
 	{
-		int windowWidth, windowHeight;
-		glfwGetWindowSize(GLFWHandler::GetInstance().GetWindowPointer(), &windowWidth, &windowHeight);
-		camera.SetAspectRatio((float)windowWidth/(float)windowHeight, true);
-
 		//rotate around y with time
 		modelMatrix = glm::rotate(glm::mat4(1.0), -(float)glfwGetTime() * 0.5f, glm::vec3(0.f, 0.f, 1.f));
-		//modelMatrix = glm::translate(modelMatrix, center);
-		modelMatrix = glm::scale(modelMatrix, glm::vec3(0.05f));
-		mvp = camera.projectionMatrix * camera.viewMatrix * modelMatrix;
+		modelMatrix = glm::scale(modelMatrix, glm::vec3(0.05f) * 
+			(camera.IsPerspective() ? 1.f : 1.f/glm::length(camera.GetEye())) );
+
+		mvp = camera.GetProjectionMatrix() * camera.GetViewMatrix() * modelMatrix;
 		//upload mvp to GLSL uniform
 		GLuint mvpID = glGetUniformLocation(this->program, "mvp");
 		glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvp[0][0]);
@@ -436,8 +516,10 @@ public:
 
 	void UpdateGUI()
 	{
-		ImGui::Begin("Control panel");
-		if (ImGui::Button("Read Shader Files"))
+		const ImGuiViewport* main_viewport = ImGui::GetMainViewport();
+		ImGui::SetNextWindowPos(ImVec2(main_viewport->WorkPos.x + 10, main_viewport->WorkPos.y + 10));
+		ImGui::Begin("Control panel", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
+		if (ImGui::Button("Read Shader Files(F5)"))
 		{
 			vertexShader.SetSourceFromFile("../assets/shaders/simple/shader.vert");
 			fragmentShader.SetSourceFromFile("../assets/shaders/simple/shader.frag");
@@ -446,7 +528,7 @@ public:
 		{
 			
 		}
-		if (ImGui::Button("Look at Teapot"))
+		if (ImGui::Button("Look at Teapot(F1)"))
 		{
 			LookAtMesh();
 		}
@@ -500,7 +582,65 @@ public:
 		camera.SetUp({ 0.f, 0.f, 1.f }, true);
 	}
 
+	void OnWindowResize(int w, int h)
+	{
+		camera.SetAspectRatio((float)w / (float)h);
+	}
+
+	void OnKeyboard(int key, int scancode, int action, int mods)
+	{
+		// if GLFW_ESC is pressed exit the application
+		if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+			glfwSetWindowShouldClose(GLFWHandler::GetInstance().GetWindowPointer(), true);
+		if (key == GLFW_KEY_F6 && action == GLFW_PRESS)
+			RecompileShaders();
+		if (key == GLFW_KEY_F5 && action == GLFW_PRESS)
+			ReloadShaders();
+		if (key == GLFW_KEY_F1 && action == GLFW_PRESS)
+			LookAtMesh();
+		if (key == GLFW_KEY_P && action == GLFW_PRESS)
+			camera.SetPerspective(!camera.IsPerspective());
+	}
+	
+	//Tarball camera
+	void OnMouseButton(int button, int action, int mods)
+	{
+		if (button == GLFW_MOUSE_BUTTON_LEFT && (action == GLFW_PRESS || action == GLFW_REPEAT))
+			m1Down = true;
+		else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
+			m1Down = false;
+
+		if (button == GLFW_MOUSE_BUTTON_RIGHT && (action == GLFW_PRESS || action == GLFW_REPEAT))
+			m2Down = true;
+		else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE)
+			m2Down = false;
+	}
+	//Tarball camera
+	void OnMouseMove(double x, double y)
+	{
+		glm::vec2 deltaPos(prevMousePos.x - x, prevMousePos.y - y);
+		glm::vec3 right;
+		if (m1Down)
+		{
+			right = glm::cross(camera.GetEye() - camera.GetCenter(), camera.GetUp());
+			camera.SetCenter(camera.GetCenter() - right * deltaPos.x * 0.001f -
+								camera.GetUp() * deltaPos.y * 0.005f);
+		}
+		if (m2Down)
+		{
+			camera.SetEye(camera.GetEye() + 
+				glm::normalize(camera.GetEye() - camera.GetCenter()) * deltaPos.y * .05f);
+		}
+		prevMousePos = { x,y };
+	}
+
 private:
+	//--tarball controls--//
+	bool m1Down = false;
+	bool m2Down = false;
+	glm::vec2 prevMousePos;
+	//--------------------//
+
 	Camera camera;
 	cyTriMesh teapot;
 	glm::mat4 modelMatrix = glm::mat4(1.0f);

@@ -19,7 +19,9 @@ void GLFWHandler::InitAndCreateWindow(int width, int height, const char* title)
 	
 	windowHandle = glfwCreateWindow(width, height, title, NULL, NULL);
 	glfwMakeContextCurrent(windowHandle);
-	glfwSwapInterval(0); // Enable vsync
+	glfwSwapInterval(1); // Enable vsync
+
+	setCallbacks();
 }
 
 void GLFWHandler::SwapBuffers()
@@ -67,7 +69,112 @@ void GLFWHandler::SetWindowIcon(const char* path, int width, int height)
 	glfwSetWindowIcon(images[0]);*/
 }
 
-void GLFWHandler::SetKeyboardCallback(GLFWkeyfun callback)
+void GLFWHandler::setCallbacks()
 {
-	glfwSetKeyCallback(windowHandle, callback);
+	/*glfwSetWindowCloseCallback(windowHandle,
+		[](GLFWwindow* window)
+		{
+			Event event;
+			event.type = Event::Type::WindowClose;
+			GLFWHandler::GetInstance().QueueEvent(event);
+		});*/
+	
+	glfwSetWindowSizeCallback(windowHandle,
+		[](GLFWwindow* window, int width, int height)
+		{
+			Event event;
+			event.type = Event::Type::WindowResize;
+			event.windowResize.width = width;
+			event.windowResize.height = height;
+			GLFWHandler::GetInstance().QueueEvent(event);
+		});
+
+	glfwSetWindowPosCallback(windowHandle,
+		[](GLFWwindow* window, int xpos, int ypos)
+		{
+			Event event;
+			event.type = Event::Type::WindowMove;
+			event.windowMove.x = xpos;
+			event.windowMove.y = ypos;
+			GLFWHandler::GetInstance().QueueEvent(event);
+		});
+	
+	glfwSetWindowFocusCallback(windowHandle,
+		[](GLFWwindow* window, int focused)
+		{
+			Event event;
+			event.type = Event::Type::WindowFocus;
+			event.windowFocus.focused = focused;
+			GLFWHandler::GetInstance().QueueEvent(event);
+		});
+
+	glfwSetWindowIconifyCallback(windowHandle,
+		[](GLFWwindow* window, int iconified)
+		{
+			Event event;
+			event.type = Event::Type::WindowIconify;
+			event.windowIconify.iconified = iconified;
+			GLFWHandler::GetInstance().QueueEvent(event);
+		});
+	
+	glfwSetWindowMaximizeCallback(windowHandle,
+		[](GLFWwindow* window, int maximized)
+		{
+			Event event;
+			event.type = Event::Type::WindowMaximize;
+			event.windowMaximize.maximized = maximized;
+			GLFWHandler::GetInstance().QueueEvent(event);
+		});
+
+	glfwSetKeyCallback(windowHandle,
+		[](GLFWwindow* window, int key, int scancode, int action, int mods)
+		{
+			Event event;
+			event.type = Event::Type::Keyboard;
+			event.keyboard.key = key;
+			event.keyboard.scancode = scancode;
+			event.keyboard.action = action;
+			event.keyboard.mods = mods;
+			GLFWHandler::GetInstance().QueueEvent(event);
+		});
+
+	glfwSetCharCallback(windowHandle,
+		[](GLFWwindow* window, unsigned int codepoint)
+		{
+			Event event;
+			event.type = Event::Type::Char;
+			event.character.codepoint = codepoint;
+			GLFWHandler::GetInstance().QueueEvent(event);
+		});
+	
+	glfwSetMouseButtonCallback(windowHandle,
+		[](GLFWwindow* window, int button, int action, int mods)
+		{
+			Event event;
+			event.type = Event::Type::MouseButton;
+			event.mouseButton.button = button;
+			event.mouseButton.action = action;
+			event.mouseButton.mods = mods;
+			GLFWHandler::GetInstance().QueueEvent(event);
+		});
+	
+	glfwSetCursorPosCallback(windowHandle,
+		[](GLFWwindow* window, double xpos, double ypos)
+		{
+			Event event;
+			event.type = Event::Type::MouseMove;
+			event.mouseMove.x = xpos;
+			event.mouseMove.y = ypos;
+			GLFWHandler::GetInstance().QueueEvent(event);
+		});
+	
+	glfwSetScrollCallback(windowHandle,
+		[](GLFWwindow* window, double xoffset, double yoffset)
+		{
+			Event event;
+			event.type = Event::Type::MouseScroll;
+			event.mouseScroll.x = xoffset;
+			event.mouseScroll.y = yoffset;
+			GLFWHandler::GetInstance().QueueEvent(event);
+		});
 }
