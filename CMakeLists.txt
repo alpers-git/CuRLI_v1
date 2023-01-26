@@ -22,7 +22,6 @@ add_subdirectory(submodules/glm EXCLUDE_FROM_ALL)
 #--------------------GLAD---------------------#
 #https://glad.dav1d.de/#language=c&specification=gl&api=gl%3D4.6&api=gles1%3Dnone&api=gles2%3Dnone&api=glsc2%3Dnone&profile=compatibility&loader=on
 add_subdirectory(submodules/glad/)
-
 #----------------------------------------------#
 
 #--------------------GLFW---------------------#
@@ -46,24 +45,28 @@ add_library("ImGui" STATIC ${IMGUI_SOURCES}
 target_include_directories("ImGui" PUBLIC ${IMGUI_PATH} ${IMGUI_PATH}/backends glfw)
 #----------------------------------------------#
 
+#--------------------EnTT---------------------#
+add_subdirectory(submodules/entt)
+#---------------------------------------------#
+
 include_directories(
     submodules/imgui
     submodules/glfw/include
     submodules/cyCodeBase
-    submodules/entt/single_inlude
     curli
 )
 #========== Targets Configurations ===========#
 add_executable(curli 
     curli/EntryPoint.cpp
     curli/GLFWHandler.cpp
-    curli/Application.cpp)
-
+    curli/Scene.cpp)
+    
 # Set executable dependency libraries
 target_link_libraries(curli
     PRIVATE ${OPENGL_LIBRARIES}
     PRIVATE glad
     PRIVATE glfw
     PRIVATE glm::glm
+    PRIVATE EnTT::EnTT
     PUBLIC ImGui
 )

@@ -2,6 +2,7 @@
 #include "Renderer.h"
 #include <ImguiHelpers.h>
 
+
 template <class T>
 class Application
 {
@@ -14,6 +15,7 @@ public:
 
 	void Run() 
 	{
+		//Create a window with glfw
 		auto& windowManager = GLFWHandler::GetInstance();
 		windowManager.InitAndCreateWindow(1280, 720, "CuRLI");
 
