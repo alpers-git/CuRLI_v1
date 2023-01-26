@@ -50,6 +50,7 @@ include_directories(
     submodules/imgui
     submodules/glfw/include
     submodules/cyCodeBase
+    submodules/entt/single_inlude
     curli
 )
 #========== Targets Configurations ===========#
