@@ -1,4 +1,5 @@
 #pragma once
+//#include <Scene.h>
 #include "Renderer.h"
 #include <ImguiHelpers.h>
 
@@ -9,7 +10,9 @@ class Application
 public:
 	Application(int argc, char const* argv[]) 
 	{
-		renderer.ParseArguments(argc, argv);
+		Scene scene;
+		renderer = new T(scene);
+		renderer->ParseArguments(argc, argv);
 	}
 	~Application() {}
 
@@ -19,7 +22,7 @@ public:
 		auto& windowManager = GLFWHandler::GetInstance();
 		windowManager.InitAndCreateWindow(1280, 720, "CuRLI");
 
-		renderer.Initialize();
+		renderer->Initialize();
 
 		//Init imgui
 		gui::InitImgui(windowManager.GetWindowPointer());
@@ -28,18 +31,18 @@ public:
 		while (windowManager.IsRunning())
 		{
 			//Render the scene
-			renderer.Render();
+			renderer->Render();
 
 			//Draw the GUI
-			renderer.DrawGUI();
+			renderer->DrawGUI();
 
 			//Event handling
-			windowManager.DispatchEvents(renderer);
+			windowManager.DispatchEvents(*renderer);
 		}
 
 		gui::TerminateImgui();
-		renderer.Terminate();
+		renderer->Terminate();
 	}
 private:
-	T renderer;
+	T* renderer;
 };

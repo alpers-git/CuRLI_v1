@@ -130,3 +130,65 @@ public:
 	}
 
 };
+
+struct CTransform
+{
+public:
+	//getter and setters
+	void SetPosition(glm::vec3 position, bool recalculate = false)
+	{
+		this->position = position;
+		if (recalculate)
+			CalculateModelMatrix();
+		modelDirty = !recalculate;
+	}
+	void SetRotation(glm::vec3 rotation, bool recalculate = false)
+	{
+		this->rotation = rotation;
+		if (recalculate)
+			CalculateModelMatrix();
+		modelDirty = !recalculate;
+	}
+	void SetScale(glm::vec3 scale, bool recalculate = false)
+	{
+		this->scale = scale;
+		if (recalculate)
+			CalculateModelMatrix();
+		modelDirty = !recalculate;
+	}
+	glm::vec3 GetPosition() { return position; }
+	glm::vec3 GetRotation() { return rotation; }
+	glm::vec3 GetScale() { return scale; }
+	glm::mat4 GetModelMatrix()
+	{
+		if (modelDirty)
+			CalculateModelMatrix();
+		return modelMatrix;
+	}
+	
+	void CalculateModelMatrix()
+	{
+		modelMatrix = glm::translate(glm::mat4(1.f), position);
+		modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.x), glm::vec3(1.f, 0.f, 0.f));//TODO!!!
+		modelMatrix = glm::scale(modelMatrix, scale);
+		
+	}
+private:
+	glm::vec3 position = glm::vec3(0.f);
+	glm::vec3 rotation = glm::vec3(0.f);
+	glm::vec3 scale = glm::vec3(1.f);
+
+	glm::mat4 modelMatrix = glm::mat4(1.f);
+	bool modelDirty = false;
+
+};
+
+class Scene
+{
+public:
+	Scene();
+	~Scene();
+
+private:
+	entt::registry registry;
+};

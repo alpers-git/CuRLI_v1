@@ -1,14 +1,12 @@
 #pragma once
+#include <Scene.h>
 #include <glad/glad.h>
 #include <GLFWHandler.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <cyTriMesh.h>
 #include <fstream>
 #include <string>
 #include <imgui.h>
-#include <Scene.h>
 
 struct Shader
 {
@@ -108,7 +106,8 @@ class Renderer
 {
 	friend class GLFWHandler;
 public:
-	Renderer()
+	Renderer(Scene& scene)
+		:scene(scene)
 	{}
 	~Renderer() 
 	{}
@@ -166,6 +165,7 @@ protected:
 	GLuint program;
 	Shader vertexShader;
 	Shader fragmentShader;
+	Scene& scene;
 
 	/*
 	* Parses arguments called when application starts
@@ -236,7 +236,7 @@ protected:
 class AnimatedBGRenderer : public Renderer<AnimatedBGRenderer>
 {
 public:
-	AnimatedBGRenderer() {}
+	AnimatedBGRenderer(Scene& scene) :Renderer(scene) {}
 	~AnimatedBGRenderer() {}
 
 	void Start()
@@ -285,7 +285,7 @@ public:
 class TeapotRenderer : public Renderer<TeapotRenderer>
 {
 public:
-	TeapotRenderer() {}
+	TeapotRenderer(Scene& scene) :Renderer(scene) {}
 	~TeapotRenderer() {}
 
 	//override ParseArguments
