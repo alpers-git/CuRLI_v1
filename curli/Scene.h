@@ -2,33 +2,87 @@
 #include <entt/entt.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-
+#include <glm/gtx/euler_angles.hpp>
+#include <cyTriMesh.h>
+#include <CyToGLMHelper.h>
 
 struct Camera
 {
-private:
+public:
+	Camera(float fov = 45.f, float near = 0.1f, float far = 100.f, float aspectRatio = 1.f, bool perspective = true)
+	:fov(fov), nearPlane(near), farPlane(far), aspectRatio(aspectRatio), perspective(perspective)
+	{
+		CalculateProjectionMatrix();
+	}
+	
+	float GetFOV() { return fov; }
+	float GetAspectRatio() { return aspectRatio; }
+	float GetNearPlane() { return nearPlane; }
+	float GetFarPlane() { return farPlane; }
+	bool IsPerspective() { return perspective; }
+	glm::mat4 GetViewMatrix()
+	{
+		if (viewDirty)
+			CalculateViewMatrix();
+		return viewMatrix;
+	}
+	glm::mat4 GetProjectionMatrix()
+	{
+		if (projectionDirty)
+			CalculateProjectionMatrix();
+		return projectionMatrix;
+	}
 
-	glm::vec3 eye = glm::vec3(1.f);
-	glm::vec3 center = glm::vec3(0.f);
-	glm::vec3 up = glm::vec3(0.f, 1.f, 0.f);
+	void inline SetPerspective(bool perspective, bool recalculate = false)
+	{
+		this->perspective = perspective;
+		if (recalculate)
+			CalculateProjectionMatrix();
+		projectionDirty = !recalculate;
+	}
+	void inline SetFOV(float fov, bool recalculate = false)
+	{
+		this->fov = fov;
+		if (recalculate)
+			CalculateProjectionMatrix();
+		projectionDirty = !recalculate;
+	}
+	void inline SetAspectRatio(float aspectRatio, bool recalculate = false)
+	{
+		this->aspectRatio = aspectRatio;
+		if (recalculate)
+			CalculateProjectionMatrix();
+		projectionDirty = !recalculate;
+	}
+	void inline SetNearPlane(float nearPlane, bool recalculate = false)
+	{
+		this->nearPlane = nearPlane;
+		if (recalculate)
+			CalculateProjectionMatrix();
+		projectionDirty = !recalculate;
+	}
+	void inline SetFarPlane(float farPlane, bool recalculate = false)
+	{
+		this->farPlane = farPlane;
+		if (recalculate)
+			CalculateProjectionMatrix();
+		projectionDirty = !recalculate;
+	}
+	
+protected:
 	float fov = 45.f;
 	float aspectRatio = 1.0f;
 	float nearPlane = 0.1f;
 	float farPlane = 100.0f;
 	bool perspective = true;
-
+	
 	bool viewDirty = false;
 	bool projectionDirty = false;
 
-	glm::mat4 viewMatrix = glm::lookAt(eye, center, up);
-	glm::mat4 projectionMatrix = glm::perspective(glm::radians(fov), aspectRatio, nearPlane, farPlane);
-
-
-	void inline CalculateViewMatrix()
-	{
-		viewMatrix = glm::lookAt(eye, center, up);
-		viewDirty = false;
-	}
+	glm::mat4 viewMatrix;
+	glm::mat4 projectionMatrix;
+	
+	virtual void inline CalculateViewMatrix() = 0;
 	void inline CalculateProjectionMatrix()
 	{
 		if (perspective)
@@ -38,55 +92,37 @@ private:
 
 		projectionDirty = false;
 	}
+};
+struct LookAtCamera : Camera
+{
+private:
 
-public:
-	Camera()
-	{}
-	Camera(glm::vec3 eye, glm::vec3 center, glm::vec3 up,
-		float fov = 45.f, float near = 0.1f, float far = 100.f, float aspectRatio = 1.f, bool perspective = true)
-		:eye(eye), center(center), up(up), fov(fov), nearPlane(near), farPlane(far), aspectRatio(aspectRatio), perspective(perspective)
+	glm::vec3 eye = glm::vec3(1.f);
+	glm::vec3 center = glm::vec3(0.f);
+	glm::vec3 up = glm::vec3(0.f, 1.f, 0.f);
+
+	void inline CalculateViewMatrix()
 	{
 		viewMatrix = glm::lookAt(eye, center, up);
-		if (perspective)
-			projectionMatrix = glm::perspective(glm::radians(fov), aspectRatio, near, far);
-		else
-			projectionMatrix = glm::ortho(-aspectRatio, aspectRatio, -1.f, 1.f, near, far);
+		viewDirty = false;
 	}
-	void SetPerspective(bool perspective, bool recalculate = false)
+
+public:
+	LookAtCamera()
+		:Camera()
+	{}
+	LookAtCamera(glm::vec3 eye, glm::vec3 center, glm::vec3 up,
+		float fov = 45.f, float near = 0.1f, float far = 100.f, float aspectRatio = 1.f, bool perspective = true)
+		:eye(eye), center(center), up(up), Camera(fov,near,far,aspectRatio,perspective)
 	{
-		this->perspective = perspective;
-		if (recalculate)
-			CalculateProjectionMatrix();
-		projectionDirty = !recalculate;
+		this->CalculateViewMatrix();
+		this->CalculateProjectionMatrix();
 	}
-	void SetFOV(float fov, bool recalculate = false)
-	{
-		this->fov = fov;
-		if (recalculate)
-			CalculateProjectionMatrix();
-		projectionDirty = !recalculate;
-	}
-	void SetAspectRatio(float aspectRatio, bool recalculate = false)
-	{
-		this->aspectRatio = aspectRatio;
-		if (recalculate)
-			CalculateProjectionMatrix();
-		projectionDirty = !recalculate;
-	}
-	void SetNearPlane(float nearPlane, bool recalculate = false)
-	{
-		this->nearPlane = nearPlane;
-		if (recalculate)
-			CalculateProjectionMatrix();
-		projectionDirty = !recalculate;
-	}
-	void SetFarPlane(float farPlane, bool recalculate = false)
-	{
-		this->farPlane = farPlane;
-		if (recalculate)
-			CalculateProjectionMatrix();
-		projectionDirty = !recalculate;
-	}
+	
+	glm::vec3 GetEye() { return eye; }
+	glm::vec3 GetCenter() { return center; }
+	glm::vec3 GetUp() { return up; }
+	
 	void SetEye(glm::vec3 eye, bool recalculate = false)
 	{
 		this->eye = eye;
@@ -108,27 +144,58 @@ public:
 			CalculateViewMatrix();
 		viewDirty = !recalculate;
 	}
-	glm::vec3 GetEye() { return eye; }
-	glm::vec3 GetCenter() { return center; }
-	glm::vec3 GetUp() { return up; }
-	float GetFOV() { return fov; }
-	float GetAspectRatio() { return aspectRatio; }
-	float GetNearPlane() { return nearPlane; }
-	float GetFarPlane() { return farPlane; }
-	bool IsPerspective() { return perspective; }
-	glm::mat4 GetViewMatrix()
+};
+struct OrbitCamera : Camera
+{
+public:
+	OrbitCamera(glm::vec3 center = glm::vec3(0.f,0.f,0.f), glm::vec3 angles = glm::vec3(0.f, 0.f, 0.f), float distance = 10.f,
+		float fov = 45.f, float near = 0.1f, float far = 100.f, float aspectRatio = 1.f, bool perspective = true)
+		:center(center), angles(angles), distance(distance), Camera(fov, near, far, aspectRatio, perspective)
 	{
-		if (viewDirty)
+		this->CalculateViewMatrix();
+		this->CalculateProjectionMatrix();
+	}
+	void inline SetCenter(glm::vec3 center, bool recalculate = false)
+	{
+		this->center = center;
+		if (recalculate)
 			CalculateViewMatrix();
-		return viewMatrix;
+		viewDirty = !recalculate;
 	}
-	glm::mat4 GetProjectionMatrix()
+	void inline SetAngles(glm::vec3 angles, bool recalculate = false)
 	{
-		if (projectionDirty)
-			CalculateProjectionMatrix();
-		return projectionMatrix;
+		this->angles = angles;
+		if (recalculate)
+			CalculateViewMatrix();
+		viewDirty = !recalculate;
 	}
-
+	void inline SetDistance(float distance, bool recalculate = false)
+	{
+		this->distance = distance;
+		if (recalculate)
+			CalculateViewMatrix();
+		viewDirty = !recalculate;
+	}
+	glm::vec3 GetCenter() { return center; }
+	glm::vec3 GetAngles() { return angles; }
+	float GetDistance() { return distance; }
+private:
+	glm::vec3 center;
+	glm::vec3 angles;
+	float distance;
+	
+	void inline CalculateViewMatrix()
+	{
+		auto unitSpherePos = glm::vec3(sin(glm::radians(angles.x)) * cos(glm::radians(angles.y)),
+			sin(glm::radians(angles.y)),
+			cos(glm::radians(angles.x)) * cos(glm::radians(angles.y)));
+		bool flipY = abs(fmodf(angles.y, 360)) > 90.f && abs(fmodf(angles.y, 360)) < 270.f;
+		viewMatrix = glm::lookAt( center + distance * unitSpherePos,
+			center,
+			//Adjust the up vector to be perpendicular to the camera's direction
+			glm::normalize(glm::cross(-unitSpherePos, {0, flipY ? -1:1 ,0})));
+		viewDirty = false;
+	}
 };
 
 struct CTransform
@@ -173,6 +240,7 @@ public:
 		modelMatrix = glm::scale(modelMatrix, scale);
 		
 	}
+	
 private:
 	glm::vec3 position = glm::vec3(0.f);
 	glm::vec3 rotation = glm::vec3(0.f);
@@ -183,12 +251,41 @@ private:
 
 };
 
+struct CTriMesh
+{
+public:
+	CTriMesh(cy::TriMesh& mesh)
+		:mesh(mesh)
+	{}
+	cy::TriMesh& GetMesh() { return mesh; }
+	
+	unsigned int GetNumVertices() { return mesh.NV(); }
+	unsigned int GetNumFaces() { return mesh.NF(); }
+	glm::vec3 GetVertex(unsigned int index) { return glm::cy2GLM(mesh.V(index)); }
+	glm::vec3 GetNormal(unsigned int index) { return glm::cy2GLM(mesh.VN(index)); }
+	//glm::vec3 GetFaceNormal(unsigned int index) { return glm::cy2GLM(mesh.FN(index)); }
+
+	void LoadObj(const std::string& path)
+	{
+		mesh.LoadFromFileObj(path.c_str());
+	}
+	
+private:
+	cy::TriMesh& mesh;
+};
+
 class Scene
 {
 public:
 	Scene();
 	~Scene();
 
+	void AddEntity(entt::entity entity);
+	void RemoveEntity(entt::entity entity);
+	void AddComponent(entt::entity entity, entt::id_type component);
+	void RemoveComponent(entt::entity entity, entt::id_type component);
+
+	Camera* camera; //todo find a way...
 private:
 	entt::registry registry;
 };

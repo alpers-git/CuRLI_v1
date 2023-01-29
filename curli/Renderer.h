@@ -8,6 +8,8 @@
 #include <string>
 #include <imgui.h>
 
+//define a macro function
+
 struct Shader
 {
 	GLuint glID;
@@ -303,6 +305,8 @@ public:
 		printf("Initializing TeapotRenderer\n");
 		clearFlags = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT;
 
+		glEnable(GL_DEPTH_TEST);//!!!
+
 		vertexShader.glID = glCreateShader(GL_VERTEX_SHADER);
 		fragmentShader.glID = glCreateShader(GL_FRAGMENT_SHADER);
 		
@@ -346,18 +350,16 @@ public:
 		glfwGetWindowSize(GLFWHandler::GetInstance().GetWindowPointer(), &windowWidth, &windowHeight);
 		teapot.ComputeBoundingBox();
 		//Init camera
-		camera = Camera(glm::vec3(0.f, 0.f, 10.0f), glm::vec3(0.0f),
+		camera = OrbitCamera(glm::vec3(0.f, 0.f, 0.0f), glm::vec3(0.0f), 20,
+			45.f, 0.01f, 100000.f, (float)windowWidth / (float)windowHeight, true);
+			/*LookAtCamera(glm::vec3(0.f, 0.f, 10.0f), glm::vec3(0.0f),
 			glm::vec3(0.f, 1.f, 0.f), 45.f, 0.01f, 100000.f,
-			(float)windowWidth / (float)windowHeight, true);
-		//create mvp matrix
-		//auto tmp = (teapot.GetBoundMax() + teapot.GetBoundMin()) *.5f;
-		//glm::vec3 center(tmp.x, tmp.y, tmp.z);
-		//modelMatrix = glm::translate(glm::mat4(1.0), -center);
+			(float)windowWidth / (float)windowHeight, true);*/
 
 		modelMatrix = glm::scale(modelMatrix, glm::vec3(0.05f));
 		LookAtMesh();
 
-		mvp = camera.GetProjectionMatrix() * camera.GetViewMatrix() * modelMatrix;
+		mvp = camera.GetProjectionMatrix() * ((OrbitCamera)camera).GetViewMatrix() * modelMatrix;
 		GLuint mvpID = glGetUniformLocation(this->program, "mvp");
 		glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvp[0][0]);
 
@@ -365,12 +367,19 @@ public:
 
 	void PreUpdate()
 	{
-		//rotate around y with time
+		modelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.05f) /*
+			(camera.IsPerspective() ? 1.f : 1.f / glm::length(camera.GetEye()))*/);
 		modelMatrix = glm::rotate(glm::mat4(1.0), -(float)glfwGetTime() * 0.5f, glm::vec3(0.f, 0.f, 1.f));
+		//find the center point of the teapot
+		glm::vec3 center = glm::cy2GLM(teapot.GetBoundMax() + teapot.GetBoundMin()) * 0.5f;
+		//translate the teapot to the center
+		modelMatrix = glm::translate(modelMatrix, -center);
+		//rotate around y with time
+		/*modelMatrix = glm::rotate(glm::mat4(1.0), -(float)glfwGetTime() * 0.5f, glm::vec3(0.f, 0.f, 1.f));
 		modelMatrix = glm::scale(modelMatrix, glm::vec3(0.05f) * 
-			(camera.IsPerspective() ? 1.f : 1.f/glm::length(camera.GetEye())) );
+			(camera.IsPerspective() ? 1.f : 1.f/glm::length(camera.GetEye())) );*/
 
-		mvp = camera.GetProjectionMatrix() * camera.GetViewMatrix() * modelMatrix;
+		mvp = camera.GetProjectionMatrix() * ((OrbitCamera)camera).GetViewMatrix() * modelMatrix;
 		//upload mvp to GLSL uniform
 		GLuint mvpID = glGetUniformLocation(this->program, "mvp");
 		glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvp[0][0]);
@@ -451,9 +460,11 @@ public:
 		//Find the center point of the teapot and apply the modelMatrix transform
 		auto tmp = (teapot.GetBoundMax() + teapot.GetBoundMin()) * 0.5f;
 		glm::vec3 center = glm::vec4(tmp.x, tmp.y, tmp.z, 1.0f) * modelMatrix;
-		camera.SetCenter(center);
-		camera.SetEye({ 0.0, 5.f, 0.0f});
-		camera.SetUp({ 0.f, 0.f, 1.f }, true);
+		camera.SetCenter({ 0.f, 0.f, 0.f });
+		/*camera.SetEye({ 0.0, 25.f, 0.0f});
+		camera.SetUp({ 0.f, 0.f, 1.f }, true);*/
+		camera.SetAngles({-90.f,0.f,0.f});
+		camera.SetDistance(30.f);
 	}
 
 	void OnWindowResize(int w, int h)
@@ -476,7 +487,7 @@ public:
 			camera.SetPerspective(!camera.IsPerspective());
 	}
 	
-	//Tarball camera
+	//orbit camera
 	void OnMouseButton(int button, int action, int mods)
 	{
 		if (button == GLFW_MOUSE_BUTTON_LEFT && (action == GLFW_PRESS || action == GLFW_REPEAT))
@@ -489,33 +500,29 @@ public:
 		else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE)
 			m2Down = false;
 	}
-	//Tarball camera
+	//orbit camera
 	void OnMouseMove(double x, double y)
 	{
 		glm::vec2 deltaPos(prevMousePos.x - x, prevMousePos.y - y);
 		glm::vec3 right;
 		if (m1Down)
 		{
-			right = glm::cross(camera.GetEye() - camera.GetCenter(), camera.GetUp());
-			camera.SetCenter(camera.GetCenter() - right * deltaPos.x * 0.001f -
-								camera.GetUp() * deltaPos.y * 0.005f);
+			camera.SetAngles(camera.GetAngles() - glm::vec3(deltaPos.y * 0.05f, deltaPos.x * 0.05f, 0.f));
 		}
 		if (m2Down)
 		{
-			camera.SetEye(camera.GetEye() + 
-				glm::normalize(camera.GetEye() - camera.GetCenter()) * deltaPos.y * .05f);
+			camera.SetDistance(camera.GetDistance() + deltaPos.y * 0.05f);
 		}
 		prevMousePos = { x,y };
 	}
 
 private:
-	//--tarball controls--//
+	//--orbit controls--//
 	bool m1Down = false;
 	bool m2Down = false;
 	glm::vec2 prevMousePos;
 	//--------------------//
-
-	Camera camera;
+	OrbitCamera camera;
 	cyTriMesh teapot;
 	glm::mat4 modelMatrix = glm::mat4(1.0f);
 	glm::mat4 mvp = glm::mat4(1.0f);
