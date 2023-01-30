@@ -5,21 +5,54 @@
 #include <glm/gtx/euler_angles.hpp>
 #include <cyTriMesh.h>
 #include <CyToGLMHelper.h>
+#include <glm/gtx/log_base.hpp>
 
 struct Camera
 {
 public:
-	Camera(float fov = 45.f, float near = 0.1f, float far = 100.f, float aspectRatio = 1.f, bool perspective = true)
-	:fov(fov), nearPlane(near), farPlane(far), aspectRatio(aspectRatio), perspective(perspective)
+	Camera(glm::vec3 center = { 0.f,0.f,0.f }, glm::vec3 eye = { 10.f,0.f,0.f }, glm::vec3 up={0.f, 1.f, 0.f},
+		float fov = 45.f, float near = 0.1f, float far = 100.f,
+		float aspectRatio = 1.f, bool perspective = true)
+		:center(center), eye(eye), up(up),
+		fov(fov), nearPlane(near), farPlane(far), 
+		aspectRatio(aspectRatio), perspective(perspective)
 	{
-		CalculateProjectionMatrix();
+		this->CalculateViewMatrix();
+		this->CalculateProjectionMatrix();
 	}
+	Camera(glm::vec3 center, glm::vec3 angles, float distance,
+		float fov = 45.f, float near = 0.1f, float far = 100.f,
+		float aspectRatio = 1.f, bool perspective = true)
+		:center(center),
+		fov(fov), nearPlane(near), farPlane(far),
+		aspectRatio(aspectRatio), perspective(perspective)
+	{
+		SetOrbitAngles(angles);
+		SetOrbitDistance(distance);
+		this->CalculateViewMatrix();
+		this->CalculateProjectionMatrix();
+	}
+	
+	glm::vec3 GetCenter() { return center; }
+	
+	glm::vec3 GetLookAtEye() { return eye; }
+	glm::vec3 GetLookAtUp() { return up; }
+	
+	glm::vec3 GetOrbitAngles() 
+	{ 
+		/*return glm::vec3(glm::degrees(atan2(eye.x - center.x, eye.z - center.z)),
+			glm::degrees(atan2(eye.y - center.y, glm::length(glm::vec2(eye.x - center.x, eye.z - center.z)))),
+			0.f); */
+		return angles;
+	}
+	float GetOrbitDistance() { return glm::length(eye - center); }
 	
 	float GetFOV() { return fov; }
 	float GetAspectRatio() { return aspectRatio; }
 	float GetNearPlane() { return nearPlane; }
 	float GetFarPlane() { return farPlane; }
 	bool IsPerspective() { return perspective; }
+	
 	glm::mat4 GetViewMatrix()
 	{
 		if (viewDirty)
@@ -32,7 +65,65 @@ public:
 			CalculateProjectionMatrix();
 		return projectionMatrix;
 	}
+	
+	void inline SetCenter(glm::vec3 center, bool recalculate = false)
+	{
+		this->center = center;
+		if (recalculate)
+			CalculateViewMatrix();
+		viewDirty = !recalculate;
+	}
+	
+	void inline SetLookAtUp(glm::vec3 up, bool recalculate = false)
+	{
+		this->up = up;
+		if (recalculate)
+			CalculateViewMatrix();
+		viewDirty = !recalculate;
+	}
+	void inline SetLookAtEye(glm::vec3 eye, bool recalculate = false)
+	{
+		this->eye = eye;
+		if (recalculate)
+			CalculateViewMatrix();
+		viewDirty = !recalculate;
+	}
+	
 
+	void inline SetOrbitAngles(glm::vec3 angles, bool recalculate = false)
+	{
+		this->angles = angles;
+		//glm::mat4 R = glm::eulerAngleXY(glm::radians(angles.x), glm::radians(angles.y));
+		glm::vec3 unitSpherePos = {
+			sin(glm::radians(90 - angles.x)) * cos(glm::radians(angles.y)),
+			sin(glm::radians(90 - angles.x)) * sin(glm::radians(angles.y)),
+			cos(glm::radians(90 - angles.x))
+		};
+		//bool flipY = abs(fmodf(angles.y, 360)) > 90.f && abs(fmodf(angles.y, 360)) < 270.f;
+		auto gaze = center - eye;
+		eye = -unitSpherePos * glm::length(gaze) + center;
+		if (glm::dot(gaze, up) > 0.01f)
+		{
+			glm::vec3 u = glm::normalize(glm::cross(-glm::normalize(gaze), up));
+			up = glm::normalize(glm::cross(u, -glm::normalize(gaze)));
+		}
+		//SetLookAtEye(R * glm::length(eye - center) * glm::vec4(glm::normalize(gaze),0));
+		
+		printf("eye: %f, %f, %f center: %f, %f, %f\n", eye.x, eye.y, eye.z, center.x, center.y, center.z);
+		printf("angles: %f, %f, %f up: %f, %f, %f\n", angles.x, angles.y, angles.z, up.x, up.y, up.z);
+		if (recalculate)
+			CalculateViewMatrix();
+		viewDirty = !recalculate;
+	}
+	void inline SetOrbitDistance(float distance, bool recalculate = false)
+	{
+		eye = center + glm::normalize(eye - center) * distance;
+		if (recalculate)
+			CalculateViewMatrix();
+		viewDirty = !recalculate;
+	}
+	
+	//--------------------------------------------------------------------//
 	void inline SetPerspective(bool perspective, bool recalculate = false)
 	{
 		this->perspective = perspective;
@@ -69,7 +160,12 @@ public:
 		projectionDirty = !recalculate;
 	}
 	
-protected:
+private:
+	glm::vec3 eye = glm::vec3(1.f);
+	glm::vec3 center = glm::vec3(0.f);
+	glm::vec3 up = glm::vec3(0.f, 1.f, 0.f);
+	glm::vec3 angles;
+	
 	float fov = 45.f;
 	float aspectRatio = 1.0f;
 	float nearPlane = 0.1f;
@@ -82,7 +178,12 @@ protected:
 	glm::mat4 viewMatrix;
 	glm::mat4 projectionMatrix;
 	
-	virtual void inline CalculateViewMatrix() = 0;
+	void inline CalculateViewMatrix()
+	{
+		viewMatrix = glm::lookAt(eye, center, up);
+		viewDirty = false;
+		printf("eye: %f %f %f\n", eye.x, eye.y, eye.z);
+	}
 	void inline CalculateProjectionMatrix()
 	{
 		if (perspective)
@@ -93,110 +194,59 @@ protected:
 		projectionDirty = false;
 	}
 };
-struct LookAtCamera : Camera
-{
-private:
 
-	glm::vec3 eye = glm::vec3(1.f);
-	glm::vec3 center = glm::vec3(0.f);
-	glm::vec3 up = glm::vec3(0.f, 1.f, 0.f);
-
-	void inline CalculateViewMatrix()
-	{
-		viewMatrix = glm::lookAt(eye, center, up);
-		viewDirty = false;
-	}
-
-public:
-	LookAtCamera()
-		:Camera()
-	{}
-	LookAtCamera(glm::vec3 eye, glm::vec3 center, glm::vec3 up,
-		float fov = 45.f, float near = 0.1f, float far = 100.f, float aspectRatio = 1.f, bool perspective = true)
-		:eye(eye), center(center), up(up), Camera(fov,near,far,aspectRatio,perspective)
-	{
-		this->CalculateViewMatrix();
-		this->CalculateProjectionMatrix();
-	}
-	
-	glm::vec3 GetEye() { return eye; }
-	glm::vec3 GetCenter() { return center; }
-	glm::vec3 GetUp() { return up; }
-	
-	void SetEye(glm::vec3 eye, bool recalculate = false)
-	{
-		this->eye = eye;
-		if (recalculate)
-			CalculateViewMatrix();
-		viewDirty = !recalculate;
-	}
-	void SetCenter(glm::vec3 center, bool recalculate = false)
-	{
-		this->center = center;
-		if (recalculate)
-			CalculateViewMatrix();
-		viewDirty = !recalculate;
-	}
-	void SetUp(glm::vec3 up, bool recalculate = false)
-	{
-		this->up = up;
-		if (recalculate)
-			CalculateViewMatrix();
-		viewDirty = !recalculate;
-	}
-};
-struct OrbitCamera : Camera
-{
-public:
-	OrbitCamera(glm::vec3 center = glm::vec3(0.f,0.f,0.f), glm::vec3 angles = glm::vec3(0.f, 0.f, 0.f), float distance = 10.f,
-		float fov = 45.f, float near = 0.1f, float far = 100.f, float aspectRatio = 1.f, bool perspective = true)
-		:center(center), angles(angles), distance(distance), Camera(fov, near, far, aspectRatio, perspective)
-	{
-		this->CalculateViewMatrix();
-		this->CalculateProjectionMatrix();
-	}
-	void inline SetCenter(glm::vec3 center, bool recalculate = false)
-	{
-		this->center = center;
-		if (recalculate)
-			CalculateViewMatrix();
-		viewDirty = !recalculate;
-	}
-	void inline SetAngles(glm::vec3 angles, bool recalculate = false)
-	{
-		this->angles = angles;
-		if (recalculate)
-			CalculateViewMatrix();
-		viewDirty = !recalculate;
-	}
-	void inline SetDistance(float distance, bool recalculate = false)
-	{
-		this->distance = distance;
-		if (recalculate)
-			CalculateViewMatrix();
-		viewDirty = !recalculate;
-	}
-	glm::vec3 GetCenter() { return center; }
-	glm::vec3 GetAngles() { return angles; }
-	float GetDistance() { return distance; }
-private:
-	glm::vec3 center;
-	glm::vec3 angles;
-	float distance;
-	
-	void inline CalculateViewMatrix()
-	{
-		auto unitSpherePos = glm::vec3(sin(glm::radians(angles.x)) * cos(glm::radians(angles.y)),
-			sin(glm::radians(angles.y)),
-			cos(glm::radians(angles.x)) * cos(glm::radians(angles.y)));
-		bool flipY = abs(fmodf(angles.y, 360)) > 90.f && abs(fmodf(angles.y, 360)) < 270.f;
-		viewMatrix = glm::lookAt( center + distance * unitSpherePos,
-			center,
-			//Adjust the up vector to be perpendicular to the camera's direction
-			glm::normalize(glm::cross(-unitSpherePos, {0, flipY ? -1:1 ,0})));
-		viewDirty = false;
-	}
-};
+//struct OrbitCamera : Camera
+//{
+//public:
+//	OrbitCamera(glm::vec3 center = glm::vec3(0.f,0.f,0.f), glm::vec3 angles = glm::vec3(0.f, 0.f, 0.f), float distance = 10.f,
+//		float fov = 45.f, float near = 0.1f, float far = 100.f, float aspectRatio = 1.f, bool perspective = true)
+//		:center(center), angles(angles), distance(distance), Camera(fov, near, far, aspectRatio, perspective)
+//	{
+//		this->CalculateViewMatrix();
+//		this->CalculateProjectionMatrix();
+//	}
+//	void inline SetCenter(glm::vec3 center, bool recalculate = false)
+//	{
+//		this->center = center;
+//		if (recalculate)
+//			CalculateViewMatrix();
+//		viewDirty = !recalculate;
+//	}
+//	void inline SetAngles(glm::vec3 angles, bool recalculate = false)
+//	{
+//		this->angles = angles;
+//		if (recalculate)
+//			CalculateViewMatrix();
+//		viewDirty = !recalculate;
+//	}
+//	void inline SetDistance(float distance, bool recalculate = false)
+//	{
+//		this->distance = distance;
+//		if (recalculate)
+//			CalculateViewMatrix();
+//		viewDirty = !recalculate;
+//	}
+//	glm::vec3 GetCenter() { return center; }
+//	glm::vec3 GetAngles() { return angles; }
+//	float GetDistance() { return distance; }
+//private:
+//	glm::vec3 center;
+//	glm::vec3 angles;
+//	float distance;
+//	
+//	void inline CalculateViewMatrix()
+//	{
+//		auto unitSpherePos = glm::vec3(sin(glm::radians(angles.x)) * cos(glm::radians(angles.y)),
+//			sin(glm::radians(angles.y)),
+//			cos(glm::radians(angles.x)) * cos(glm::radians(angles.y)));
+//		bool flipY = abs(fmodf(angles.y, 360)) > 90.f && abs(fmodf(angles.y, 360)) < 270.f;
+//		viewMatrix = glm::lookAt( center + distance * unitSpherePos,
+//			center,
+//			//Adjust the up vector to be perpendicular to the camera's direction
+//			glm::normalize(glm::cross(-unitSpherePos, {0, flipY ? -1:1 ,0})));
+//		viewDirty = false;
+//	}
+//};
 
 struct CTransform
 {
@@ -285,7 +335,7 @@ public:
 	void AddComponent(entt::entity entity, entt::id_type component);
 	void RemoveComponent(entt::entity entity, entt::id_type component);
 
-	Camera* camera; //todo find a way...
+	Camera camera;
 private:
 	entt::registry registry;
 };

@@ -350,16 +350,13 @@ public:
 		glfwGetWindowSize(GLFWHandler::GetInstance().GetWindowPointer(), &windowWidth, &windowHeight);
 		teapot.ComputeBoundingBox();
 		//Init camera
-		camera = OrbitCamera(glm::vec3(0.f, 0.f, 0.0f), glm::vec3(0.0f), 20,
-			45.f, 0.01f, 100000.f, (float)windowWidth / (float)windowHeight, true);
-			/*LookAtCamera(glm::vec3(0.f, 0.f, 10.0f), glm::vec3(0.0f),
-			glm::vec3(0.f, 1.f, 0.f), 45.f, 0.01f, 100000.f,
-			(float)windowWidth / (float)windowHeight, true);*/
+		scene.camera = Camera(glm::vec3(0.f, 0.f, 0.0f), glm::vec3(5.0f,0, 0), glm::vec3(0.f,0.f,1.f),
+		45.f, 0.01f, 100000.f, (float)windowWidth / (float)windowHeight, true);
 
 		modelMatrix = glm::scale(modelMatrix, glm::vec3(0.05f));
-		LookAtMesh();
+		//LookAtMesh();
 
-		mvp = camera.GetProjectionMatrix() * ((OrbitCamera)camera).GetViewMatrix() * modelMatrix;
+		mvp = scene.camera.GetProjectionMatrix() * scene.camera.GetViewMatrix() * modelMatrix;
 		GLuint mvpID = glGetUniformLocation(this->program, "mvp");
 		glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvp[0][0]);
 
@@ -369,7 +366,7 @@ public:
 	{
 		modelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.05f) /*
 			(camera.IsPerspective() ? 1.f : 1.f / glm::length(camera.GetEye()))*/);
-		modelMatrix = glm::rotate(glm::mat4(1.0), -(float)glfwGetTime() * 0.5f, glm::vec3(0.f, 0.f, 1.f));
+		//modelMatrix = glm::rotate(glm::mat4(1.0), -(float)glfwGetTime() * 0.5f, glm::vec3(0.f, 0.f, 1.f));
 		//find the center point of the teapot
 		glm::vec3 center = glm::cy2GLM(teapot.GetBoundMax() + teapot.GetBoundMin()) * 0.5f;
 		//translate the teapot to the center
@@ -379,7 +376,7 @@ public:
 		modelMatrix = glm::scale(modelMatrix, glm::vec3(0.05f) * 
 			(camera.IsPerspective() ? 1.f : 1.f/glm::length(camera.GetEye())) );*/
 
-		mvp = camera.GetProjectionMatrix() * ((OrbitCamera)camera).GetViewMatrix() * modelMatrix;
+		mvp = scene.camera.GetProjectionMatrix() * scene.camera.GetViewMatrix() * modelMatrix;
 		//upload mvp to GLSL uniform
 		GLuint mvpID = glGetUniformLocation(this->program, "mvp");
 		glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvp[0][0]);
@@ -460,16 +457,16 @@ public:
 		//Find the center point of the teapot and apply the modelMatrix transform
 		auto tmp = (teapot.GetBoundMax() + teapot.GetBoundMin()) * 0.5f;
 		glm::vec3 center = glm::vec4(tmp.x, tmp.y, tmp.z, 1.0f) * modelMatrix;
-		camera.SetCenter({ 0.f, 0.f, 0.f });
-		/*camera.SetEye({ 0.0, 25.f, 0.0f});
-		camera.SetUp({ 0.f, 0.f, 1.f }, true);*/
-		camera.SetAngles({-90.f,0.f,0.f});
-		camera.SetDistance(30.f);
+		
+		scene.camera.SetLookAtEye({0,5,0.f});
+		scene.camera.SetLookAtUp({ 0,0,1.f });
+		//scene.camera.SetOrbitDistance(5.f);
+		scene.camera.SetCenter(center);
 	}
 
 	void OnWindowResize(int w, int h)
 	{
-		camera.SetAspectRatio((float)w / (float)h);
+		scene.camera.SetAspectRatio((float)w / (float)h);
 	}
 
 	void OnKeyboard(int key, int scancode, int action, int mods)
@@ -484,7 +481,7 @@ public:
 		if (key == GLFW_KEY_F1 && action == GLFW_PRESS)
 			LookAtMesh();
 		if (key == GLFW_KEY_P && action == GLFW_PRESS)
-			camera.SetPerspective(!camera.IsPerspective());
+			scene.camera.SetPerspective(!scene.camera.IsPerspective());
 	}
 	
 	//orbit camera
@@ -507,11 +504,15 @@ public:
 		glm::vec3 right;
 		if (m1Down)
 		{
-			camera.SetAngles(camera.GetAngles() - glm::vec3(deltaPos.y * 0.05f, deltaPos.x * 0.05f, 0.f));
+			scene.camera.SetOrbitAngles(scene.camera.GetOrbitAngles() - glm::vec3(deltaPos.x * 0.8f, deltaPos.y * 0.2f, 0.f));
+			/*right = glm::cross(scene.camera.GetLookAtEye() - scene.camera.GetCenter(), scene.camera.GetLookAtUp());
+			scene.camera.SetLookAtEye(scene.camera.GetLookAtEye() - right * deltaPos.x * 0.01f -
+				scene.camera.GetLookAtUp() * deltaPos.y * 0.05f);*/
+			//scene.camera.SetCenter({ 0, 0, 0 }, true);
 		}
 		if (m2Down)
 		{
-			camera.SetDistance(camera.GetDistance() + deltaPos.y * 0.05f);
+			scene.camera.SetOrbitDistance(scene.camera.GetOrbitDistance() + deltaPos.y * 0.05f);
 		}
 		prevMousePos = { x,y };
 	}
@@ -522,7 +523,7 @@ private:
 	bool m2Down = false;
 	glm::vec2 prevMousePos;
 	//--------------------//
-	OrbitCamera camera;
+	
 	cyTriMesh teapot;
 	glm::mat4 modelMatrix = glm::mat4(1.0f);
 	glm::mat4 mvp = glm::mat4(1.0f);

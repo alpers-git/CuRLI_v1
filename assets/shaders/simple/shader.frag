@@ -1,7 +1,7 @@
 #version 430
 
 out vec4 color;
-
+layout (location = 2) in float dist;
 void main() {
-     color = vec4(1.0f, 1.0f, 0.1f, 1.0f);
+     color = vec4(3/(dist*dist + dist), 3/(dist*dist),  3/(dist*dist),  1.0f);
 }

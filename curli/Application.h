@@ -10,8 +10,7 @@ class Application
 public:
 	Application(int argc, char const* argv[]) 
 	{
-		Scene scene;
-		renderer = new T(scene);
+		renderer = std::make_unique<T>(scene);
 		renderer->ParseArguments(argc, argv);
 	}
 	~Application() {}
@@ -44,5 +43,6 @@ public:
 		renderer->Terminate();
 	}
 private:
-	T* renderer;
+	std::unique_ptr<T> renderer;
+	Scene scene;
 };
