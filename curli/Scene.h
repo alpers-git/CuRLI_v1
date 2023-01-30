@@ -93,27 +93,26 @@ public:
 	void inline SetOrbitAngles(glm::vec3 angles, bool recalculate = false)
 	{
 		this->angles = angles;
-		//glm::mat4 R = glm::eulerAngleXY(glm::radians(angles.x), glm::radians(angles.y));
+		const float theta = glm::radians(90 - angles.x);
+		const float phi = glm::radians(angles.y);
+		glm::mat4 R = glm::eulerAngleXY(glm::radians(angles.x), -glm::radians(angles.y));
 		glm::vec3 unitSpherePos = {
-			sin(glm::radians(90 - angles.x)) * cos(glm::radians(angles.y)),
-			sin(glm::radians(90 - angles.x)) * sin(glm::radians(angles.y)),
-			cos(glm::radians(90 - angles.x))
+			sin(theta) * sin(phi),
+			cos(theta),
+			sin(theta) * cos(phi)
 		};
 		//bool flipY = abs(fmodf(angles.y, 360)) > 90.f && abs(fmodf(angles.y, 360)) < 270.f;
-		auto gaze = center - eye;
-		eye = -unitSpherePos * glm::length(gaze) + center;
-		if (glm::dot(gaze, up) > 0.01f)
-		{
-			glm::vec3 u = glm::normalize(glm::cross(-glm::normalize(gaze), up));
-			up = glm::normalize(glm::cross(u, -glm::normalize(gaze)));
-		}
+		eye = center + unitSpherePos * glm::length(eye-center);
+		viewMatrix = R * glm::translate(glm::mat4(1.0f), -eye);
+		viewDirty = false;
+		
 		//SetLookAtEye(R * glm::length(eye - center) * glm::vec4(glm::normalize(gaze),0));
 		
 		printf("eye: %f, %f, %f center: %f, %f, %f\n", eye.x, eye.y, eye.z, center.x, center.y, center.z);
 		printf("angles: %f, %f, %f up: %f, %f, %f\n", angles.x, angles.y, angles.z, up.x, up.y, up.z);
-		if (recalculate)
+		/*if (recalculate)
 			CalculateViewMatrix();
-		viewDirty = !recalculate;
+		viewDirty = !recalculate;*/
 	}
 	void inline SetOrbitDistance(float distance, bool recalculate = false)
 	{
