@@ -178,7 +178,6 @@ private:
 	{
 		viewMatrix = glm::lookAt(eye, center, up);
 		viewDirty = false;
-		printf("eye: %f %f %f\n", eye.x, eye.y, eye.z);
 	}
 	void inline CalculateProjectionMatrix()
 	{
@@ -191,7 +190,12 @@ private:
 	}
 };
 
-struct CTransform
+struct Component
+{
+	virtual void Update() = 0;
+};
+
+struct CTransform : Component
 {
 public:
 	//getter and setters
@@ -228,11 +232,14 @@ public:
 	
 	void CalculateModelMatrix()
 	{
-		modelMatrix = glm::translate(glm::mat4(1.f), position);
-		modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.x), glm::vec3(1.f, 0.f, 0.f));//TODO!!!
-		modelMatrix = glm::scale(modelMatrix, scale);
-		
+		modelMatrix = glm::scale(glm::mat4(1.f), scale);
+		modelMatrix = modelMatrix * glm::eulerAngleXYZ(rotation.x, rotation.y, rotation.z);
+		modelMatrix = glm::translate(modelMatrix, position);
+
+		modelDirty = false;
 	}
+
+	void Update();
 	
 private:
 	glm::vec3 position = glm::vec3(0.f);
@@ -244,12 +251,23 @@ private:
 
 };
 
-struct CTriMesh
+struct CTriMesh : Component
 {
 public:
 	CTriMesh(cy::TriMesh& mesh)
 		:mesh(mesh)
 	{}
+
+	CTriMesh(const std::string& path)
+		:mesh(cy::TriMesh())
+	{
+		mesh.LoadFromFileObj(path.c_str());
+	}
+	
+	CTriMesh()
+		:mesh(cy::TriMesh())
+	{}
+	
 	cy::TriMesh& GetMesh() { return mesh; }
 	
 	unsigned int GetNumVertices() { return mesh.NV(); }
@@ -262,9 +280,11 @@ public:
 	{
 		mesh.LoadFromFileObj(path.c_str());
 	}
+
+	void Update();
 	
 private:
-	cy::TriMesh& mesh;
+	cy::TriMesh mesh;
 };
 
 class Scene
@@ -273,12 +293,34 @@ public:
 	Scene();
 	~Scene();
 
-	void AddEntity(entt::entity entity);
-	void RemoveEntity(entt::entity entity);
-	void AddComponent(entt::entity entity, entt::id_type component);
-	void RemoveComponent(entt::entity entity, entt::id_type component);
+	entt::entity CreateEntity();
+	void DestroyEntity(entt::entity entity);
+	void Update();
+	
+	template <typename C>
+	void AddComponent(entt::entity& entity)
+	{
+		if (registry.all_of<C>(entity)) {
+			registry.replace<C>(entity);
+		}
+		else {
+			registry.emplace<C>(entity);
+		}
+	};
+	
+	template <typename C>
+	void RemoveComponent(entt::entity& entity)
+	{
+		registry.remove<C>(entity);
+	};
+
+	template <typename C>
+	C& GetComponent(entt::entity& entity)
+	{
+		return registry.view<C>().get<C>(entity);
+	};
 
 	Camera camera;
-private:
 	entt::registry registry;
+private:
 };

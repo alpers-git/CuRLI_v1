@@ -10,6 +10,17 @@ class Application
 public:
 	Application(int argc, char const* argv[]) 
 	{
+		scene = std::make_shared<Scene>();
+
+		auto entity = scene->CreateEntity();
+		const auto view = scene->registry.view<CTriMesh>();
+		scene->AddComponent<CTriMesh>(entity);
+		scene->GetComponent<CTriMesh>(entity).LoadObj(argv[1]);
+		
+		printf("Loaded %d vertices and %d faces\n", 
+			scene->GetComponent<CTriMesh>(entity).GetNumVertices(),
+			scene->GetComponent<CTriMesh>(entity).GetNumFaces());
+		
 		renderer = std::make_unique<T>(scene);
 		renderer->ParseArguments(argc, argv);
 	}
@@ -29,6 +40,9 @@ public:
 		//Create a rendering loop with glfw
 		while (windowManager.IsRunning())
 		{
+			//Update the scene
+			scene->Update();
+			
 			//Render the scene
 			renderer->Render();
 
@@ -44,5 +58,5 @@ public:
 	}
 private:
 	std::unique_ptr<T> renderer;
-	Scene scene;
+	std::shared_ptr<Scene> scene;
 };

@@ -108,7 +108,7 @@ class Renderer
 {
 	friend class GLFWHandler;
 public:
-	Renderer(Scene& scene)
+	Renderer(std::shared_ptr<Scene> scene)
 		:scene(scene)
 	{}
 	~Renderer() 
@@ -167,7 +167,7 @@ protected:
 	GLuint program;
 	Shader vertexShader;
 	Shader fragmentShader;
-	Scene& scene;
+	std::shared_ptr<Scene> scene;
 
 	/*
 	* Parses arguments called when application starts
@@ -238,7 +238,7 @@ protected:
 class AnimatedBGRenderer : public Renderer<AnimatedBGRenderer>
 {
 public:
-	AnimatedBGRenderer(Scene& scene) :Renderer(scene) {}
+	AnimatedBGRenderer(std::shared_ptr<Scene> scene) :Renderer(scene) {}
 	~AnimatedBGRenderer() {}
 
 	void Start()
@@ -287,7 +287,7 @@ public:
 class TeapotRenderer : public Renderer<TeapotRenderer>
 {
 public:
-	TeapotRenderer(Scene& scene) :Renderer(scene) {}
+	TeapotRenderer(std::shared_ptr<Scene> scene) :Renderer(scene) {}
 	~TeapotRenderer() {}
 
 	//override ParseArguments
@@ -350,13 +350,13 @@ public:
 		glfwGetWindowSize(GLFWHandler::GetInstance().GetWindowPointer(), &windowWidth, &windowHeight);
 		teapot.ComputeBoundingBox();
 		//Init camera
-		scene.camera = Camera(glm::vec3(0.f, 0.f, 0.0f), glm::vec3(0.0f,0, 0), 1.f,
+		scene->camera = Camera(glm::vec3(0.f, 0.f, 0.0f), glm::vec3(0.0f,0, 0), 1.f,
 		45.f, 0.01f, 100000.f, (float)windowWidth / (float)windowHeight, true);
 
 		modelMatrix = glm::scale(modelMatrix, glm::vec3(0.05f));
 		LookAtMesh();
 
-		mvp = scene.camera.GetProjectionMatrix() * scene.camera.GetViewMatrix() * modelMatrix;
+		mvp = scene->camera.GetProjectionMatrix() * scene->camera.GetViewMatrix() * modelMatrix;
 		GLuint mvpID = glGetUniformLocation(this->program, "mvp");
 		glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvp[0][0]);
 
@@ -365,7 +365,7 @@ public:
 	void PreUpdate()
 	{
 		modelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.05f) *
-			(scene.camera.IsPerspective() ? 1.f : 1.f / glm::length(scene.camera.GetLookAtEye())));
+			(scene->camera.IsPerspective() ? 1.f : 1.f / glm::length(scene->camera.GetLookAtEye())));
 		modelMatrix = glm::rotate(modelMatrix, glm::radians(-90.f), glm::vec3(1.f, 0.f, 0.f));
 		//rotate around y with time
 		modelMatrix = glm::rotate(modelMatrix, -(float)glfwGetTime() * 0.5f, glm::vec3(0.f, 0.f, 1.f));
@@ -374,7 +374,7 @@ public:
 		//translate the teapot to the center
 		modelMatrix = glm::translate(modelMatrix, -center);
 		
-		mvp = scene.camera.GetProjectionMatrix() * scene.camera.GetViewMatrix() * modelMatrix;
+		mvp = scene->camera.GetProjectionMatrix() * scene->camera.GetViewMatrix() * modelMatrix;
 		//upload mvp to GLSL uniform
 		GLuint mvpID = glGetUniformLocation(this->program, "mvp");
 		glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvp[0][0]);
@@ -452,14 +452,14 @@ public:
 	*/
 	inline void LookAtMesh()
 	{
-		scene.camera.SetOrbitDistance(3.f);
-		scene.camera.SetCenter({0,0,0});
-		scene.camera.SetOrbitAngles({ 0,0,0 });
+		scene->camera.SetOrbitDistance(3.f);
+		scene->camera.SetCenter({0,0,0});
+		scene->camera.SetOrbitAngles({ 0,0,0 });
 	}
 
 	void OnWindowResize(int w, int h)
 	{
-		scene.camera.SetAspectRatio((float)w / (float)h);
+		scene->camera.SetAspectRatio((float)w / (float)h);
 	}
 
 	void OnKeyboard(int key, int scancode, int action, int mods)
@@ -474,7 +474,7 @@ public:
 		if (key == GLFW_KEY_F1 && action == GLFW_PRESS)
 			LookAtMesh();
 		if (key == GLFW_KEY_P && action == GLFW_PRESS)
-			scene.camera.SetPerspective(!scene.camera.IsPerspective());
+			scene->camera.SetPerspective(!scene->camera.IsPerspective());
 	}
 	
 	//orbit camera
@@ -497,11 +497,11 @@ public:
 		glm::vec3 right;
 		if (m1Down)
 		{
-			scene.camera.SetOrbitAngles(scene.camera.GetOrbitAngles() - glm::vec3(deltaPos.y * 0.5f, -deltaPos.x * 0.4f, 0.f));
+			scene->camera.SetOrbitAngles(scene->camera.GetOrbitAngles() - glm::vec3(deltaPos.y * 0.5f, -deltaPos.x * 0.4f, 0.f));
 		}
 		if (m2Down)
 		{
-			scene.camera.SetOrbitDistance(scene.camera.GetOrbitDistance() + deltaPos.y * 0.05f);
+			scene->camera.SetOrbitDistance(scene->camera.GetOrbitDistance() + deltaPos.y * 0.05f);
 		}
 		prevMousePos = { x,y };
 	}
