@@ -375,7 +375,7 @@ public:
 		/*modelMatrix = glm::rotate(glm::mat4(1.0), -(float)glfwGetTime() * 0.5f, glm::vec3(0.f, 0.f, 1.f));
 		modelMatrix = glm::scale(modelMatrix, glm::vec3(0.05f) * 
 			(camera.IsPerspective() ? 1.f : 1.f/glm::length(camera.GetEye())) );*/
-		printf("preUpdate\n");
+		
 		mvp = scene.camera.GetProjectionMatrix() * scene.camera.GetViewMatrix() * modelMatrix;
 		//upload mvp to GLSL uniform
 		GLuint mvpID = glGetUniformLocation(this->program, "mvp");

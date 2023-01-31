@@ -6,6 +6,7 @@
 #include <cyTriMesh.h>
 #include <CyToGLMHelper.h>
 #include <glm/gtx/log_base.hpp>
+#include <glm/gtc/matrix_access.hpp>
 
 struct Camera
 {
@@ -92,27 +93,25 @@ public:
 
 	void inline SetOrbitAngles(glm::vec3 angles, bool recalculate = false)
 	{
+		if (angles.x > 89.5f)
+			angles.x = 89.5f;
+		if (angles.x < -89.5f)
+			angles.x = -89.5f;
+		
 		this->angles = angles;
-		const float theta = glm::radians(90 - angles.x);
+		const float theta = glm::radians(angles.x);
 		const float phi = glm::radians(angles.y);
-		glm::mat4 R = glm::eulerAngleXY(glm::radians(angles.x), -glm::radians(angles.y));
 		glm::vec3 unitSpherePos = {
-			sin(theta) * sin(phi),
-			cos(theta),
-			sin(theta) * cos(phi)
+			cos(theta) * sin(phi),
+			sin(theta),
+			cos(theta) * cos(phi)
 		};
-		//bool flipY = abs(fmodf(angles.y, 360)) > 90.f && abs(fmodf(angles.y, 360)) < 270.f;
 		eye = center + unitSpherePos * glm::length(eye-center);
-		viewMatrix = R * glm::translate(glm::mat4(1.0f), -eye);
-		viewDirty = false;
+		up = {0.f, 1.f, 0.f};
 		
-		//SetLookAtEye(R * glm::length(eye - center) * glm::vec4(glm::normalize(gaze),0));
-		
-		printf("eye: %f, %f, %f center: %f, %f, %f\n", eye.x, eye.y, eye.z, center.x, center.y, center.z);
-		printf("angles: %f, %f, %f up: %f, %f, %f\n", angles.x, angles.y, angles.z, up.x, up.y, up.z);
-		/*if (recalculate)
+		if (recalculate)
 			CalculateViewMatrix();
-		viewDirty = !recalculate;*/
+		viewDirty = !recalculate;
 	}
 	void inline SetOrbitDistance(float distance, bool recalculate = false)
 	{
