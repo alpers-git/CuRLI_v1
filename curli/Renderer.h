@@ -354,7 +354,7 @@ public:
 		45.f, 0.01f, 100000.f, (float)windowWidth / (float)windowHeight, true);
 
 		modelMatrix = glm::scale(modelMatrix, glm::vec3(0.05f));
-		//LookAtMesh();
+		LookAtMesh();
 
 		mvp = scene.camera.GetProjectionMatrix() * scene.camera.GetViewMatrix() * modelMatrix;
 		GLuint mvpID = glGetUniformLocation(this->program, "mvp");
@@ -364,17 +364,15 @@ public:
 
 	void PreUpdate()
 	{
-		modelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.05f) /*
-			(camera.IsPerspective() ? 1.f : 1.f / glm::length(camera.GetEye()))*/);
+		modelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.05f) *
+			(scene.camera.IsPerspective() ? 1.f : 1.f / glm::length(scene.camera.GetLookAtEye())));
 		modelMatrix = glm::rotate(modelMatrix, glm::radians(-90.f), glm::vec3(1.f, 0.f, 0.f));
+		//rotate around y with time
+		modelMatrix = glm::rotate(modelMatrix, -(float)glfwGetTime() * 0.5f, glm::vec3(0.f, 0.f, 1.f));
 		//find the center point of the teapot
 		glm::vec3 center = glm::cy2GLM(teapot.GetBoundMax() + teapot.GetBoundMin()) * 0.5f;
 		//translate the teapot to the center
 		modelMatrix = glm::translate(modelMatrix, -center);
-		//rotate around y with time
-		/*modelMatrix = glm::rotate(glm::mat4(1.0), -(float)glfwGetTime() * 0.5f, glm::vec3(0.f, 0.f, 1.f));
-		modelMatrix = glm::scale(modelMatrix, glm::vec3(0.05f) * 
-			(camera.IsPerspective() ? 1.f : 1.f/glm::length(camera.GetEye())) );*/
 		
 		mvp = scene.camera.GetProjectionMatrix() * scene.camera.GetViewMatrix() * modelMatrix;
 		//upload mvp to GLSL uniform
@@ -454,14 +452,9 @@ public:
 	*/
 	inline void LookAtMesh()
 	{
-		//Find the center point of the teapot and apply the modelMatrix transform
-		auto tmp = (teapot.GetBoundMax() + teapot.GetBoundMin()) * 0.5f;
-		glm::vec3 center = glm::vec4(tmp.x, tmp.y, tmp.z, 1.0f) * modelMatrix;
-		
-		/*scene.camera.SetLookAtEye({0,5,0.f});
-		scene.camera.SetLookAtUp({ 0,0,1.f });*/
-		scene.camera.SetOrbitDistance(1.f);
+		scene.camera.SetOrbitDistance(3.f);
 		scene.camera.SetCenter({0,0,0});
+		scene.camera.SetOrbitAngles({ 0,0,0 });
 	}
 
 	void OnWindowResize(int w, int h)
@@ -505,10 +498,6 @@ public:
 		if (m1Down)
 		{
 			scene.camera.SetOrbitAngles(scene.camera.GetOrbitAngles() - glm::vec3(deltaPos.y * 0.5f, -deltaPos.x * 0.4f, 0.f));
-			/*right = glm::cross(scene.camera.GetLookAtEye() - scene.camera.GetCenter(), scene.camera.GetLookAtUp());
-			scene.camera.SetLookAtEye(scene.camera.GetLookAtEye() - right * deltaPos.x * 0.01f -
-				scene.camera.GetLookAtUp() * deltaPos.y * 0.05f);*/
-			//scene.camera.SetCenter({ 0, 0, 0 }, true);
 		}
 		if (m2Down)
 		{
