@@ -284,11 +284,11 @@ public:
 	}
 };
 
-class TeapotRenderer : public Renderer<TeapotRenderer>
+class PointRenderer : public Renderer<PointRenderer>
 {
 public:
-	TeapotRenderer(std::shared_ptr<Scene> scene) :Renderer(scene) {}
-	~TeapotRenderer() {}
+	PointRenderer(std::shared_ptr<Scene> scene) :Renderer(scene) {}
+	~PointRenderer() {}
 
 	//override ParseArguments
 	void ParseArguments(int argc, char const* argv[])
@@ -297,12 +297,11 @@ public:
 		std::string meshPath = argv[1];
 		cyTriMesh mesh;
 		mesh.LoadFromFileObj(meshPath.c_str());
-		SetMesh(mesh);
 	}
 
 	void Start()
 	{
-		printf("Initializing TeapotRenderer\n");
+		printf("Initializing Renderer\n");
 		clearFlags = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT;
 
 		glEnable(GL_DEPTH_TEST);//!!!
@@ -327,54 +326,43 @@ public:
 		glGenBuffers(1, &VBO);
 		glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
-		//create a glm::vec3 array of vertices from the teapot
-		float* vertices = new float[teapot.NV()*3];
-		for (int i = 0; i < teapot.NV(); i++)
-		{
-			vertices[i*3] = teapot.V(i).x;
-			vertices[i*3+1] = teapot.V(i).y;
-			vertices[i*3+2] = teapot.V(i).z;
-		}
-		
 		//set buffer data
-		glBufferData(GL_ARRAY_BUFFER, teapot.NV() * sizeof(float)*3, vertices, GL_STATIC_DRAW);
+		entt::entity entity{};
+		auto mesh = scene->GetComponent<CTriMesh>(entity);
+		
+		glBufferData(GL_ARRAY_BUFFER, mesh.GetNumVertices() * sizeof(float)*3, 
+			&mesh.GetMesh().V(0), GL_STATIC_DRAW);
 
 		//bind to GLSL attribute
 		GLuint pos = glGetAttribLocation(this->program, "pos");
 		glEnableVertexAttribArray(pos);
 		glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		
-		delete[] vertices;
 
 		int windowWidth, windowHeight;
 		glfwGetWindowSize(GLFWHandler::GetInstance().GetWindowPointer(), &windowWidth, &windowHeight);
-		teapot.ComputeBoundingBox();
+		
 		//Init camera
 		scene->camera = Camera(glm::vec3(0.f, 0.f, 0.0f), glm::vec3(0.0f,0, 0), 1.f,
 		45.f, 0.01f, 100000.f, (float)windowWidth / (float)windowHeight, true);
 
-		modelMatrix = glm::scale(modelMatrix, glm::vec3(0.05f));
 		LookAtMesh();
-
-		mvp = scene->camera.GetProjectionMatrix() * scene->camera.GetViewMatrix() * modelMatrix;
-		GLuint mvpID = glGetUniformLocation(this->program, "mvp");
-		glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvp[0][0]);
-
 	}
 
 	void PreUpdate()
 	{
-		modelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.05f) *
+		mvp = glm::scale(glm::mat4(1.0f), glm::vec3(0.05f) *
 			(scene->camera.IsPerspective() ? 1.f : 1.f / glm::length(scene->camera.GetLookAtEye())));
-		modelMatrix = glm::rotate(modelMatrix, glm::radians(-90.f), glm::vec3(1.f, 0.f, 0.f));
+		mvp = glm::rotate(mvp, glm::radians(-90.f), glm::vec3(1.f, 0.f, 0.f));
 		//rotate around y with time
-		modelMatrix = glm::rotate(modelMatrix, -(float)glfwGetTime() * 0.5f, glm::vec3(0.f, 0.f, 1.f));
-		//find the center point of the teapot
-		glm::vec3 center = glm::cy2GLM(teapot.GetBoundMax() + teapot.GetBoundMin()) * 0.5f;
-		//translate the teapot to the center
-		modelMatrix = glm::translate(modelMatrix, -center);
+		mvp = glm::rotate(mvp, -(float)glfwGetTime() * 0.5f, glm::vec3(0.f, 0.f, 1.f));
 		
-		mvp = scene->camera.GetProjectionMatrix() * scene->camera.GetViewMatrix() * modelMatrix;
+		entt::entity entity{};
+		auto mesh = scene->GetComponent<CTriMesh>(entity);
+		//translate the teapot to the center
+		mvp = glm::translate(mvp, mesh.GetBoundingBoxCenter());
+		
+		mvp = scene->camera.GetProjectionMatrix() * scene->camera.GetViewMatrix() * mvp;
+		
 		//upload mvp to GLSL uniform
 		GLuint mvpID = glGetUniformLocation(this->program, "mvp");
 		glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvp[0][0]);
@@ -382,14 +370,17 @@ public:
 
 	void Update()
 	{
+		entt::entity entity{};
+		auto mesh = scene->GetComponent<CTriMesh>(entity);
+		
 		//bind GLSL program
 		glUseProgram(this->program);
-		glDrawArrays(GL_POINTS, 0, teapot.NV());
+		glDrawArrays(GL_POINTS, 0, mesh.GetNumVertices());
 	}
 
 	void End()
 	{
-		printf("Shutting down TeapotRenderer");
+		printf("Shutting down Renderer");
 	}
 
 	void UpdateGUI()
@@ -413,14 +404,6 @@ public:
 		ImGui::End();
 	}
 	
-	/*
-	* Sets the mesh
-	*/
-	inline void SetMesh(cyTriMesh& mesh)
-	{
-		teapot = mesh;
-		printf("Mesh with %d vertices has been set\n", teapot.NV());
-	}
 	/*
 	* Recompile the shaders
 	*/
@@ -453,7 +436,7 @@ public:
 	inline void LookAtMesh()
 	{
 		scene->camera.SetOrbitDistance(3.f);
-		scene->camera.SetCenter({0,0,0});
+		scene->camera.SetCenter({0,1,0});
 		scene->camera.SetOrbitAngles({ 0,0,0 });
 	}
 
@@ -496,13 +479,10 @@ public:
 		glm::vec2 deltaPos(prevMousePos.x - x, prevMousePos.y - y);
 		glm::vec3 right;
 		if (m1Down)
-		{
-			scene->camera.SetOrbitAngles(scene->camera.GetOrbitAngles() - glm::vec3(deltaPos.y * 0.5f, -deltaPos.x * 0.4f, 0.f));
-		}
+			scene->camera.SetOrbitAngles(scene->camera.GetOrbitAngles() 
+				- glm::vec3(deltaPos.y * 0.5f, -deltaPos.x * 0.4f, 0.f));
 		if (m2Down)
-		{
 			scene->camera.SetOrbitDistance(scene->camera.GetOrbitDistance() + deltaPos.y * 0.05f);
-		}
 		prevMousePos = { x,y };
 	}
 
@@ -513,8 +493,6 @@ private:
 	glm::vec2 prevMousePos;
 	//--------------------//
 	
-	cyTriMesh teapot;
-	glm::mat4 modelMatrix = glm::mat4(1.0f);
 	glm::mat4 mvp = glm::mat4(1.0f);
 	GLuint VAO;
 	GLuint VBO;

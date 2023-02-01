@@ -261,7 +261,7 @@ public:
 	CTriMesh(const std::string& path)
 		:mesh(cy::TriMesh())
 	{
-		mesh.LoadFromFileObj(path.c_str());
+		LoadObj(path.c_str());
 	}
 	
 	CTriMesh()
@@ -276,15 +276,46 @@ public:
 	glm::vec3 GetNormal(unsigned int index) { return glm::cy2GLM(mesh.VN(index)); }
 	//glm::vec3 GetFaceNormal(unsigned int index) { return glm::cy2GLM(mesh.FN(index)); }
 
-	void LoadObj(const std::string& path)
+	inline void ComputeBoundingBox()
+	{
+		mesh.ComputeBoundingBox();
+		bBoxInitialized = true;
+	}
+	
+	inline glm::vec3 GetBoundingBoxMin()
+	{
+		if (!bBoxInitialized)
+			ComputeBoundingBox();
+		return glm::cy2GLM(mesh.GetBoundMin());
+	}
+
+	inline glm::vec3 GetBoundingBoxMax()
+	{
+		if (!bBoxInitialized)
+			ComputeBoundingBox();
+		return glm::cy2GLM(mesh.GetBoundMax());
+	}
+
+	inline glm::vec3 GetBoundingBoxCenter()
+	{
+		if (!bBoxInitialized)
+			ComputeBoundingBox();
+		return glm::cy2GLM(mesh.GetBoundMax() + mesh.GetBoundMin()) * .5f;
+	}
+
+	inline void LoadObj(const std::string& path)
 	{
 		mesh.LoadFromFileObj(path.c_str());
+		printf("Loaded %d vertices and %d faces\n",
+			GetNumVertices(),
+			GetNumFaces());
 	}
 
 	void Update();
 	
 private:
 	cy::TriMesh mesh;
+	bool bBoxInitialized = false;
 };
 
 class Scene
@@ -313,12 +344,17 @@ public:
 	{
 		registry.remove<C>(entity);
 	};
-
+	
+	/*
+	* Returns a reference to the specified component of the specified entity. 
+	* Use empty entity to fetch the first entity with the specified component
+	*/
 	template <typename C>
 	C& GetComponent(entt::entity& entity)
 	{
 		return registry.view<C>().get<C>(entity);
 	};
+
 
 	Camera camera;
 	entt::registry registry;

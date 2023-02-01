@@ -16,6 +16,7 @@ entt::entity Scene::CreateEntity()
 
 void Scene::DestroyEntity(entt::entity entity)
 {
+	registry.destroy(entity);
 }
 
 void Scene::Update()

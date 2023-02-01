@@ -17,10 +17,6 @@ public:
 		scene->AddComponent<CTriMesh>(entity);
 		scene->GetComponent<CTriMesh>(entity).LoadObj(argv[1]);
 		
-		printf("Loaded %d vertices and %d faces\n", 
-			scene->GetComponent<CTriMesh>(entity).GetNumVertices(),
-			scene->GetComponent<CTriMesh>(entity).GetNumFaces());
-		
 		renderer = std::make_unique<T>(scene);
 		renderer->ParseArguments(argc, argv);
 	}

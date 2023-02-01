@@ -3,7 +3,7 @@
 
 int main(int argc, char const *argv[])
 {
-	Application<TeapotRenderer> app(argc, argv);
+	Application<PointRenderer> app(argc, argv);
 	app.Run();
 
     return 0;
