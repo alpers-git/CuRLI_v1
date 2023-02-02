@@ -1,5 +1,6 @@
 #pragma once
 #include <Scene.h>
+#include <OpenGLProgram.h>
 #include <glad/glad.h>
 #include <GLFWHandler.h>
 #include <iostream>
@@ -8,100 +9,6 @@
 #include <string>
 #include <imgui.h>
 
-//define a macro function
-
-struct Shader
-{
-	GLuint glID;
-	char* source;
-
-	Shader(char* source = nullptr)
-		:source(source)
-	{
-		glID = 0;
-	}
-	
-	~Shader()
-	{
-		if(source)
-			delete[] source;
-		glDeleteShader(glID);
-	}
-
-	bool Compile()
-	{
-		glShaderSource(glID, 1, &source, NULL);
-		glCompileShader(glID);
-		int success;
-		glGetShaderiv(glID, GL_COMPILE_STATUS, &success);
-		if (!success)
-		{
-			GLchar infoLog[512];
-			glGetShaderInfoLog(glID, 512, NULL, infoLog);
-			std::cout << "ERROR::SHADER::COMPILATION_FAILED\n" << infoLog << std::endl;
-			return false;
-		}
-		return true;
-	}
-	
-	bool AttachShader(GLuint program)
-	{
-		glAttachShader(program, glID);
-		glLinkProgram(program);
-		int status;
-		glGetProgramiv(glID, GL_LINK_STATUS, &status);
-		if (!status)
-		{
-			char infoLog[512];
-			glGetProgramInfoLog(glID, 512, NULL, infoLog);
-			std::cout << "ERROR::SHADER::ATTACH_FAILED\n" << infoLog << std::endl;
-			return false;
-		}
-		return true;
-	}
-
-	void SetSource(const char* src, bool compile = false)
-	{
-		if (src && source)
-			delete[] source;
-
-		if (src)
-		{
-			//set source to src
-			source = new char[strlen(src) + 1];
-			strcpy(source, src);
-		}
-		
-		//print source
-		printf("------Shader source:------\n");
-		std::cout << source << std::endl;
-		
-		if (compile)
-			Compile();
-	}
-
-	void SetSourceFromFile(const char* filePath, bool compile = false)
-	{
-		std::string content;
-		std::ifstream fileStream(filePath, std::ios::in);
-
-		if (!fileStream.is_open()) {
-			std::cerr << "Could not read file " << filePath << ". File does not exist." << std::endl;
-			return;
-		}
-
-		std::string line = "";
-		while (!fileStream.eof()) {
-			std::getline(fileStream, line);
-			content.append(line + "\n");
-		}
-
-		fileStream.close();
-		SetSource(content.c_str(), compile);
-	}
-		
-	
-};
 
 template <class T>
 class Renderer
@@ -120,8 +27,9 @@ public:
 			std::cout << "Failed to initialize OpenGL context" << std::endl;
 			return;
 		}
-		program = glCreateProgram();
-		glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
+		//program = glCreateProgram();
+		//glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
+		program = std::make_unique<OpenGLProgram>();
 		static_cast<T*>(this)->Start();
 	}
 	
@@ -133,7 +41,8 @@ public:
 		//Scene changes
 		static_cast<T*>(this)->PreUpdate();
 
-		glClear(clearFlags);
+		//glClear(clearFlags);
+		program->Clear();
 		//Rendering
 		static_cast<T*>(this)->Update();
 	}
@@ -142,15 +51,6 @@ public:
 	{
 		static_cast<T*>(this)->End();
 		GLFWHandler::GetInstance().Close();
-	}
-	void SetGLClearFlags(GLbitfield)
-	{
-		clearFlags = flags;
-	}
-	void SetClearColor(glm::vec4 color)
-	{
-		clearColor = color;
-		glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
 	}
 	
 	void DrawGUI()
@@ -161,12 +61,8 @@ public:
 	}
 	
 protected:
-	GLbitfield clearFlags = GL_COLOR_BUFFER_BIT;
-	glm::vec4 clearColor = glm::vec4(0.02f,0.02f,0.02f,1.f);
 	//unsigned int VBO, VAO, EBO;
-	GLuint program;
-	Shader vertexShader;
-	Shader fragmentShader;
+	std::unique_ptr<OpenGLProgram> program;
 	std::shared_ptr<Scene> scene;
 
 	/*
@@ -258,7 +154,7 @@ public:
 		//put time into a sin wave to get a value between 0 and 1
 		float value = (sin(time) + 1.0f) / 2.0f;
 		//lerp between the two colors
-		SetClearColor(glm::vec4(glm::mix(
+		program->SetClearColor(glm::vec4(glm::mix(
 			clearColor1,
 			clearColor2,
 			value), 1.0f));
@@ -297,20 +193,23 @@ public:
 	void Start()
 	{
 		printf("Initializing Renderer\n");
-		clearFlags = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT;
+		program->SetGLClearFlags(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		glEnable(GL_DEPTH_TEST);//!!!
+		//glEnable(GL_DEPTH_TEST);//!!!
 
-		vertexShader.glID = glCreateShader(GL_VERTEX_SHADER);
-		fragmentShader.glID = glCreateShader(GL_FRAGMENT_SHADER);
+		//vertexShader.glID = glCreateShader(GL_VERTEX_SHADER);
+		//fragmentShader.glID = glCreateShader(GL_FRAGMENT_SHADER);
+		//
+		////Set shader sources& compile
+		//vertexShader.SetSourceFromFile("../assets/shaders/simple/shader.vert", true);//todo
+		//fragmentShader.SetSourceFromFile("../assets/shaders/simple/shader.frag", true);//todo:fix the path
+
+		////Attach shaders
+		//vertexShader.AttachShader(this->program);
+		//fragmentShader.AttachShader(this->program);
 		
-		//Set shader sources& compile
-		vertexShader.SetSourceFromFile("../assets/shaders/simple/shader.vert", true);//todo
-		fragmentShader.SetSourceFromFile("../assets/shaders/simple/shader.frag", true);//todo:fix the path
-
-		//Attach shaders
-		vertexShader.AttachShader(this->program);
-		fragmentShader.AttachShader(this->program);
+		program->CreatePipelineFromFiles("../assets/shaders/simple/shader.vert",
+			"../assets/shaders/simple/shader.frag");
 
 
 		//create&bind vertex array object
@@ -329,7 +228,7 @@ public:
 			&mesh.GetMesh().V(0), GL_STATIC_DRAW);
 
 		//bind to GLSL attribute
-		GLuint pos = glGetAttribLocation(this->program, "pos");
+		GLuint pos = glGetAttribLocation(program->glID, "pos");
 		glEnableVertexAttribArray(pos);
 		glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
@@ -360,7 +259,7 @@ public:
 	{
 		auto view = scene->registry.view<CTransform, CTriMesh>();
 		//upload mvp to GLSL uniform
-		GLuint mvpID = glGetUniformLocation(this->program, "mvp");
+		GLuint mvpID = glGetUniformLocation(program->glID, "mvp");
 
 		view.each([&](auto& transform, auto& mesh)
 			{
@@ -368,7 +267,7 @@ public:
 				mvp = scene->camera.GetProjectionMatrix() * scene->camera.GetViewMatrix() * transform.GetModelMatrix();
 				glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvp[0][0]);
 				//bind GLSL program
-				glUseProgram(this->program);
+				glUseProgram(program->glID);
 				glDrawArrays(GL_POINTS, 0, mesh.GetNumVertices());
 			});
 	}
@@ -385,12 +284,12 @@ public:
 		ImGui::Begin("Control panel", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 		if (ImGui::Button("Read Shader Files(F5)"))
 		{
-			vertexShader.SetSourceFromFile("../assets/shaders/simple/shader.vert");
-			fragmentShader.SetSourceFromFile("../assets/shaders/simple/shader.frag");
+			program->SetVertexShaderSourceFromFile("../assets/shaders/phong/shader.vert");
+			program->SetFragmentShaderSourceFromFile("../assets/shaders/phong/shader.frag");
 		}
 		if (ImGui::Button("Recompile Shaders(F6)"))
 		{
-			
+			RecompileShaders();
 		}
 		if (ImGui::Button("Look at Teapot(F1)"))
 		{
@@ -404,24 +303,22 @@ public:
 	*/
 	inline void RecompileShaders()
 	{
-		if (vertexShader.Compile())
+		if (program->CompileShaders())
 		{
-			printf("Vertex Shader Recompiled Succesfully\n");
-			vertexShader.AttachShader(this->program);
+			printf("Shaders compiled successfully\n");
+			program->AttachVertexShader();
+			program->AttachFragmentShader();
 		}
-		if (fragmentShader.Compile())
-		{
-			printf("Fragment Shader Recompiled Succesfully\n");
-			fragmentShader.AttachShader(this->program);
-		}
+		else
+			printf("Shaders compilation failed\n");
 	}
 	/*
 	* Reloads and recompiles shaders
 	*/
 	inline void ReloadShaders()
 	{
-		vertexShader.SetSourceFromFile("../assets/shaders/simple/shader.vert");
-		fragmentShader.SetSourceFromFile("../assets/shaders/simple/shader.frag");
+		program->SetVertexShaderSourceFromFile("../assets/shaders/simple/shader.vert");
+		program->SetFragmentShaderSourceFromFile("../assets/shaders/simple/shader.frag");
 		RecompileShaders();
 	}
 	
@@ -505,20 +402,20 @@ public:
 	void Start()
 	{
 		printf("Initializing Renderer\n");
-		clearFlags = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT;
+		//clearFlags = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT;
 
-		glEnable(GL_DEPTH_TEST);//!!!
+		//glEnable(GL_DEPTH_TEST);//!!!
 
-		vertexShader.glID = glCreateShader(GL_VERTEX_SHADER);
-		fragmentShader.glID = glCreateShader(GL_FRAGMENT_SHADER);
+		/*vertexShader.glID = glCreateShader(GL_VERTEX_SHADER);
+		fragmentShader.glID = glCreateShader(GL_FRAGMENT_SHADER);*/
 
 		//Set shader sources& compile
-		vertexShader.SetSourceFromFile("../assets/shaders/phong/shader.vert", true);//todo
-		fragmentShader.SetSourceFromFile("../assets/shaders/phong/shader.frag", true);//todo:fix the path
+		//vertexShader.SetSourceFromFile("../assets/shaders/phong/shader.vert", true);//todo
+		//fragmentShader.SetSourceFromFile("../assets/shaders/phong/shader.frag", true);//todo:fix the path
 
-		//Attach shaders
-		vertexShader.AttachShader(this->program);
-		fragmentShader.AttachShader(this->program);
+		////Attach shaders
+		//vertexShader.AttachShader(this->program);
+		//fragmentShader.AttachShader(this->program);
 
 
 		//create&bind vertex array object
@@ -567,7 +464,7 @@ public:
 	{
 		auto view = scene->registry.view<CTransform, CTriMesh>();
 		//upload mvp to GLSL uniform
-		GLuint mvpID = glGetUniformLocation(this->program, "mvp");
+		GLuint mvpID = glGetUniformLocation(program->glID, "mvp");
 
 		view.each([&](auto& transform, auto& mesh)
 			{
@@ -591,12 +488,12 @@ public:
 		ImGui::Begin("Control panel", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 		if (ImGui::Button("Read Shader Files(F5)"))
 		{
-			vertexShader.SetSourceFromFile("../assets/shaders/phong/shader.vert");
-			fragmentShader.SetSourceFromFile("../assets/shaders/phong/shader.frag");
+			program->SetVertexShaderSourceFromFile("../assets/shaders/phong/shader.vert");
+			program->SetFragmentShaderSourceFromFile("../assets/shaders/phong/shader.frag");
 		}
 		if (ImGui::Button("Recompile Shaders(F6)"))
 		{
-
+			RecompileShaders();
 		}
 		if (ImGui::Button("Look at Teapot(F1)"))
 		{
@@ -610,24 +507,22 @@ public:
 	*/
 	inline void RecompileShaders()
 	{
-		if (vertexShader.Compile())
+		if (program->CompileShaders())
 		{
-			printf("Vertex Shader Recompiled Succesfully\n");
-			vertexShader.AttachShader(this->program);
+			printf("Shaders compiled successfully\n");
+			program->AttachVertexShader();
+			program->AttachFragmentShader();
 		}
-		if (fragmentShader.Compile())
-		{
-			printf("Fragment Shader Recompiled Succesfully\n");
-			fragmentShader.AttachShader(this->program);
-		}
+		else
+			printf("Shaders compilation failed\n");
 	}
 	/*
 	* Reloads and recompiles shaders
 	*/
 	inline void ReloadShaders()
 	{
-		vertexShader.SetSourceFromFile("../assets/shaders/simple/shader.vert");
-		fragmentShader.SetSourceFromFile("../assets/shaders/simple/shader.frag");
+		program->SetVertexShaderSourceFromFile("../assets/shaders/simple/shader.vert");
+		program->SetFragmentShaderSourceFromFile("../assets/shaders/simple/shader.frag");
 		RecompileShaders();
 	}
 

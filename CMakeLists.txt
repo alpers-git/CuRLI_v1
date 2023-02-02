@@ -60,7 +60,8 @@ include_directories(
 add_executable(curli 
     curli/EntryPoint.cpp
     curli/GLFWHandler.cpp
-    curli/Scene.cpp)
+    curli/Scene.cpp
+    curli/OpenGLProgram.cpp)
     
 # Set executable dependency libraries
 target_link_libraries(curli
