@@ -338,10 +338,9 @@ public:
 		glEnableVertexAttribArray(pos);
 		glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
+		//Init camera
 		int windowWidth, windowHeight;
 		glfwGetWindowSize(GLFWHandler::GetInstance().GetWindowPointer(), &windowWidth, &windowHeight);
-		
-		//Init camera
 		scene->camera = Camera(glm::vec3(0.f, 0.f, 0.0f), glm::vec3(0.0f,0, 0), 1.f,
 		45.f, 0.01f, 100000.f, (float)windowWidth / (float)windowHeight, true);
 
@@ -350,32 +349,33 @@ public:
 
 	void PreUpdate()
 	{
-		mvp = glm::scale(glm::mat4(1.0f), glm::vec3(0.05f) *
-			(scene->camera.IsPerspective() ? 1.f : 1.f / glm::length(scene->camera.GetLookAtEye())));
-		mvp = glm::rotate(mvp, glm::radians(-90.f), glm::vec3(1.f, 0.f, 0.f));
-		//rotate around y with time
-		mvp = glm::rotate(mvp, -(float)glfwGetTime() * 0.5f, glm::vec3(0.f, 0.f, 1.f));
-		
-		entt::entity entity{};
-		auto mesh = scene->GetComponent<CTriMesh>(entity);
-		//translate the teapot to the center
-		mvp = glm::translate(mvp, mesh.GetBoundingBoxCenter());
-		
-		mvp = scene->camera.GetProjectionMatrix() * scene->camera.GetViewMatrix() * mvp;
-		
-		//upload mvp to GLSL uniform
-		GLuint mvpID = glGetUniformLocation(this->program, "mvp");
-		glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvp[0][0]);
+		//for each element with CTransform in the scene registry loop
+		auto view = scene->registry.view<CTransform, CTriMesh>();
+
+		view.each([&](auto& transform, auto& mesh)
+			{
+				transform.SetScale(glm::vec3(0.05f) *
+				(scene->camera.IsPerspective() ? 1.f : 1.f / glm::length(scene->camera.GetLookAtEye())));
+				transform.SetEulerRotation(glm::vec3(glm::radians(-90.f), 0, (float)glfwGetTime() * 0.5f));
+				transform.SetPosition(-mesh.GetBoundingBoxCenter());
+			});
 	}
 
 	void Update()
 	{
-		entt::entity entity{};
-		auto mesh = scene->GetComponent<CTriMesh>(entity);
-		
-		//bind GLSL program
-		glUseProgram(this->program);
-		glDrawArrays(GL_POINTS, 0, mesh.GetNumVertices());
+		auto view = scene->registry.view<CTransform, CTriMesh>();
+		//upload mvp to GLSL uniform
+		GLuint mvpID = glGetUniformLocation(this->program, "mvp");
+
+		view.each([&](auto& transform, auto& mesh)
+			{
+
+				mvp = scene->camera.GetProjectionMatrix() * scene->camera.GetViewMatrix() * transform.GetModelMatrix();
+				glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvp[0][0]);
+				//bind GLSL program
+				glUseProgram(this->program);
+				glDrawArrays(GL_POINTS, 0, mesh.GetNumVertices());
+			});
 	}
 
 	void End()
@@ -436,7 +436,7 @@ public:
 	inline void LookAtMesh()
 	{
 		scene->camera.SetOrbitDistance(3.f);
-		scene->camera.SetCenter({0,1,0});
+		scene->camera.SetCenter({0,0,0});
 		scene->camera.SetOrbitAngles({ 0,0,0 });
 	}
 
@@ -477,7 +477,6 @@ public:
 	void OnMouseMove(double x, double y)
 	{
 		glm::vec2 deltaPos(prevMousePos.x - x, prevMousePos.y - y);
-		glm::vec3 right;
 		if (m1Down)
 			scene->camera.SetOrbitAngles(scene->camera.GetOrbitAngles() 
 				- glm::vec3(deltaPos.y * 0.5f, -deltaPos.x * 0.4f, 0.f));

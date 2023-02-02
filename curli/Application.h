@@ -12,10 +12,9 @@ public:
 	{
 		scene = std::make_shared<Scene>();
 
-		auto entity = scene->CreateEntity();
-		const auto view = scene->registry.view<CTriMesh>();
-		scene->AddComponent<CTriMesh>(entity);
-		scene->GetComponent<CTriMesh>(entity).LoadObj(argv[1]);
+		/*auto entity = scene->CreateEntity();
+		scene->registry.emplace<CTriMesh>(entity, argv[1]);*/
+		scene->CreateModelObject(argv[1]);
 		
 		renderer = std::make_unique<T>(scene);
 		renderer->ParseArguments(argc, argv);

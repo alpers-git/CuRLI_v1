@@ -1,5 +1,14 @@
 #include <Scene.h>
 
+void CTransform::Update()
+{
+	
+}
+
+void CTriMesh::Update()
+{
+}
+
 Scene::Scene()
 {
 }
@@ -23,11 +32,19 @@ void Scene::Update()
 {
 }
 
-void CTransform::Update()
+entt::entity Scene::CreateModelObject(const std::string& meshPath, glm::vec3 position, glm::vec3 rotation, glm::vec3 scale)
 {
-	
+	auto entity = CreateEntity();
+	registry.emplace<CTriMesh>(entity, meshPath);
+	registry.emplace<CTransform>(entity, position, rotation, scale);
+	return entity;
 }
 
-void CTriMesh::Update()
+entt::entity Scene::CreateModelObject(cy::TriMesh& mesh, glm::vec3 position, glm::vec3 rotation, glm::vec3 scale)
 {
+	auto entity = CreateEntity();
+	registry.emplace<CTriMesh>(entity, mesh);
+	registry.emplace<CTransform>(entity, position, rotation, scale);
+	return entity;
 }
+

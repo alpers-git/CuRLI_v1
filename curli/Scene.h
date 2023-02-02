@@ -7,6 +7,7 @@
 #include <CyToGLMHelper.h>
 #include <glm/gtx/log_base.hpp>
 #include <glm/gtc/matrix_access.hpp>
+#include <stdarg.h>
 
 struct Camera
 {
@@ -198,6 +199,12 @@ struct Component
 struct CTransform : Component
 {
 public:
+	CTransform(glm::vec3 position = glm::vec3(0.f), glm::vec3 rotation = glm::vec3(0.f), glm::vec3 scale = glm::vec3(1.f))
+		: position(position), rotation(rotation), scale(scale)
+	{
+		CalculateModelMatrix();
+	}
+
 	//getter and setters
 	void SetPosition(glm::vec3 position, bool recalculate = false)
 	{
@@ -206,7 +213,7 @@ public:
 			CalculateModelMatrix();
 		modelDirty = !recalculate;
 	}
-	void SetRotation(glm::vec3 rotation, bool recalculate = false)
+	void SetEulerRotation(glm::vec3 rotation, bool recalculate = false)
 	{
 		this->rotation = rotation;
 		if (recalculate)
@@ -216,6 +223,27 @@ public:
 	void SetScale(glm::vec3 scale, bool recalculate = false)
 	{
 		this->scale = scale;
+		if (recalculate)
+			CalculateModelMatrix();
+		modelDirty = !recalculate;
+	}
+	void Translate(glm::vec3 offset, bool recalculate = false)
+	{
+		position += offset;
+		if (recalculate)
+			CalculateModelMatrix();
+		modelDirty = !recalculate;
+	}
+	void Rotate(glm::vec3 angles, bool recalculate = false)
+	{
+		this->rotation += angles;
+		if (recalculate)
+			CalculateModelMatrix();
+		modelDirty = !recalculate;
+	}
+	void Scale(glm::vec3 multiplier, bool recalculate = false)
+	{
+		this->scale *= multiplier;
 		if (recalculate)
 			CalculateModelMatrix();
 		modelDirty = !recalculate;
@@ -306,9 +334,9 @@ public:
 	inline void LoadObj(const std::string& path)
 	{
 		mesh.LoadFromFileObj(path.c_str());
-		printf("Loaded %d vertices and %d faces\n",
+		printf("Loaded %d vertices and %d faces from %s\n",
 			GetNumVertices(),
-			GetNumFaces());
+			GetNumFaces(), path.c_str());
 	}
 
 	void Update();
@@ -326,24 +354,8 @@ public:
 
 	entt::entity CreateEntity();
 	void DestroyEntity(entt::entity entity);
+
 	void Update();
-	
-	template <typename C>
-	void AddComponent(entt::entity& entity)
-	{
-		if (registry.all_of<C>(entity)) {
-			registry.replace<C>(entity);
-		}
-		else {
-			registry.emplace<C>(entity);
-		}
-	};
-	
-	template <typename C>
-	void RemoveComponent(entt::entity& entity)
-	{
-		registry.remove<C>(entity);
-	};
 	
 	/*
 	* Returns a reference to the specified component of the specified entity. 
@@ -354,6 +366,19 @@ public:
 	{
 		return registry.view<C>().get<C>(entity);
 	};
+
+	/*
+	* Reads an obj file and adds and entity to the scene with a transform and a mesh
+	*/
+	entt::entity CreateModelObject(const std::string& meshPath, glm::vec3 position = glm::vec3(0.f),
+		glm::vec3 rotation = glm::vec3(0.f), glm::vec3 scale = glm::vec3(1.f));
+	/*
+	* Adds and entity to the scene with a transform and a mesh
+	*/
+	entt::entity CreateModelObject(cy::TriMesh& mesh, glm::vec3 position = glm::vec3(0.f),
+		glm::vec3 rotation = glm::vec3(0.f), glm::vec3 scale = glm::vec3(1.f));
+	
+	
 
 
 	Camera camera;
