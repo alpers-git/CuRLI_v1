@@ -292,12 +292,7 @@ public:
 
 	//override ParseArguments
 	void ParseArguments(int argc, char const* argv[])
-	{
-		//get first argument and use that to load the mesh using cyTrimesh
-		std::string meshPath = argv[1];
-		cyTriMesh mesh;
-		mesh.LoadFromFileObj(meshPath.c_str());
-	}
+	{}
 
 	void Start()
 	{
@@ -495,4 +490,206 @@ private:
 	glm::mat4 mvp = glm::mat4(1.0f);
 	GLuint VAO;
 	GLuint VBO;
+};
+
+class PhongRenderer : Renderer<PhongRenderer>
+{
+public:
+	PhongRenderer(std::shared_ptr<Scene> scene) :Renderer(scene) {}
+	~PhongRenderer() {}
+
+	//override ParseArguments
+	void ParseArguments(int argc, char const* argv[])
+	{}
+
+	void Start()
+	{
+		printf("Initializing Renderer\n");
+		clearFlags = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT;
+
+		glEnable(GL_DEPTH_TEST);//!!!
+
+		vertexShader.glID = glCreateShader(GL_VERTEX_SHADER);
+		fragmentShader.glID = glCreateShader(GL_FRAGMENT_SHADER);
+
+		//Set shader sources& compile
+		vertexShader.SetSourceFromFile("../assets/shaders/phong/shader.vert", true);//todo
+		fragmentShader.SetSourceFromFile("../assets/shaders/phong/shader.frag", true);//todo:fix the path
+
+		//Attach shaders
+		vertexShader.AttachShader(this->program);
+		fragmentShader.AttachShader(this->program);
+
+
+		//create&bind vertex array object
+		//glGenVertexArrays(1, &VAO);
+		//glBindVertexArray(VAO);
+
+		////create&bind vertex buffer object
+		//glGenBuffers(1, &VBO);
+		//glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+		////set buffer data
+		//entt::entity entity{};
+		//auto mesh = scene->GetComponent<CTriMesh>(entity);
+
+		//glBufferData(GL_ARRAY_BUFFER, mesh.GetNumVertices() * sizeof(float) * 3,
+		//	&mesh.GetMesh().V(0), GL_STATIC_DRAW);
+
+		////bind to GLSL attribute
+		//GLuint pos = glGetAttribLocation(this->program, "pos");
+		//glEnableVertexAttribArray(pos);
+		//glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+		////Init camera
+		//int windowWidth, windowHeight;
+		//glfwGetWindowSize(GLFWHandler::GetInstance().GetWindowPointer(), &windowWidth, &windowHeight);
+		//scene->camera = Camera(glm::vec3(0.f, 0.f, 0.0f), glm::vec3(0.0f, 0, 0), 1.f,
+		//	45.f, 0.01f, 100000.f, (float)windowWidth / (float)windowHeight, true);
+
+		//LookAtMesh();
+	}
+
+	void PreUpdate()
+	{
+		//for each element with CTransform in the scene registry loop
+		auto view = scene->registry.view<CTransform, CTriMesh>();
+
+		view.each([&](auto& transform, auto& mesh)
+			{
+				transform.SetScale(glm::vec3(0.05f));
+				transform.SetEulerRotation(glm::vec3(glm::radians(-90.f), 0, (float)glfwGetTime() * 0.5f));
+				transform.SetPosition(-mesh.GetBoundingBoxCenter());
+			});
+	}
+
+	void Update()
+	{
+		auto view = scene->registry.view<CTransform, CTriMesh>();
+		//upload mvp to GLSL uniform
+		GLuint mvpID = glGetUniformLocation(this->program, "mvp");
+
+		view.each([&](auto& transform, auto& mesh)
+			{
+
+				//mvp = scene->camera.GetProjectionMatrix() * scene->camera.GetViewMatrix() * transform.GetModelMatrix();
+				//glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvp[0][0]);
+				////bind GLSL program
+				//glUseProgram(this->program);
+				//glDrawArrays(GL_POINTS, 0, mesh.GetNumVertices());
+			});
+	}
+	void End()
+	{
+		printf("Shutting down Renderer");
+	}
+
+	void UpdateGUI()
+	{
+		const ImGuiViewport* main_viewport = ImGui::GetMainViewport();
+		ImGui::SetNextWindowPos(ImVec2(main_viewport->WorkPos.x + 10, main_viewport->WorkPos.y + 10));
+		ImGui::Begin("Control panel", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
+		if (ImGui::Button("Read Shader Files(F5)"))
+		{
+			vertexShader.SetSourceFromFile("../assets/shaders/phong/shader.vert");
+			fragmentShader.SetSourceFromFile("../assets/shaders/phong/shader.frag");
+		}
+		if (ImGui::Button("Recompile Shaders(F6)"))
+		{
+
+		}
+		if (ImGui::Button("Look at Teapot(F1)"))
+		{
+			LookAtMesh();
+		}
+		ImGui::End();
+	}
+
+	/*
+	* Recompile the shaders
+	*/
+	inline void RecompileShaders()
+	{
+		if (vertexShader.Compile())
+		{
+			printf("Vertex Shader Recompiled Succesfully\n");
+			vertexShader.AttachShader(this->program);
+		}
+		if (fragmentShader.Compile())
+		{
+			printf("Fragment Shader Recompiled Succesfully\n");
+			fragmentShader.AttachShader(this->program);
+		}
+	}
+	/*
+	* Reloads and recompiles shaders
+	*/
+	inline void ReloadShaders()
+	{
+		vertexShader.SetSourceFromFile("../assets/shaders/simple/shader.vert");
+		fragmentShader.SetSourceFromFile("../assets/shaders/simple/shader.frag");
+		RecompileShaders();
+	}
+
+	/*
+	* Points camera to mesh center
+	*/
+	inline void LookAtMesh()
+	{
+		scene->camera.SetOrbitDistance(3.f);
+		scene->camera.SetCenter({ 0,0,0 });
+		scene->camera.SetOrbitAngles({ 0,0,0 });
+	}
+
+	void OnWindowResize(int w, int h)
+	{
+		scene->camera.SetAspectRatio((float)w / (float)h);
+	}
+
+	void OnKeyboard(int key, int scancode, int action, int mods)
+	{
+		// if GLFW_ESC is pressed exit the application
+		if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+			glfwSetWindowShouldClose(GLFWHandler::GetInstance().GetWindowPointer(), true);
+		if (key == GLFW_KEY_F6 && action == GLFW_PRESS)
+			RecompileShaders();
+		if (key == GLFW_KEY_F5 && action == GLFW_PRESS)
+			ReloadShaders();
+		if (key == GLFW_KEY_F1 && action == GLFW_PRESS)
+			LookAtMesh();
+		if (key == GLFW_KEY_P && action == GLFW_PRESS)
+			scene->camera.SetPerspective(!scene->camera.IsPerspective());
+	}
+
+	//orbit camera
+	void OnMouseButton(int button, int action, int mods)
+	{
+		if (button == GLFW_MOUSE_BUTTON_LEFT && (action == GLFW_PRESS || action == GLFW_REPEAT))
+			m1Down = true;
+		else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
+			m1Down = false;
+
+		if (button == GLFW_MOUSE_BUTTON_RIGHT && (action == GLFW_PRESS || action == GLFW_REPEAT))
+			m2Down = true;
+		else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE)
+			m2Down = false;
+	}
+	//orbit camera
+	void OnMouseMove(double x, double y)
+	{
+		glm::vec2 deltaPos(prevMousePos.x - x, prevMousePos.y - y);
+		if (m1Down)
+			scene->camera.SetOrbitAngles(scene->camera.GetOrbitAngles()
+				- glm::vec3(deltaPos.y * 0.5f, -deltaPos.x * 0.4f, 0.f));
+		if (m2Down)
+			scene->camera.SetOrbitDistance(scene->camera.GetOrbitDistance() + deltaPos.y * 0.05f);
+		prevMousePos = { x,y };
+	}
+
+private:
+	//--orbit controls--//
+	bool m1Down = false;
+	bool m2Down = false;
+	glm::vec2 prevMousePos;
+	//--------------------//
 };
