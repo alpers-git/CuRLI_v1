@@ -163,6 +163,8 @@ public:
 	void SetFragmentShader(Shader* shader);
 	
 	bool CompileShaders();
+	
+	GLuint GetID() { return glID; }
 
 	inline void SetUniform(const char* name, int value)
 	{
@@ -265,8 +267,8 @@ public:
 		glClear(clearFlags);
 	}
 	
-	GLuint glID;
 private:
+	GLuint glID;
 	Shader* vertexShader;
 	Shader* fragmentShader;
 	GLbitfield clearFlags = GL_COLOR_BUFFER_BIT;

@@ -199,26 +199,27 @@ public:
 		program->CreatePipelineFromFiles("../assets/shaders/simple/shader.vert",
 			"../assets/shaders/simple/shader.frag");
 
-
-		//create&bind vertex array object
-		glGenVertexArrays(1, &VAO);
-		glBindVertexArray(VAO);
-
-		//create&bind vertex buffer object
-		glGenBuffers(1, &VBO);
-		glBindBuffer(GL_ARRAY_BUFFER, VBO);
-
-		//set buffer data
-		entt::entity entity{};
-		auto mesh = scene->GetComponent<CTriMesh>(entity);
 		
-		glBufferData(GL_ARRAY_BUFFER, mesh.GetNumVertices() * sizeof(float)*3, 
-			&mesh.GetMesh().V(0), GL_STATIC_DRAW);
-
-		//bind to GLSL attribute
-		GLuint pos = glGetAttribLocation(program->glID, "pos");
-		glEnableVertexAttribArray(pos);
-		glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		const auto view = scene->registry.view<CTriMesh>();
+		// use an extended callback
+		view.each([&](const auto entity, const auto& mesh)
+			{
+				scene->registry.emplace<CVertexArrayObject>(entity);
+			});
+		const auto viewVAO = scene->registry.view<CVertexArrayObject, CTriMesh>();
+		viewVAO.each([&](const auto entity, auto& vao, auto& mesh)
+			{
+				vao.CreateVAO();
+				VertexBufferObject vbo(
+					&mesh.GetMesh().V(0),
+					mesh.GetNumVertices(),
+					GL_FLOAT,
+					"pos",
+					3,
+					program->GetID());
+				vao.AddVBO(vbo);
+			});
+		
 
 		//Init camera
 		int windowWidth, windowHeight;
@@ -245,16 +246,16 @@ public:
 
 	void Update()
 	{
-		auto view = scene->registry.view<CTransform, CTriMesh>();
+		auto view = scene->registry.view<CTransform, CVertexArrayObject>();
 
-		view.each([&](auto& transform, auto& mesh)
+		view.each([&](auto& transform, auto& vao)
 			{
 
 				const auto mvp = scene->camera.GetProjectionMatrix() * scene->camera.GetViewMatrix() * transform.GetModelMatrix();
 				program->SetUniform("mvp", mvp);
 				//bind GLSL program
 				program->Use();
-				glDrawArrays(GL_POINTS, 0, mesh.GetNumVertices());
+				vao.Draw(GL_POINTS);
 			});
 	}
 
@@ -422,12 +423,18 @@ public:
 		//GLuint pos = glGetAttribLocation(this->program, "pos");
 		//glEnableVertexAttribArray(pos);
 		//glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		
+		
+		
 
-		////Init camera
-		//int windowWidth, windowHeight;
-		//glfwGetWindowSize(GLFWHandler::GetInstance().GetWindowPointer(), &windowWidth, &windowHeight);
-		//scene->camera = Camera(glm::vec3(0.f, 0.f, 0.0f), glm::vec3(0.0f, 0, 0), 1.f,
-		//	45.f, 0.01f, 100000.f, (float)windowWidth / (float)windowHeight, true);
+
+		
+
+		//Init camera
+		int windowWidth, windowHeight;
+		glfwGetWindowSize(GLFWHandler::GetInstance().GetWindowPointer(), &windowWidth, &windowHeight);
+		scene->camera = Camera(glm::vec3(0.f, 0.f, 0.0f), glm::vec3(0.0f, 0, 0), 1.f,
+			45.f, 0.01f, 100000.f, (float)windowWidth / (float)windowHeight, true);
 
 		//LookAtMesh();
 	}
@@ -448,9 +455,7 @@ public:
 	void Update()
 	{
 		auto view = scene->registry.view<CTransform, CTriMesh>();
-		//upload mvp to GLSL uniform
-		GLuint mvpID = glGetUniformLocation(program->glID, "mvp");
-
+		
 		view.each([&](auto& transform, auto& mesh)
 			{
 
