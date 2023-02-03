@@ -1,6 +1,6 @@
 #include <OpenGLProgram.h>
 
-void OpenGLProgram::UseProgram()
+void OpenGLProgram::Use()
 {
 	glUseProgram(glID);
 }

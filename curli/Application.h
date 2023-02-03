@@ -11,9 +11,6 @@ public:
 	Application(int argc, char const* argv[]) 
 	{
 		scene = std::make_shared<Scene>();
-
-		/*auto entity = scene->CreateEntity();
-		scene->registry.emplace<CTriMesh>(entity, argv[1]);*/
 		scene->CreateModelObject(argv[1]);
 		
 		renderer = std::make_unique<T>(scene);

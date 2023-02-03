@@ -195,18 +195,6 @@ public:
 		printf("Initializing Renderer\n");
 		program->SetGLClearFlags(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		//glEnable(GL_DEPTH_TEST);//!!!
-
-		//vertexShader.glID = glCreateShader(GL_VERTEX_SHADER);
-		//fragmentShader.glID = glCreateShader(GL_FRAGMENT_SHADER);
-		//
-		////Set shader sources& compile
-		//vertexShader.SetSourceFromFile("../assets/shaders/simple/shader.vert", true);//todo
-		//fragmentShader.SetSourceFromFile("../assets/shaders/simple/shader.frag", true);//todo:fix the path
-
-		////Attach shaders
-		//vertexShader.AttachShader(this->program);
-		//fragmentShader.AttachShader(this->program);
 		
 		program->CreatePipelineFromFiles("../assets/shaders/simple/shader.vert",
 			"../assets/shaders/simple/shader.frag");
@@ -258,16 +246,14 @@ public:
 	void Update()
 	{
 		auto view = scene->registry.view<CTransform, CTriMesh>();
-		//upload mvp to GLSL uniform
-		GLuint mvpID = glGetUniformLocation(program->glID, "mvp");
 
 		view.each([&](auto& transform, auto& mesh)
 			{
 
-				mvp = scene->camera.GetProjectionMatrix() * scene->camera.GetViewMatrix() * transform.GetModelMatrix();
-				glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvp[0][0]);
+				const auto mvp = scene->camera.GetProjectionMatrix() * scene->camera.GetViewMatrix() * transform.GetModelMatrix();
+				program->SetUniform("mvp", mvp);
 				//bind GLSL program
-				glUseProgram(program->glID);
+				program->Use();
 				glDrawArrays(GL_POINTS, 0, mesh.GetNumVertices());
 			});
 	}
@@ -384,7 +370,6 @@ private:
 	glm::vec2 prevMousePos;
 	//--------------------//
 	
-	glm::mat4 mvp = glm::mat4(1.0f);
 	GLuint VAO;
 	GLuint VBO;
 };

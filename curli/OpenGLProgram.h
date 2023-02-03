@@ -119,7 +119,7 @@ public:
 	};
 
 	//void CreateProgram();
-	void UseProgram();
+	void Use();
 	//void DeleteProgram();
 	
 	/*
@@ -164,10 +164,91 @@ public:
 	
 	bool CompileShaders();
 
-	template <typename T>
-	inline void SetUniform(const char* name, T value)
+	inline void SetUniform(const char* name, int value)
 	{
-	};
+		GLint location = glGetUniformLocation(glID, name);
+		if (location == -1)
+		{
+			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;
+			return;
+		}
+		glUniform1i(location, value);
+	}
+	inline void SetUniform(const char* name, float value)
+	{
+		GLint location = glGetUniformLocation(glID, name);
+		if (location == -1)
+		{
+			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;
+			return;
+		}
+		glUniform1f(location, value);
+	}
+	
+	inline void SetUniform(const char* name, glm::vec2 value)
+	{
+		GLint location = glGetUniformLocation(glID, name);
+		if (location == -1)
+		{
+			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;
+			return;
+		}
+		glUniform2f(location, value.x, value.y);
+	}
+	inline void SetUniform(const char* name, glm::vec3 value)
+	{
+		GLint location = glGetUniformLocation(glID, name);
+		if (location == -1)
+		{
+			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;
+			return;
+		}
+		glUniform3f(location, value.x, value.y, value.z);
+	}
+	inline void SetUniform(const char* name, glm::vec4 value)
+	{
+		GLint location = glGetUniformLocation(glID, name);
+		if (location == -1)
+		{
+			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;
+			return;
+		}
+
+		glUniform4f(location, value.x, value.y, value.z, value.w);
+	}
+
+	inline void SetUniform(const char* name, glm::mat2 value)
+	{
+		GLint location = glGetUniformLocation(glID, name);
+		if (location == -1)
+		{
+			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;
+			return;
+		}
+		glUniformMatrix2fv(location, 1, GL_FALSE, &value[0][0]);
+	}
+
+	inline void SetUniform(const char* name, glm::mat3 value)
+	{
+		GLint location = glGetUniformLocation(glID, name);
+		if (location == -1)
+		{
+			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;
+			return;
+		}
+		glUniformMatrix3fv(location, 1, GL_FALSE, &value[0][0]);
+	}
+	
+	inline void SetUniform(const char* name, glm::mat4 value)
+	{
+		GLint location = glGetUniformLocation(glID, name);
+		if (location == -1)
+		{
+			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;
+			return;
+		}
+		glUniformMatrix4fv(location, 1, GL_FALSE, &value[0][0]);
+	}
 
 	inline void SetGLClearFlags(GLbitfield flags)
 	{
