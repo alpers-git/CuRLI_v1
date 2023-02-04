@@ -425,6 +425,7 @@ public:
 
 		material.diffuse = glm::vec3(0.5f, 0.5f, 0.5f);
 		material.specular = glm::vec3(0.5f, 0.5f, 0.5f);
+		material.ambient = glm::vec3(0.5f, 0.5f, 0.5f);
 		material.shininess = 32.f;
 		//Init camera
 		int windowWidth, windowHeight;
@@ -459,9 +460,12 @@ public:
 				const auto mv =  scene->camera.GetViewMatrix() * transform.GetModelMatrix();
 				const auto mvp = scene->camera.GetProjectionMatrix() * mv;
 				program->SetUniform("mvp", mvp);
+				program->SetUniform("mv", mv);
 				program->SetUniform("normal_mat",
 					glm::transpose(glm::inverse(glm::mat3(mv))));
-				program->SetUniform("material.diffuse", material.diffuse);
+				program->SetUniform("material.ka", material.ambient);
+				program->SetUniform("material.kd", material.diffuse);
+				program->SetUniform("material.ks", material.specular);
 				//bind GLSL program
 				program->Use();
 				vao.Draw(GL_TRIANGLES);
@@ -479,7 +483,7 @@ public:
 		ImGui::SetNextWindowSize(ImVec2(main_viewport->WorkSize.x/5, main_viewport->WorkSize.y/2));
 		ImGui::SetNextWindowPos(ImVec2(main_viewport->WorkSize.x - main_viewport->WorkSize.x/5 -5, main_viewport->WorkPos.y + 5));
 		ImGui::Begin("Control panel", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
-		if (ImGui::CollapsingHeader("Shaders"))
+		if (ImGui::CollapsingHeader("Shaders", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			if (ImGui::Button("Read Shaders(F5)"))
 			{
@@ -492,7 +496,7 @@ public:
 				RecompileShaders();
 			}
 		}
-		if (ImGui::CollapsingHeader("Camera"))
+		if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			if (ImGui::Button("Reset Camera(F1)"))
 			{
@@ -505,9 +509,12 @@ public:
 				scene->camera.SetCenter(target);
 			}
 		}
-		if (ImGui::CollapsingHeader("Material"))
+		if (ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_DefaultOpen))
 		{
+			ImGui::ColorEdit3("Specular", &material.specular[0]);
 			ImGui::ColorEdit3("Diffuse", &material.diffuse[0]);
+			ImGui::ColorEdit3("Ambient", &material.ambient[0]);
+			ImGui::DragFloat("Shininess", &material.shininess, 0.1f, 0.f, 100.f);
 		}
 		
 		ImGui::End();
