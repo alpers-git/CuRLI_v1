@@ -7,10 +7,10 @@ layout (location = 2) out vec3 f_norm;
 
 
 layout(location = 0) uniform mat4 mvp;
-layout(location = 1) uniform mat3 normalMat;
+layout(location = 1) uniform mat3 normal_mat;
 
 void main() {
     gl_Position = mvp * vec4(v_pos, 1.0);
-    f_norm = v_norm * normalMat;
+    f_norm = normal_mat * v_norm;
 }
      

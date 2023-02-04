@@ -423,7 +423,9 @@ public:
 				vao.CreateEBO((unsigned int *)mesh.GetFaceDataPtr(), mesh.GetNumFaces()*3);
 			});
 
-
+		material.diffuse = glm::vec3(0.5f, 0.5f, 0.5f);
+		material.specular = glm::vec3(0.5f, 0.5f, 0.5f);
+		material.shininess = 32.f;
 		//Init camera
 		int windowWidth, windowHeight;
 		glfwGetWindowSize(GLFWHandler::GetInstance().GetWindowPointer(), &windowWidth, &windowHeight);
@@ -454,10 +456,12 @@ public:
 		view.each([&](auto& transform, auto& vao)
 			{
 
-				const auto mvp = scene->camera.GetProjectionMatrix() * scene->camera.GetViewMatrix() * transform.GetModelMatrix();
+				const auto mv =  scene->camera.GetViewMatrix() * transform.GetModelMatrix();
+				const auto mvp = scene->camera.GetProjectionMatrix() * mv;
 				program->SetUniform("mvp", mvp);
-				program->SetUniform("normalMat", glm::mat3(1.0f));//TODO
-					//glm::transpose(glm::inverse(glm::mat3(transform.GetModelMatrix()))));
+				program->SetUniform("normal_mat",
+					glm::transpose(glm::inverse(glm::mat3(mv))));
+				program->SetUniform("material.diffuse", material.diffuse);
 				//bind GLSL program
 				program->Use();
 				vao.Draw(GL_TRIANGLES);
@@ -472,21 +476,40 @@ public:
 	void UpdateGUI()
 	{
 		const ImGuiViewport* main_viewport = ImGui::GetMainViewport();
-		ImGui::SetNextWindowPos(ImVec2(main_viewport->WorkSize.x - 185, main_viewport->WorkPos.y + 5));
+		ImGui::SetNextWindowSize(ImVec2(main_viewport->WorkSize.x/5, main_viewport->WorkSize.y/2));
+		ImGui::SetNextWindowPos(ImVec2(main_viewport->WorkSize.x - main_viewport->WorkSize.x/5 -5, main_viewport->WorkPos.y + 5));
 		ImGui::Begin("Control panel", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
-		if (ImGui::Button("Read Shader Files(F5)"))
+		if (ImGui::CollapsingHeader("Shaders"))
 		{
-			program->SetVertexShaderSourceFromFile("../assets/shaders/phong/shader.vert");
-			program->SetFragmentShaderSourceFromFile("../assets/shaders/phong/shader.frag");
+			if (ImGui::Button("Read Shaders(F5)"))
+			{
+				program->SetVertexShaderSourceFromFile("../assets/shaders/phong/shader.vert");
+				program->SetFragmentShaderSourceFromFile("../assets/shaders/phong/shader.frag");
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Compile Shaders(F6)"))
+			{
+				RecompileShaders();
+			}
 		}
-		if (ImGui::Button("Recompile Shaders(F6)"))
+		if (ImGui::CollapsingHeader("Camera"))
 		{
-			RecompileShaders();
+			if (ImGui::Button("Reset Camera(F1)"))
+			{
+				LookAtMesh();
+			}
+			//ImGui::SameLine();
+			glm::vec3 target = scene->camera.GetCenter();
+			if (ImGui::DragFloat3("Target", &target[0], 0.01f))
+			{
+				scene->camera.SetCenter(target);
+			}
 		}
-		if (ImGui::Button("Look at Teapot(F1)"))
+		if (ImGui::CollapsingHeader("Material"))
 		{
-			LookAtMesh();
+			ImGui::ColorEdit3("Diffuse", &material.diffuse[0]);
 		}
+		
 		ImGui::End();
 	}
 
@@ -574,5 +597,11 @@ private:
 	bool m1Down = false;
 	bool m2Down = false;
 	glm::vec2 prevMousePos;
-	//--------------------//
+	//---phong-material---//
+	struct {
+		glm::vec3 ambient;
+		glm::vec3 diffuse;
+		glm::vec3 specular;
+		float shininess;
+	}material;
 };
