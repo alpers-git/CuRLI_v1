@@ -3,7 +3,7 @@
 
 int main(int argc, char const *argv[])
 {
-	Application<PointRenderer> app(argc, argv);
+	Application<PhongRenderer> app(argc, argv);
 	app.Run();
 
     return 0;

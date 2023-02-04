@@ -301,8 +301,34 @@ public:
 	
 	unsigned int GetNumVertices() { return mesh.NV(); }
 	unsigned int GetNumFaces() { return mesh.NF(); }
+	unsigned int GetNumNormals() { return mesh.NVN(); }
+	unsigned int GetNumTextureVertices() { return mesh.NVT(); }
+	
 	glm::vec3 GetVertex(unsigned int index) { return glm::cy2GLM(mesh.V(index)); }
-	glm::vec3 GetNormal(unsigned int index) { return glm::cy2GLM(mesh.VN(index)); }
+	glm::vec3 GetVNormal(unsigned int index) { return glm::cy2GLM(mesh.VN(index)); }
+	glm::vec3 GetVTexture(unsigned int index) { return glm::cy2GLM(mesh.VT(index)); }
+	
+	glm::ivec3 GetFNormal(unsigned int index) { 
+		const auto tmp = mesh.FN(index);
+		return glm::ivec3(tmp.v[0], tmp.v[1], tmp.v[2]);
+	}
+	glm::ivec3 GetFace(unsigned int index) { 
+		const auto tmp = mesh.F(index);
+		return glm::ivec3(tmp.v[0], tmp.v[1], tmp.v[2]);
+	}
+	glm::ivec3 GetFTexture(unsigned int index) {
+		const auto tmp = mesh.FT(index);
+		return glm::ivec3(tmp.v[0], tmp.v[1], tmp.v[2]);
+	}
+
+	void* GetVertexDataPtr() { return &mesh.V(0); }
+	void* GetNormalDataPtr() { return &mesh.VN(0); }
+	void* GetTextureDataPtr() { return &mesh.VT(0); }
+	void* GetFaceDataPtr() { return &mesh.F(0); }
+
+	
+	
+	
 	//glm::vec3 GetFaceNormal(unsigned int index) { return glm::cy2GLM(mesh.FN(index)); }
 
 	inline void ComputeBoundingBox()
@@ -335,9 +361,12 @@ public:
 	inline void LoadObj(const std::string& path)
 	{
 		mesh.LoadFromFileObj(path.c_str());
-		printf("Loaded %d vertices and %d faces from %s\n",
+		printf("Loaded model with %d vertices, vertex normals %d, texture vertices %d, and faces %d from %s\n",
 			GetNumVertices(),
-			GetNumFaces(), path.c_str());
+			GetNumNormals(),
+			GetNumTextureVertices(),
+			GetNumFaces(),
+			path.c_str());
 	}
 
 	void Update();

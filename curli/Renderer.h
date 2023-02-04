@@ -370,12 +370,9 @@ private:
 	bool m2Down = false;
 	glm::vec2 prevMousePos;
 	//--------------------//
-	
-	GLuint VAO;
-	GLuint VBO;
 };
 
-class PhongRenderer : Renderer<PhongRenderer>
+class PhongRenderer : public Renderer<PhongRenderer>
 {
 public:
 	PhongRenderer(std::shared_ptr<Scene> scene) :Renderer(scene) {}
@@ -388,47 +385,44 @@ public:
 	void Start()
 	{
 		printf("Initializing Renderer\n");
-		//clearFlags = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT;
-
-		//glEnable(GL_DEPTH_TEST);//!!!
-
-		/*vertexShader.glID = glCreateShader(GL_VERTEX_SHADER);
-		fragmentShader.glID = glCreateShader(GL_FRAGMENT_SHADER);*/
-
-		//Set shader sources& compile
-		//vertexShader.SetSourceFromFile("../assets/shaders/phong/shader.vert", true);//todo
-		//fragmentShader.SetSourceFromFile("../assets/shaders/phong/shader.frag", true);//todo:fix the path
-
-		////Attach shaders
-		//vertexShader.AttachShader(this->program);
-		//fragmentShader.AttachShader(this->program);
+		program->SetGLClearFlags(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
-		//create&bind vertex array object
-		//glGenVertexArrays(1, &VAO);
-		//glBindVertexArray(VAO);
-
-		////create&bind vertex buffer object
-		//glGenBuffers(1, &VBO);
-		//glBindBuffer(GL_ARRAY_BUFFER, VBO);
-
-		////set buffer data
-		//entt::entity entity{};
-		//auto mesh = scene->GetComponent<CTriMesh>(entity);
-
-		//glBufferData(GL_ARRAY_BUFFER, mesh.GetNumVertices() * sizeof(float) * 3,
-		//	&mesh.GetMesh().V(0), GL_STATIC_DRAW);
-
-		////bind to GLSL attribute
-		//GLuint pos = glGetAttribLocation(this->program, "pos");
-		//glEnableVertexAttribArray(pos);
-		//glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		
-		
-		
+		program->CreatePipelineFromFiles("../assets/shaders/phong/shader.vert",
+			"../assets/shaders/phong/shader.frag");
 
 
-		
+		const auto view = scene->registry.view<CTriMesh>();
+		// use an extended callback
+		view.each([&](const auto entity, const auto& mesh)
+			{
+				scene->registry.emplace<CVertexArrayObject>(entity);
+			});
+		const auto viewVAO = scene->registry.view<CVertexArrayObject, CTriMesh>();
+		viewVAO.each([&](const auto entity, auto& vao, auto& mesh)
+			{
+				vao.CreateVAO();
+				VertexBufferObject vertexVBO(
+				mesh.GetVertexDataPtr(),
+				mesh.GetNumVertices(),
+				GL_FLOAT,
+				"v_pos",
+				3,
+				program->GetID());
+				vao.AddVBO(vertexVBO);
+				
+				VertexBufferObject normalsVBO(
+					mesh.GetNormalDataPtr(),
+					mesh.GetNumNormals(),
+					GL_FLOAT,
+					"v_norm",
+					3,
+					program->GetID());
+				vao.AddVBO(normalsVBO);
+
+				vao.CreateEBO((unsigned int *)mesh.GetFaceDataPtr(), mesh.GetNumFaces()*3);
+			});
+
 
 		//Init camera
 		int windowWidth, windowHeight;
@@ -436,7 +430,7 @@ public:
 		scene->camera = Camera(glm::vec3(0.f, 0.f, 0.0f), glm::vec3(0.0f, 0, 0), 1.f,
 			45.f, 0.01f, 100000.f, (float)windowWidth / (float)windowHeight, true);
 
-		//LookAtMesh();
+		LookAtMesh();
 	}
 
 	void PreUpdate()
@@ -446,7 +440,8 @@ public:
 
 		view.each([&](auto& transform, auto& mesh)
 			{
-				transform.SetScale(glm::vec3(0.05f));
+				transform.SetScale(glm::vec3(0.05f) *
+				(scene->camera.IsPerspective() ? 1.f : 1.f / glm::length(scene->camera.GetLookAtEye())));
 				transform.SetEulerRotation(glm::vec3(glm::radians(-90.f), 0, (float)glfwGetTime() * 0.5f));
 				transform.SetPosition(-mesh.GetBoundingBoxCenter());
 			});
@@ -454,18 +449,21 @@ public:
 
 	void Update()
 	{
-		auto view = scene->registry.view<CTransform, CTriMesh>();
-		
-		view.each([&](auto& transform, auto& mesh)
+		auto view = scene->registry.view<CTransform, CVertexArrayObject>();
+
+		view.each([&](auto& transform, auto& vao)
 			{
 
-				//mvp = scene->camera.GetProjectionMatrix() * scene->camera.GetViewMatrix() * transform.GetModelMatrix();
-				//glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvp[0][0]);
-				////bind GLSL program
-				//glUseProgram(this->program);
-				//glDrawArrays(GL_POINTS, 0, mesh.GetNumVertices());
+				const auto mvp = scene->camera.GetProjectionMatrix() * scene->camera.GetViewMatrix() * transform.GetModelMatrix();
+				program->SetUniform("mvp", mvp);
+				program->SetUniform("normalMat", glm::mat3(1.0f));//TODO
+					//glm::transpose(glm::inverse(glm::mat3(transform.GetModelMatrix()))));
+				//bind GLSL program
+				program->Use();
+				vao.Draw(GL_TRIANGLES);
 			});
 	}
+
 	void End()
 	{
 		printf("Shutting down Renderer");
@@ -474,7 +472,7 @@ public:
 	void UpdateGUI()
 	{
 		const ImGuiViewport* main_viewport = ImGui::GetMainViewport();
-		ImGui::SetNextWindowPos(ImVec2(main_viewport->WorkPos.x + 10, main_viewport->WorkPos.y + 10));
+		ImGui::SetNextWindowPos(ImVec2(main_viewport->WorkSize.x - 185, main_viewport->WorkPos.y + 5));
 		ImGui::Begin("Control panel", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 		if (ImGui::Button("Read Shader Files(F5)"))
 		{
