@@ -1,12 +1,9 @@
 #version 430
 precision mediump float;
 
-layout (location = 2) in vec3 f_norm;
-layout (location = 3) in vec3 f_pos;
-layout (location = 4) in vec3 L;
+layout (location = 2) in vec3 v_space_norm;
+layout (location = 3) in vec3 l;
 
-layout(location = 1) uniform mat4 mv;
-//layout(location = 3) vec3 light_position;
 layout(location = 4) uniform float light_intensity;
 uniform struct {
      vec3 ka;
@@ -18,18 +15,20 @@ uniform struct {
 out vec4 color;
 
 void main() {
-     vec3 f_norm = normalize(f_norm);
-     vec3 L = normalize(L); //light vector
-     vec3 H = normalize(L -f_pos); //half vector
+     vec3 v_space_norm = normalize(v_space_norm);
+     vec3 l = normalize(l); //light vector
+     vec3 h = normalize(l + vec3(0,0,1)); //half vector
 
-     float cos_theta = dot(L, f_norm);
-     if(cos_theta < 0) {
-          color = vec4(material.ka, 1);
-     }
-     else {
-          vec3 diffuse = material.kd * cos_theta;
+     float cos_theta = dot(l, v_space_norm);
+     if(cos_theta >= 0)
+     {
+          vec3 diffuse = material.kd * max(cos_theta,0);
           vec3 ambient = material.ka;
-          vec3 specular= material.ks * pow(max(dot(H, f_norm),0), material.shininess);
+          vec3 specular= material.ks * pow(max(dot(h, v_space_norm),0), material.shininess);
           color = vec4(light_intensity * (specular + diffuse) + ambient, 1);
+     }
+     else
+     {
+          color = vec4(material.ka,1);
      }
 }

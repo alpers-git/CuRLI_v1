@@ -406,7 +406,7 @@ public:
 				mesh.GetVertexDataPtr(),
 				mesh.GetNumVertices(),
 				GL_FLOAT,
-				"v_pos",
+				"pos",
 				3,
 				program->GetID());
 				vao.AddVBO(vertexVBO);
@@ -415,7 +415,7 @@ public:
 					mesh.GetNormalDataPtr(),
 					mesh.GetNumNormals(),
 					GL_FLOAT,
-					"v_norm",
+					"norm",
 					3,
 					program->GetID());
 				vao.AddVBO(normalsVBO);
@@ -459,9 +459,9 @@ public:
 
 				const auto mv =  scene->camera.GetViewMatrix() * transform.GetModelMatrix();
 				const auto mvp = scene->camera.GetProjectionMatrix() * mv;
-				program->SetUniform("mvp", mvp);
-				program->SetUniform("mv", mv);
-				program->SetUniform("normal_mat",
+				program->SetUniform("to_screen_space", mvp);
+				program->SetUniform("to_view_space", mv);
+				program->SetUniform("normals_to_view_space",
 					glm::transpose(glm::inverse(glm::mat3(mv))));
 				program->SetUniform("material.ka", material.ambient);
 				program->SetUniform("material.kd", material.diffuse);
