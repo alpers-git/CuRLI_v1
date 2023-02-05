@@ -2,8 +2,10 @@
 precision mediump float;
 
 layout (location = 2) in vec3 v_space_norm;
-layout (location = 3) in vec3 l;
+layout (location = 3) in vec3 v_space_pos;
 
+layout(location = 1) uniform mat4 to_view_space; //mv
+layout(location = 3) uniform vec3 light_position;
 layout(location = 4) uniform float light_intensity;
 uniform struct {
      vec3 ka;
@@ -16,7 +18,7 @@ out vec4 color;
 
 void main() {
      vec3 v_space_norm = normalize(v_space_norm);
-     vec3 l = normalize(l); //light vector
+     vec3 l =  normalize( (to_view_space * vec4(light_position, 1)).xyz - v_space_pos);//normalize(l); //light vector
      vec3 h = normalize(l + vec3(0,0,1)); //half vector
 
      float cos_theta = dot(l, v_space_norm);
