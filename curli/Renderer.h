@@ -390,7 +390,7 @@ public:
 
 		program->CreatePipelineFromFiles("../assets/shaders/phong/shader.vert",
 			"../assets/shaders/phong/shader.frag");
-
+		program->SetClearColor({ 0.f,0.f,0.1f,1.f });
 
 		const auto view = scene->registry.view<CTriMesh>();
 		// use an extended callback
@@ -466,6 +466,9 @@ public:
 				program->SetUniform("material.ka", material.ambient);
 				program->SetUniform("material.kd", material.diffuse);
 				program->SetUniform("material.ks", material.specular);
+				program->SetUniform("material.shininess", material.shininess);
+				program->SetUniform("light_position", light.position);
+				program->SetUniform("light_intensity", light.intensity);
 				//bind GLSL program
 				program->Use();
 				vao.Draw(GL_TRIANGLES);
@@ -487,8 +490,7 @@ public:
 		{
 			if (ImGui::Button("Read Shaders(F5)"))
 			{
-				program->SetVertexShaderSourceFromFile("../assets/shaders/phong/shader.vert");
-				program->SetFragmentShaderSourceFromFile("../assets/shaders/phong/shader.frag");
+				ReloadShaders();
 			}
 			ImGui::SameLine();
 			if (ImGui::Button("Compile Shaders(F6)"))
@@ -514,7 +516,12 @@ public:
 			ImGui::ColorEdit3("Specular", &material.specular[0]);
 			ImGui::ColorEdit3("Diffuse", &material.diffuse[0]);
 			ImGui::ColorEdit3("Ambient", &material.ambient[0]);
-			ImGui::DragFloat("Shininess", &material.shininess, 0.1f, 0.f, 100.f);
+			ImGui::DragFloat("Shininess", &material.shininess, 0.1f, 0.f, 500.f);
+		}
+		if (ImGui::CollapsingHeader("Light", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			ImGui::DragFloat("Intensity", &light.intensity, 0.001f, 0.1f, 10.f);
+			ImGui::DragFloat3("Light Pos", &light.position[0], 0.01f);
 		}
 		
 		ImGui::End();
@@ -539,8 +546,8 @@ public:
 	*/
 	inline void ReloadShaders()
 	{
-		program->SetVertexShaderSourceFromFile("../assets/shaders/simple/shader.vert");
-		program->SetFragmentShaderSourceFromFile("../assets/shaders/simple/shader.frag");
+		program->SetVertexShaderSourceFromFile("../assets/shaders/phong/shader.vert");
+		program->SetFragmentShaderSourceFromFile("../assets/shaders/phong/shader.frag");
 		RecompileShaders();
 	}
 
@@ -611,4 +618,12 @@ private:
 		glm::vec3 specular;
 		float shininess;
 	}material;
+
+	//---light---// TODO MAKE IT A COMPONENT
+	struct
+	{
+		glm::vec3 color;
+		glm::vec3 position = { 0,0,20 };
+		float intensity = 1.f;
+	}light;
 };
