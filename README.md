@@ -16,6 +16,7 @@ Most of these dependencies are included as submodules and compiles with CMake. O
 - [GLFW](https://github.com/glfw/glfw) ~~FreeGlut~~
 - [Glad](https://glad.dav1d.de/#language=c&specification=gl&api=gl%3D4.6&api=gles1%3Dnone&api=gles2%3Dnone&api=glsc2%3Dnone&profile=compatibility&loader=on)
 - [cyCodeBase](http://www.cemyuksel.com/cyCodeBase/)(only for .obj importer ATM)
+- [EnTT](https://github.com/skypjack/entt)
 
 #### Building with Cmake
 1. Clone or download the files(unzip the downloaded files).
@@ -63,3 +64,22 @@ Some Screenshots:
 <img src="./images/pr2_2.png" width=80%>
 
 ---
+#### Project 3 - Shading
+###### Project 3 requirements:
+- [x] Displayed triangles instead of points
+- [x] Uploaded and transforming vertex normals using inverse transpose of model view matrix
+- [x] Imlemented Blinn-Phong shading in view space using half angles.
+- [x] Added orbital controls to the first point light source inserted into the scene.
+###### Additional Features:
+- Integrated EnTT --- an entity-component system.
+  - Using EnTT several components have been developed:
+    - `CLight`: Illuminates the scene currently only as point light but soon other types will be implemented.
+    - `CTransform`: A transform component that is traditionally used to generate model matrices for shaders
+    - `CTriMesh`: Wrapper for cyTriMesh allows entities to have geometry
+    - `CVertexArrayObject`: Allows geometry to be drawn using bound VBOs and EBO(optional). Automaticly handles and selects which draw calls to make.
+- Implemented `OpenGLProgram` abstraction which alows convenience binding shaders and uploading uniforms.
+- Using the ECS I let shaders render multiple light sources over multiple objects.
+
+Some Screenshots:
+<img src="./images/pr3_1.png" width=80%>
+<img src="./images/pr3_2.png" width=80%>
