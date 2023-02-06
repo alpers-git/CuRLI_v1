@@ -38,7 +38,7 @@ void Scene::Update()
 entt::entity Scene::AddPointLight(glm::vec3 pos, float intesity, glm::vec3 color)
 {
 	auto entity = CreateEntity();
-	registry.emplace<CLight>(entity, LightType::POINT, color, intesity, pos, 
+	registry.emplace<CLight>(entity, LightType::POINT, color, glm::min(intesity, 1.0f), pos, 
 		glm::vec3(0, 0, 0), 0, 0);
 	return entity;
 }

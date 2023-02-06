@@ -452,12 +452,17 @@ public:
 				i++;
 			});
 
+		i = 0;
 		auto view2 = scene->registry.view<CLight>();
 		view2.each([&](auto& light)
 			{
-				program->SetUniform("light.position", glm::vec3(scene->camera.GetViewMatrix() * glm::vec4(light.position, 1)));
-				program->SetUniform("light.intensity", light.intensity);
+				std::string shaderName("light[" + std::to_string(i) + "].position");
+				program->SetUniform(shaderName.c_str(), glm::vec3(scene->camera.GetViewMatrix() * glm::vec4(light.position, 1)));
+				shaderName = std::string("light[" + std::to_string(i) + "].intensity");
+				program->SetUniform(shaderName.c_str(), light.intensity);
+				i++;
 			});
+		program->SetUniform("light_count", i);
 	}
 
 	void Update()
@@ -533,7 +538,7 @@ public:
 				{
 					std::string field1(std::string("Intensity##") + std::to_string(i));
 					std::string field2(std::string("Light Pos##") + std::to_string(i));
-					ImGui::DragFloat(field1.c_str(), &light.intensity, 0.001f, 0.1f, 1.f);
+					ImGui::DragFloat(field1.c_str(), &light.intensity, 0.001f, 0.0f, 1.f);
 					ImGui::DragFloat3( field2.c_str(), &light.position[0], 0.01f);
 					ImGui::Separator();
 					i++;
@@ -595,6 +600,10 @@ public:
 			LookAtMesh();
 		if (key == GLFW_KEY_P && action == GLFW_PRESS)
 			scene->camera.SetPerspective(!scene->camera.IsPerspective());
+		if (key == GLFW_KEY_LEFT_CONTROL && action == GLFW_PRESS)
+			ctrlDown = true;
+		else if (key == GLFW_KEY_LEFT_CONTROL && action == GLFW_RELEASE)
+			ctrlDown = false;
 	}
 
 	//orbit camera
@@ -614,12 +623,49 @@ public:
 	void OnMouseMove(double x, double y)
 	{
 		glm::vec2 deltaPos(prevMousePos.x - x, prevMousePos.y - y);
-		if (m1Down)
+		if (m1Down && ctrlDown)
+		{
+			//UGLY CODE HERE
+			//fetch the first light
+			auto view2 = scene->registry.view<CLight>();
+			int i = 0;
+			view2.each([&](auto& light)
+				{
+					if (i == 0)
+					{
+						//get the angles around 0,0,0 based on position
+						glm::vec3 angles = glm::vec3(
+							asin((light.position.y) / glm::length(light.position)),
+							atan2f((-light.position.z), (light.position.x)) + 1.57f,
+							0.f);
+						//calculate new spherical coordinates using angles - mouse delta 
+						angles = angles + glm::vec3(deltaPos.y * .005f, -deltaPos.x * .004f, 0.f);
+						if (angles.x > 89.5f)
+							angles.x = 89.5f;
+						if (angles.x < -89.5f)
+							angles.x = -89.5f;
+						const float theta = angles.x;
+						const float phi = angles.y;
+						glm::vec3 unitSpherePos = {
+							cos(theta) * sin(phi),
+							sin(theta),
+							cos(theta) * cos(phi)
+						};
+						//Preserve the distance to center and set the new position
+						light.position = unitSpherePos * glm::length(light.position);
+					}
+					i++;
+				});
+
+		}
+		else if (m1Down)
 			scene->camera.SetOrbitAngles(scene->camera.GetOrbitAngles()
 				- glm::vec3(deltaPos.y * 0.5f, -deltaPos.x * 0.4f, 0.f));
 		if (m2Down)
 			scene->camera.SetOrbitDistance(scene->camera.GetOrbitDistance() + deltaPos.y * 0.05f);
 		prevMousePos = { x,y };
+
+
 	}
 
 private:
@@ -634,4 +680,6 @@ private:
 		glm::vec3 specular;
 		float shininess;
 	}material;
+
+	bool ctrlDown = false;
 };
