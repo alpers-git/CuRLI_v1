@@ -6,7 +6,8 @@
 #include <iostream>
 #include <cyTriMesh.h>
 #include <fstream>
-#include <string>
+#include <stdio.h>
+#include <string.h>
 #include <imgui.h>
 
 
@@ -424,9 +425,10 @@ public:
 			});
 
 		material.diffuse = glm::vec3(0.5f, 0.5f, 0.5f);
-		material.specular = glm::vec3(0.5f, 0.5f, 0.5f);
-		material.ambient = glm::vec3(0.5f, 0.5f, 0.5f);
-		material.shininess = 32.f;
+		material.specular = glm::vec3(0.9f, 0.9f, 0.9f);
+		material.ambient = glm::vec3(0.2f, 0.2f, 0.3f);
+		material.shininess = 450.f;
+
 		//Init camera
 		int windowWidth, windowHeight;
 		glfwGetWindowSize(GLFWHandler::GetInstance().GetWindowPointer(), &windowWidth, &windowHeight);
@@ -440,21 +442,28 @@ public:
 	{
 		//for each element with CTransform in the scene registry loop
 		auto view = scene->registry.view<CTransform, CTriMesh>();
-
+		int i = 0;
 		view.each([&](auto& transform, auto& mesh)
 			{
 				transform.SetScale(glm::vec3(0.05f) *
 				(scene->camera.IsPerspective() ? 1.f : 1.f / glm::length(scene->camera.GetLookAtEye())));
-				transform.SetEulerRotation(glm::vec3(glm::radians(-90.f), 0, (float)glfwGetTime() * 0.5f));
-				transform.SetPosition(-mesh.GetBoundingBoxCenter());
+				transform.SetEulerRotation(glm::vec3(glm::radians(-90.f ), i * 60.f, (float)glfwGetTime() * 0.5f));
+				transform.SetPosition(-mesh.GetBoundingBoxCenter() + glm::vec3(i*15));
+				i++;
+			});
+
+		auto view2 = scene->registry.view<CLight>();
+		view2.each([&](auto& light)
+			{
+				program->SetUniform("light.position", glm::vec3(scene->camera.GetViewMatrix() * glm::vec4(light.position, 1)));
+				program->SetUniform("light.intensity", light.intensity);
 			});
 	}
 
 	void Update()
-	{
-		auto view = scene->registry.view<CTransform, CVertexArrayObject>();
-
-		view.each([&](auto& transform, auto& vao)
+	{	
+		auto view2 = scene->registry.view<CTransform, CVertexArrayObject>();
+		view2.each([&](auto& transform, auto& vao)
 			{
 
 				const auto mv =  scene->camera.GetViewMatrix() * transform.GetModelMatrix();
@@ -463,12 +472,10 @@ public:
 				program->SetUniform("to_view_space", mv);
 				program->SetUniform("normals_to_view_space",
 					glm::transpose(glm::inverse(glm::mat3(mv))));
-				program->SetUniform("material.ka", material.ambient);
-				program->SetUniform("material.kd", material.diffuse);
-				program->SetUniform("material.ks", material.specular);
-				program->SetUniform("material.shininess", material.shininess);
-				program->SetUniform("light_position", light.position);
-				program->SetUniform("light_intensity", light.intensity);
+				program->SetUniform("material_ka", material.ambient);
+				program->SetUniform("material_kd", material.diffuse);
+				program->SetUniform("material_ks", material.specular);
+				program->SetUniform("material_shininess", material.shininess);
 				//bind GLSL program
 				program->Use();
 				vao.Draw(GL_TRIANGLES);
@@ -518,10 +525,19 @@ public:
 			ImGui::ColorEdit3("Ambient", &material.ambient[0]);
 			ImGui::DragFloat("Shininess", &material.shininess, 0.1f, 0.f, 500.f);
 		}
-		if (ImGui::CollapsingHeader("Light", ImGuiTreeNodeFlags_DefaultOpen))
+		if (ImGui::CollapsingHeader("Lights", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			ImGui::DragFloat("Intensity", &light.intensity, 0.001f, 0.1f, 10.f);
-			ImGui::DragFloat3("Light Pos", &light.position[0], 0.01f);
+			int i  = 0;
+			auto view = scene->registry.view<CLight>();
+			view.each([&](auto& light)
+				{
+					std::string field1(std::string("Intensity##") + std::to_string(i));
+					std::string field2(std::string("Light Pos##") + std::to_string(i));
+					ImGui::DragFloat(field1.c_str(), &light.intensity, 0.001f, 0.1f, 1.f);
+					ImGui::DragFloat3( field2.c_str(), &light.position[0], 0.01f);
+					ImGui::Separator();
+					i++;
+				});
 		}
 		
 		ImGui::End();
@@ -618,12 +634,4 @@ private:
 		glm::vec3 specular;
 		float shininess;
 	}material;
-
-	//---light---// TODO MAKE IT A COMPONENT
-	struct
-	{
-		glm::vec3 color;
-		glm::vec3 position = { 0,0,20 };
-		float intensity = 1.f;
-	}light;
 };

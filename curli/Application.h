@@ -12,6 +12,13 @@ public:
 	{
 		scene = std::make_shared<Scene>();
 		scene->CreateModelObject(argv[1]);
+		scene->CreateModelObject(argv[1]);
+		scene->CreateModelObject(argv[1]);
+		scene->CreateModelObject(argv[1]);
+
+		scene->AddPointLight(glm::vec3(0, 0, 20), 1);
+		scene->AddPointLight(glm::vec3(0, 2, 20), 1);
+		scene->AddPointLight(glm::vec3(0, 6, 20), 1);
 		
 		renderer = std::make_unique<T>(scene);
 		renderer->ParseArguments(argc, argv);

@@ -2,7 +2,6 @@
 
 void CTransform::Update()
 {
-	
 }
 
 void CTriMesh::Update()
@@ -14,6 +13,10 @@ Scene::Scene()
 }
 
 Scene::~Scene()
+{
+}
+
+void CLight::Update()
 {
 }
 
@@ -30,6 +33,14 @@ void Scene::DestroyEntity(entt::entity entity)
 
 void Scene::Update()
 {
+}
+
+entt::entity Scene::AddPointLight(glm::vec3 pos, float intesity, glm::vec3 color)
+{
+	auto entity = CreateEntity();
+	registry.emplace<CLight>(entity, LightType::POINT, color, intesity, pos, 
+		glm::vec3(0, 0, 0), 0, 0);
+	return entity;
 }
 
 entt::entity Scene::CreateModelObject(const std::string& meshPath, glm::vec3 position, glm::vec3 rotation, glm::vec3 scale)

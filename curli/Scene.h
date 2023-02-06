@@ -445,7 +445,6 @@ public:
 	}
 };
 
-
 struct CVertexArrayObject : Component
 {
 public:
@@ -557,6 +556,68 @@ private:
 	unsigned int numIndices = 0;
 };
 
+enum class LightType
+{
+	POINT,
+	DIRECTIONAL,
+	SPOT
+};
+struct CLight : Component
+{
+public:
+	CLight(LightType type, glm::vec3 color, float intensity, glm::vec3 position,
+		glm::vec3 direction, float iCutoff, float oCutoff)
+		:lightType(type)
+	{
+		this->color = color;
+		this->intensity = intensity;
+		//Point light constructor
+		if (type == LightType::POINT)
+		{
+			this->position = position;
+			//invalid values for safety
+			direction = glm::vec3(NAN, NAN, NAN);
+			innerCutOff = -1;
+			outerCutoff = -1;
+		}
+		//Directional light constructor
+		else if (type == LightType::DIRECTIONAL)
+		{
+			this->direction = direction;
+			lightType = LightType::DIRECTIONAL;
+
+			//invalid values for safety
+			position = glm::vec3(NAN, NAN, NAN);
+			innerCutOff = -1;
+			outerCutoff = -1;
+		}
+		//Spot light constructor
+		else if (type == LightType::SPOT)
+		{
+			this->position = position;
+			this->direction = direction;
+
+			innerCutOff = iCutoff;
+			outerCutoff = oCutoff;
+		}
+		
+	}
+	
+	
+	glm::vec3 color;
+	float intensity;
+	float innerCutOff;
+	float outerCutoff;
+	glm::vec3 direction;
+	glm::vec3 position;
+	
+	void Update();
+	
+private:
+	LightType lightType;
+	
+};
+
 
 class Scene
 {
@@ -590,7 +651,8 @@ public:
 	entt::entity CreateModelObject(cy::TriMesh& mesh, glm::vec3 position = glm::vec3(0.f),
 		glm::vec3 rotation = glm::vec3(0.f), glm::vec3 scale = glm::vec3(1.f));
 	
-	
+	entt::entity AddPointLight(glm::vec3 pos, float intesity,
+		glm::vec3 color = glm::vec3(1, 1, 1));
 
 
 	Camera camera;
