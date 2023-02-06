@@ -460,6 +460,8 @@ public:
 				program->SetUniform(shaderName.c_str(), glm::vec3(scene->camera.GetViewMatrix() * glm::vec4(light.position, 1)));
 				shaderName = std::string("light[" + std::to_string(i) + "].intensity");
 				program->SetUniform(shaderName.c_str(), light.intensity);
+				shaderName = std::string("light[" + std::to_string(i) + "].color");
+				program->SetUniform(shaderName.c_str(), light.color);
 				i++;
 			});
 		program->SetUniform("light_count", i);
@@ -536,10 +538,12 @@ public:
 			auto view = scene->registry.view<CLight>();
 			view.each([&](auto& light)
 				{
-					std::string field1(std::string("Intensity##") + std::to_string(i));
-					std::string field2(std::string("Light Pos##") + std::to_string(i));
-					ImGui::DragFloat(field1.c_str(), &light.intensity, 0.001f, 0.0f, 1.f);
-					ImGui::DragFloat3( field2.c_str(), &light.position[0], 0.01f);
+					std::string field1(std::string("Position##") + std::to_string(i));
+					std::string field2(std::string("Intensity##") + std::to_string(i));
+					std::string field3(std::string("Color##") + std::to_string(i));
+					ImGui::DragFloat3( field1.c_str(), &light.position[0], 0.01f);
+					ImGui::DragFloat(field2.c_str(), &light.intensity, 0.001f, 0.0f, 1.f);
+					ImGui::ColorEdit3(field3.c_str(), &light.color[0], 0.01f);
 					ImGui::Separator();
 					i++;
 				});

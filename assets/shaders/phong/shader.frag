@@ -3,6 +3,7 @@ precision mediump float;
 //------------ Structs ------------
 struct Light{
      vec3 position;
+     vec3 color;
      float intensity;
 };
 
@@ -37,7 +38,7 @@ void main() {
           {
                vec3 diffuse = material_kd * max(cos_theta,0);
                vec3 specular= material_ks * pow(max(dot(h, v_space_norm),0), material_shininess);
-               color += vec4(light[i].intensity * (specular + diffuse), 1);
+               color += vec4(light[i].intensity * normalize(light[i].color) * (specular + diffuse), 1);
           }
      }
 
