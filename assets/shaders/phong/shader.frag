@@ -17,11 +17,18 @@ uniform int light_count;
 uniform Light light[8];
 
 
-layout(location = 5) uniform vec3 material_ka;
-layout(location = 6) uniform vec3 material_kd;
-layout(location = 7) uniform vec3 material_ks;
-layout(location = 8) uniform float material_shininess;
+// layout(location = 5) uniform vec3 material_ka;
+// layout(location = 6) uniform vec3 material_kd;
+// layout(location = 7) uniform vec3 material_ks;
+// layout(location = 8) uniform float material_shininess;
+uniform struct Material {
+     vec3 ka;
+     vec3 kd;
+     vec3 ks;
+     float shininess;
+}material;
 
+// layout(location = 5) uniform Material material;
 
 out vec4 color;
 
@@ -36,11 +43,11 @@ void main() {
           float cos_theta = dot(l, v_space_norm);
           if(cos_theta >= 0)
           {
-               vec3 diffuse = material_kd * max(cos_theta,0);
-               vec3 specular= material_ks * pow(max(dot(h, v_space_norm),0), material_shininess);
+               vec3 diffuse = material.kd * max(cos_theta,0);
+               vec3 specular= material.ks * pow(max(dot(h, v_space_norm),0), material.shininess);
                color += vec4(light[i].intensity * normalize(light[i].color) * (specular + diffuse), 1);
           }
      }
 
-     color = clamp(color + vec4(material_ka,1),0,1);
+     color = clamp(color + vec4(material.ka,1),0,1);
 }

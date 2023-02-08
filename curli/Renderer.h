@@ -479,10 +479,10 @@ public:
 				program->SetUniform("to_view_space", mv);
 				program->SetUniform("normals_to_view_space",
 					glm::transpose(glm::inverse(glm::mat3(mv))));
-				program->SetUniform("material_ka", material.ambient);
-				program->SetUniform("material_kd", material.diffuse);
-				program->SetUniform("material_ks", material.specular);
-				program->SetUniform("material_shininess", material.shininess);
+				program->SetUniform("material.ka", material.ambient);
+				program->SetUniform("material.kd", material.diffuse);
+				program->SetUniform("material.ks", material.specular);
+				program->SetUniform("material.shininess", material.shininess);
 				//bind GLSL program
 				program->Use();
 				vao.Draw(GL_TRIANGLES);
