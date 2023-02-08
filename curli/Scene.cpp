@@ -59,6 +59,7 @@ entt::entity Scene::CreateModelObject(const std::string& meshPath, glm::vec3 pos
 	auto entity = CreateEntity();
 	registry.emplace<CTriMesh>(entity, meshPath);
 	registry.emplace<CTransform>(entity, position, rotation, scale);
+	registry.emplace<CPhongMaterial>(entity);
 	return entity;
 }
 
@@ -96,3 +97,5 @@ void CRigidBody::Update()
 
 	position += velocity;
 }
+
+void CPhongMaterial::Update(){}

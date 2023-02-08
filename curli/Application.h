@@ -11,11 +11,10 @@ public:
 	Application(int argc, char const* argv[]) 
 	{
 		scene = std::make_shared<Scene>();
+		ParseArguments(argc, argv);
 		
-		scene->registry.emplace<CRigidBody>(scene->CreateModelObject(argv[1]), 1.0f, glm::vec3(0), glm::vec3(0));
-		
-		scene->AddPointLight(glm::vec3(0, 0, 20), 1, glm::vec3(0.7, 0.8, 0.05));
-		scene->AddPointLight(glm::vec3(10, 10, 0), .1, glm::vec3(0.8, 0.1, 0.0));
+		scene->AddPointLight(glm::vec3(0, 0, 20), 1, glm::vec3(0.7, 0.8, 0.05));//TODO
+		scene->AddPointLight(glm::vec3(10, 10, 0), .1, glm::vec3(0.8, 0.1, 0.0));//TODO
 		scene->AddPointLight(glm::vec3(-20, 0, 0), .5, glm::vec3(0.01, 0.1, 0.9));
 		
 		renderer = std::make_unique<T>(scene);
@@ -56,4 +55,42 @@ public:
 private:
 	std::unique_ptr<T> renderer;
 	std::shared_ptr<Scene> scene;
+	inline void ParseArguments(int argc, char const* argv[])
+	{
+		//parse arguments
+		for (int i = 1; i < argc; i++)
+		{
+			printf("%s\n", argv[i]);
+			if (std::string(argv[i]).compare("-model")==0)
+			{
+				i++;
+				printf("\t%s\n", argv[i]);
+				bool hasRB = false;
+				std::string path;
+				for (; i < argc; i++)
+				{
+					printf("\t\t%s\n", argv[i]);
+					if (std::string(argv[i]).compare("--rb") == 0)
+					{
+						hasRB = true;
+					}
+					else if (std::string(argv[i]).compare("--path") == 0)
+					{
+						i++;
+						printf("\t\t\t%s\n", argv[i]);
+						path = argv[i];
+					}
+					else
+					{
+						i--;
+						break;
+					}
+				}
+				if (hasRB)
+					scene->registry.emplace<CRigidBody>(scene->CreateModelObject(path), 1.0f, glm::vec3(0), glm::vec3(0));
+				else
+					scene->CreateModelObject(path), 1.0f, glm::vec3(0), glm::vec3(0);
+			}
+		}
+	}
 };

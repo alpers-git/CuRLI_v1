@@ -411,7 +411,7 @@ public:
 				program->GetID());
 				vao.AddVBO(vertexVBO);
 				
-				mesh->ComputeNormals();
+				mesh.ComputeNormals();
 				VertexBufferObject normalsVBO(
 					mesh.GetNormalDataPtr(),
 					mesh.GetNumNormals(),
@@ -423,11 +423,6 @@ public:
 
 				vao.CreateEBO((unsigned int *)mesh.GetFaceDataPtr(), mesh.GetNumFaces()*3);
 			});
-
-		material.diffuse = glm::vec3(0.5f, 0.5f, 0.5f);
-		material.specular = glm::vec3(0.9f, 0.9f, 0.9f);
-		material.ambient = glm::vec3(0.2f, 0.2f, 0.3f);
-		material.shininess = 450.f;
 
 		//Init camera
 		int windowWidth, windowHeight;
@@ -467,8 +462,8 @@ public:
 
 	void Update()
 	{	
-		auto view2 = scene->registry.view<CTransform, CVertexArrayObject>();
-		view2.each([&](auto& transform, auto& vao)
+		auto view = scene->registry.view<CTransform, CVertexArrayObject, CPhongMaterial>();
+		view.each([&](auto& transform, auto& vao, auto& material)
 			{
 
 				const auto mv =  scene->camera.GetViewMatrix() * transform.GetModelMatrix();
@@ -525,10 +520,21 @@ public:
 		}
 		if (ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			ImGui::ColorEdit3("Specular", &material.specular[0]);
-			ImGui::ColorEdit3("Diffuse", &material.diffuse[0]);
-			ImGui::ColorEdit3("Ambient", &material.ambient[0]);
-			ImGui::DragFloat("Shininess", &material.shininess, 0.1f, 0.f, 500.f);
+			int i = 0;
+			auto view = scene->registry.view<CPhongMaterial>();
+			view.each([&](auto& material)
+				{
+					std::string field1(std::string("Specular##") + std::to_string(i));
+					std::string field2(std::string("Diffuse##") + std::to_string(i));
+					std::string field3(std::string("Ambient##") + std::to_string(i));
+					std::string field4(std::string("Shininess##") + std::to_string(i));
+					ImGui::ColorEdit3(field1.c_str(), &material.specular[0]);
+					ImGui::ColorEdit3(field2.c_str(), &material.diffuse[0]);
+					ImGui::ColorEdit3(field3.c_str(), &material.ambient[0]);
+					ImGui::DragFloat(field4.c_str(), &material.shininess, 0.1f, 0.f, 500.f);
+					ImGui::Separator();
+					i++;
+				});
 		}
 		if (ImGui::CollapsingHeader("Lights", ImGuiTreeNodeFlags_DefaultOpen))
 		{
@@ -618,7 +624,15 @@ public:
 		if (button == GLFW_MOUSE_BUTTON_LEFT && (action == GLFW_PRESS || action == GLFW_REPEAT))
 			m1Down = true;
 		else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
+		{
 			m1Down = false;
+			auto view = scene->registry.view<CRigidBody>();
+			view.each([&](auto& body)
+				{
+					body.ApplyForce(-force);
+					force = glm::vec3(0.0f);
+				});
+		}
 
 		if (button == GLFW_MOUSE_BUTTON_RIGHT && (action == GLFW_PRESS || action == GLFW_REPEAT))
 			m2Down = true;
@@ -628,20 +642,17 @@ public:
 	//orbit camera
 	void OnMouseMove(double x, double y)
 	{
+		bool updateMousePos = true;
 		glm::vec2 deltaPos(prevMousePos.x - x, prevMousePos.y - y);
 		if (m1Down && shiftDown)
 		{
-			auto view2 = scene->registry.view<CRigidBody>();
-			view2.each([&](auto& body)
-			{
-				glm::vec3 right =
-				glm::cross(
-					glm::normalize(scene->camera.GetCenter() - scene->camera.GetLookAtEye()),
-					scene->camera.GetLookAtUp());
-				glm::vec3 force = right * deltaPos.x * 0.5f -
+			updateMousePos = false;
+			glm::vec3 right =
+			glm::cross(
+				glm::normalize(scene->camera.GetCenter() - scene->camera.GetLookAtEye()),
+				scene->camera.GetLookAtUp());
+			force = right * deltaPos.x * 0.5f -
 				scene->camera.GetLookAtUp() * deltaPos.y * 0.005f;
-				body.ApplyForce(force);
-			});
 		}
 		else if (m1Down && ctrlDown)
 		{
@@ -681,9 +692,12 @@ public:
 		else if (m1Down)
 			scene->camera.SetOrbitAngles(scene->camera.GetOrbitAngles()
 				- glm::vec3(deltaPos.y * 0.5f, -deltaPos.x * 0.4f, 0.f));
+		
 		if (m2Down)
 			scene->camera.SetOrbitDistance(scene->camera.GetOrbitDistance() + deltaPos.y * 0.05f);
-		prevMousePos = { x,y };
+		
+		if(updateMousePos)
+			prevMousePos = { x,y };
 
 
 	}
@@ -693,15 +707,9 @@ private:
 	bool m1Down = false;
 	bool m2Down = false;
 	glm::vec2 prevMousePos;
-	//---phong-material---//
-	struct {
-		glm::vec3 ambient;
-		glm::vec3 diffuse;
-		glm::vec3 specular;
-		float shininess;
-	}material;
 
 	bool ctrlDown = false;
 	//---Force controls---//
 	bool shiftDown = false;
+	glm::vec3 force=glm::vec3(0.0f);
 };

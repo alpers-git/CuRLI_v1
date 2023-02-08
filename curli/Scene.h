@@ -460,10 +460,10 @@ public:
 		glVertexAttribPointer(loc, attribSize, type, normalized, stride, (void*)offset);
 	}
 };
-
 struct CVertexArrayObject : Component
 {
 public:
+	bool visible = true;
 	CVertexArrayObject() : glID(-1), EBO(-1) //will pop up as a very high value as these are uints
 	{}
 
@@ -545,6 +545,9 @@ public:
 	*/
 	void Draw(GLenum mode)
 	{
+		if (!visible)
+			return;
+		
 		if (VBOs.size() == 0)
 		{
 			printf("No VBOs in VAO\n");
@@ -657,6 +660,17 @@ public:
 private:
 	glm::vec3 velocity = glm::vec3(0, 0, 0);
 	glm::vec3 acceleration = glm::vec3(0, 0, 0);
+};
+
+struct CPhongMaterial : Component
+{
+public:
+	glm::vec3 ambient = glm::vec3(0.2f, 0.2f, 0.3f);
+	glm::vec3 diffuse = glm::vec3(0.5f, 0.5f, 0.5f);
+	glm::vec3 specular = glm::vec3(0.9f, 0.9f, 0.9f);
+	float shininess = 450.f;
+
+	void Update();
 };
 
 
