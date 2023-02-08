@@ -11,9 +11,9 @@ public:
 	Application(int argc, char const* argv[]) 
 	{
 		scene = std::make_shared<Scene>();
-		for(int i = 0; i < 69; i++)
-			scene->CreateModelObject(argv[1]);
-
+		
+		scene->registry.emplace<CRigidBody>(scene->CreateModelObject(argv[1]), 10.0f, glm::vec3(0), glm::vec3(0));
+		
 		scene->AddPointLight(glm::vec3(0, 0, 20), 1, glm::vec3(0.7, 0.8, 0.05));
 		scene->AddPointLight(glm::vec3(10, 10, 0), .1, glm::vec3(0.8, 0.1, 0.0));
 		scene->AddPointLight(glm::vec3(-20, 0, 0), .5, glm::vec3(0.01, 0.1, 0.9));

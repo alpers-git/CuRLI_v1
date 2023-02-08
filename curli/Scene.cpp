@@ -33,6 +33,17 @@ void Scene::DestroyEntity(entt::entity entity)
 
 void Scene::Update()
 {
+	//call update functions of every component
+	registry.view<CRigidBody, CTransform>().each([](CRigidBody& rigidBody, CTransform& transform)
+		{ 
+			rigidBody.Update();
+			transform.SetPivot(rigidBody.position);
+			//transform.SetEulerRotation(rigidBody.rotation);
+			transform.Update();
+		});
+	//registry.view<CTransform>().each([](CTransform& transform) { transform.Update(); });
+	registry.view<CTriMesh>().each([](CTriMesh& mesh) { mesh.Update(); });
+	registry.view<CLight>().each([](CLight& light) { light.Update(); });
 }
 
 entt::entity Scene::AddPointLight(glm::vec3 pos, float intesity, glm::vec3 color)
@@ -59,3 +70,18 @@ entt::entity Scene::CreateModelObject(cy::TriMesh& mesh, glm::vec3 position, glm
 	return entity;
 }
 
+void CRigidBody::ApplyForce(glm::vec3 force)
+{
+	velocity += force / mass;
+}
+
+void CRigidBody::Update()
+{
+	float dragForceMagnitude = glm::pow(glm::length(velocity), 2.0f) * drag;
+	glm::vec3 dragForceVector = dragForceMagnitude * -glm::normalize(velocity);
+	if (glm::length(velocity) > 0.01f)
+		acceleration += dragForceVector / mass;
+	velocity *= 0.999f;//+= acceleration; TODO
+
+	position += velocity;
+}

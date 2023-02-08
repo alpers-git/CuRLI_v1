@@ -629,6 +629,31 @@ private:
 	
 };
 
+struct CRigidBody : Component
+{
+public:
+	CRigidBody(float mass, glm::vec3 position, glm::vec3 rotation, float drag = 0.0f)
+	{
+		this->mass = mass;
+		this->position = position;
+		this->rotation = rotation;
+		drag = drag;
+	}
+
+	float mass = 0.0f;
+	float drag = 0.0f;
+	glm::vec3 position = glm::vec3(0, 0, 0);
+	glm::vec3 rotation = glm::vec3(0, 0, 0);
+
+	void ApplyForce(glm::vec3 force);
+
+	void Update();
+	
+private:
+	glm::vec3 velocity = glm::vec3(0, 0, 0);
+	glm::vec3 acceleration = glm::vec3(0, 0, 0);
+};
+
 
 class Scene
 {

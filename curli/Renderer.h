@@ -394,7 +394,6 @@ public:
 		program->SetClearColor({ 0.f,0.f,0.1f,1.f });
 
 		const auto view = scene->registry.view<CTriMesh>();
-		// use an extended callback
 		view.each([&](const auto entity, const auto& mesh)
 			{
 				scene->registry.emplace<CVertexArrayObject>(entity);
@@ -435,24 +434,22 @@ public:
 		scene->camera = Camera(glm::vec3(0.f, 0.f, 0.0f), glm::vec3(0.0f, 0, 0), 1.f,
 			45.f, 0.01f, 100000.f, (float)windowWidth / (float)windowHeight, true);
 
-		LookAtMesh();
+		ResetCamera();
+		
+		auto view3 = scene->registry.view<CTransform, CTriMesh>();
+		view3.each([&](auto& transform, auto& mesh)
+		{
+			transform.SetScale(glm::vec3(0.05f) *
+			(scene->camera.IsPerspective() ? 1.f : 1.f / glm::length(scene->camera.GetLookAtEye())));
+			transform.SetEulerRotation(glm::vec3(glm::radians(-90.f), 0, 0));
+			transform.SetPivot(mesh.GetBoundingBoxCenter());
+		});
+
 	}
 
 	void PreUpdate()
 	{
-		//for each element with CTransform in the scene registry loop
-		auto view = scene->registry.view<CTransform, CTriMesh>();
 		int i = 0;
-		view.each([&](auto& transform, auto& mesh)
-			{
-				transform.SetScale(glm::vec3(0.05f) *
-				(scene->camera.IsPerspective() ? 1.f : 1.f / glm::length(scene->camera.GetLookAtEye())));
-				transform.SetEulerRotation(glm::vec3(glm::radians(-90.f ), i * 60.f, (float)glfwGetTime() * 0.5f));
-				transform.SetPivot(mesh.GetBoundingBoxCenter() - glm::vec3(i * 15));
-				i++;
-			});
-
-		i = 0;
 		auto view2 = scene->registry.view<CLight>();
 		view2.each([&](auto& light)
 			{
@@ -516,7 +513,7 @@ public:
 		{
 			if (ImGui::Button("Reset Camera(F1)"))
 			{
-				LookAtMesh();
+				ResetCamera();
 			}
 			//ImGui::SameLine();
 			glm::vec3 target = scene->camera.GetCenter();
@@ -579,11 +576,11 @@ public:
 	/*
 	* Points camera to mesh center
 	*/
-	inline void LookAtMesh()
+	inline void ResetCamera()
 	{
-		scene->camera.SetOrbitDistance(3.f);
+		scene->camera.SetOrbitDistance(25.f);
 		scene->camera.SetCenter({ 0,0,0 });
-		scene->camera.SetOrbitAngles({ 0,0,0 });
+		scene->camera.SetOrbitAngles({ 90,0,0 });
 	}
 
 	void OnWindowResize(int w, int h)
@@ -601,13 +598,17 @@ public:
 		if (key == GLFW_KEY_F5 && action == GLFW_PRESS)
 			ReloadShaders();
 		if (key == GLFW_KEY_F1 && action == GLFW_PRESS)
-			LookAtMesh();
+			ResetCamera();
 		if (key == GLFW_KEY_P && action == GLFW_PRESS)
 			scene->camera.SetPerspective(!scene->camera.IsPerspective());
 		if (key == GLFW_KEY_LEFT_CONTROL && action == GLFW_PRESS)
 			ctrlDown = true;
 		else if (key == GLFW_KEY_LEFT_CONTROL && action == GLFW_RELEASE)
 			ctrlDown = false;
+		if (key == GLFW_KEY_LEFT_SHIFT && action == GLFW_PRESS)
+			shiftDown = true;
+		else if (key == GLFW_KEY_LEFT_SHIFT && action == GLFW_RELEASE)
+			shiftDown = false;
 	}
 
 	//orbit camera
@@ -627,7 +628,21 @@ public:
 	void OnMouseMove(double x, double y)
 	{
 		glm::vec2 deltaPos(prevMousePos.x - x, prevMousePos.y - y);
-		if (m1Down && ctrlDown)
+		if (m1Down && shiftDown)
+		{
+			auto view2 = scene->registry.view<CRigidBody>();
+			view2.each([&](auto& body)
+			{
+				glm::vec3 right =
+				glm::cross(
+					glm::normalize(scene->camera.GetCenter() - scene->camera.GetLookAtEye()),
+					scene->camera.GetLookAtUp());
+				glm::vec3 force = right * deltaPos.x * 0.5f -
+				scene->camera.GetLookAtUp() * deltaPos.y * 0.005f;
+				body.ApplyForce(force );
+			});
+		}
+		else if (m1Down && ctrlDown)
 		{
 			//UGLY CODE HERE
 			//fetch the first light
@@ -686,4 +701,6 @@ private:
 	}material;
 
 	bool ctrlDown = false;
+	//---Force controls---//
+	bool shiftDown = false;
 };
