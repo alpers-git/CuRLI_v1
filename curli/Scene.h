@@ -115,7 +115,7 @@ public:
 	}
 	void inline SetOrbitDistance(float distance, bool recalculate = false)
 	{
-		eye = center + glm::normalize(eye - center) * distance;
+		eye = center + glm::normalize(eye - center) * glm::max(distance, 0.001f);
 		if (recalculate)
 			CalculateViewMatrix();
 		viewDirty = !recalculate;
