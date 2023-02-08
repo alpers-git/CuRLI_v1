@@ -411,6 +411,7 @@ public:
 				program->GetID());
 				vao.AddVBO(vertexVBO);
 				
+				mesh->ComputeNormals();
 				VertexBufferObject normalsVBO(
 					mesh.GetNormalDataPtr(),
 					mesh.GetNumNormals(),
@@ -639,7 +640,7 @@ public:
 					scene->camera.GetLookAtUp());
 				glm::vec3 force = right * deltaPos.x * 0.5f -
 				scene->camera.GetLookAtUp() * deltaPos.y * 0.005f;
-				body.ApplyForce(force );
+				body.ApplyForce(force);
 			});
 		}
 		else if (m1Down && ctrlDown)

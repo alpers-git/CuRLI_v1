@@ -12,7 +12,7 @@ public:
 	{
 		scene = std::make_shared<Scene>();
 		
-		scene->registry.emplace<CRigidBody>(scene->CreateModelObject(argv[1]), 10.0f, glm::vec3(0), glm::vec3(0));
+		scene->registry.emplace<CRigidBody>(scene->CreateModelObject(argv[1]), 1.0f, glm::vec3(0), glm::vec3(0));
 		
 		scene->AddPointLight(glm::vec3(0, 0, 20), 1, glm::vec3(0.7, 0.8, 0.05));
 		scene->AddPointLight(glm::vec3(10, 10, 0), .1, glm::vec3(0.8, 0.1, 0.0));

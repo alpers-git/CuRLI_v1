@@ -77,11 +77,22 @@ void CRigidBody::ApplyForce(glm::vec3 force)
 
 void CRigidBody::Update()
 {
-	float dragForceMagnitude = glm::pow(glm::length(velocity), 2.0f) * drag;
+	/*float dragForceMagnitude = glm::pow(glm::length(velocity), 2.0f) * drag;
 	glm::vec3 dragForceVector = dragForceMagnitude * -glm::normalize(velocity);
-	if (glm::length(velocity) > 0.01f)
-		acceleration += dragForceVector / mass;
-	velocity *= 0.999f;//+= acceleration; TODO
+	printf("dragForceVector: %f, %f, %f\n velocity: %f, %f, %f, drag\n", dragForceVector.x, dragForceVector.y, dragForceVector.z, velocity.x, velocity.y, velocity.z, drag);
+	if (glm::pow(glm::length(velocity), 2.0f) > 0.0f)
+	{
+		ApplyForce(dragForceVector);
+		printf("hereaaaaaaaaaaaaaa\n");
+	}
+	else
+	{
+		velocity = glm::vec3(0);
+		printf("here\n");
+	}*/
+	
+	velocity *= 0.999f;
+
 
 	position += velocity;
 }

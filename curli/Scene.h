@@ -347,6 +347,11 @@ public:
 		mesh.ComputeBoundingBox();
 		bBoxInitialized = true;
 	}
+
+	inline void ComputeNormals()
+	{
+		mesh.ComputeNormals();
+	}
 	
 	inline glm::vec3 GetBoundingBoxMin()
 	{
