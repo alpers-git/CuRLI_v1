@@ -448,7 +448,7 @@ public:
 				transform.SetScale(glm::vec3(0.05f) *
 				(scene->camera.IsPerspective() ? 1.f : 1.f / glm::length(scene->camera.GetLookAtEye())));
 				transform.SetEulerRotation(glm::vec3(glm::radians(-90.f ), i * 60.f, (float)glfwGetTime() * 0.5f));
-				transform.SetPosition(-mesh.GetBoundingBoxCenter() + glm::vec3(i*15));
+				transform.SetPivot(mesh.GetBoundingBoxCenter() - glm::vec3(i * 15));
 				i++;
 			});
 

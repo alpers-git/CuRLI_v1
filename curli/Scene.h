@@ -203,6 +203,7 @@ public:
 	CTransform(glm::vec3 position = glm::vec3(0.f), glm::vec3 rotation = glm::vec3(0.f), glm::vec3 scale = glm::vec3(1.f))
 		: position(position), rotation(rotation), scale(scale)
 	{
+		//pivot = position;
 		CalculateModelMatrix();
 	}
 
@@ -224,6 +225,13 @@ public:
 	void SetScale(glm::vec3 scale, bool recalculate = false)
 	{
 		this->scale = scale;
+		if (recalculate)
+			CalculateModelMatrix();
+		modelDirty = !recalculate;
+	}
+	void SetPivot(glm::vec3 pivot, bool recalculate = false)
+	{
+		this->pivot = pivot;
 		if (recalculate)
 			CalculateModelMatrix();
 		modelDirty = !recalculate;
@@ -250,6 +258,7 @@ public:
 		modelDirty = !recalculate;
 	}
 	glm::vec3 GetPosition() { return position; }
+	glm::vec3 GetPivot() { return pivot; }
 	glm::vec3 GetRotation() { return rotation; }
 	glm::vec3 GetScale() { return scale; }
 	glm::mat4 GetModelMatrix()
@@ -261,9 +270,10 @@ public:
 	
 	void CalculateModelMatrix()
 	{
-		modelMatrix = glm::scale(glm::mat4(1.f), scale);
+		modelMatrix = glm::translate(glm::mat4(1.f), position);
 		modelMatrix = modelMatrix * glm::eulerAngleXYZ(rotation.x, rotation.y, rotation.z);
-		modelMatrix = glm::translate(modelMatrix, position);
+		modelMatrix = glm::scale(modelMatrix, scale);
+		modelMatrix = glm::translate(modelMatrix, -pivot);//everything happens with respect to pivot
 
 		modelDirty = false;
 	}
@@ -274,6 +284,7 @@ private:
 	glm::vec3 position = glm::vec3(0.f);
 	glm::vec3 rotation = glm::vec3(0.f);
 	glm::vec3 scale = glm::vec3(1.f);
+	glm::vec3 pivot = glm::vec3(0.f);//rotation and scaling pivot point
 
 	glm::mat4 modelMatrix = glm::mat4(1.f);
 	bool modelDirty = false;

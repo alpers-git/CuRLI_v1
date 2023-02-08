@@ -11,7 +11,7 @@ public:
 	Application(int argc, char const* argv[]) 
 	{
 		scene = std::make_shared<Scene>();
-		for(int i = 0; i < 60; i++)
+		for(int i = 0; i < 69; i++)
 			scene->CreateModelObject(argv[1]);
 
 		scene->AddPointLight(glm::vec3(0, 0, 20), 1, glm::vec3(0.7, 0.8, 0.05));
