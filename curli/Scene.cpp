@@ -38,7 +38,7 @@ void Scene::Update()
 	registry.view<CRigidBody, CTransform>().each([](CRigidBody& rigidBody, CTransform& transform)
 		{ 
 			rigidBody.Update();
-			transform.SetPivot(rigidBody.position);
+			transform.SetPosition(rigidBody.position);
 			//transform.SetEulerRotation(rigidBody.rotation);
 			transform.Update();
 		});

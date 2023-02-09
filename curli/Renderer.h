@@ -812,7 +812,7 @@ public:
 					auto arrow = scene->GetSceneObject("arrow");
 					auto tra = scene->GetComponent<CTransform>(arrow);
 					auto mat = scene->GetComponent<CPhongMaterial>(arrow);
-					tra.SetPivot(transform.GetPivot() * tra.GetScale());
+					tra.SetPosition(transform.GetPosition());
 					const auto mv2 = scene->camera.GetViewMatrix() * tra.GetModelMatrix();
 					const auto mvp2 = scene->camera.GetProjectionMatrix() * mv2;
 					program->SetUniform("to_screen_space", mvp2);
