@@ -654,14 +654,14 @@ public:
 	float drag = 0.0f;
 	glm::vec3 position = glm::vec3(0, 0, 0);
 	glm::vec3 rotation = glm::vec3(0, 0, 0);
+	glm::vec3 velocity = glm::vec3(0, 0, 0);
+	glm::vec3 acceleration = glm::vec3(0, 0, 0);
 
 	void ApplyForce(glm::vec3 force);
 
 	void Update();
 	
 private:
-	glm::vec3 velocity = glm::vec3(0, 0, 0);
-	glm::vec3 acceleration = glm::vec3(0, 0, 0);
 };
 
 struct CPhongMaterial : Component

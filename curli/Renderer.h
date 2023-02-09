@@ -759,7 +759,7 @@ public:
 		auto view3 = scene->registry.view<CTransform, CTriMesh>();
 		view3.each([&](auto& transform, auto& mesh)
 			{
-				transform.SetScale(glm::vec3(0.05f) *
+				transform.SetScale(glm::vec3(1) *
 				(scene->camera.IsPerspective() ? 1.f : 1.f / glm::length(scene->camera.GetLookAtEye())));
 				transform.SetEulerRotation(glm::vec3(glm::radians(-90.f), 0, 0));
 				transform.SetPivot(mesh.GetBoundingBoxCenter());
@@ -846,17 +846,9 @@ public:
 		{
 			for (auto it = scene->sceneObjectsBegin(); it != scene->sceneObjectsEnd(); ++it)
 				ImGui::Text(it->first.c_str());
-		}
-		if (ImGui::CollapsingHeader("Shaders", ImGuiTreeNodeFlags_DefaultOpen))
-		{
-			if (ImGui::Button("Read Shaders(F5)"))
+			if (ImGui::Button("Reset Particle"))
 			{
-				ReloadShaders();
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("Compile Shaders(F6)"))
-			{
-				RecompileShaders();
+				ResetParticle();
 			}
 		}
 		if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
@@ -865,11 +857,15 @@ public:
 			{
 				ResetCamera();
 			}
-			//ImGui::SameLine();
 			glm::vec3 target = scene->camera.GetCenter();
 			if (ImGui::DragFloat3("Target", &target[0], 0.01f))
 			{
 				scene->camera.SetCenter(target);
+			}
+			glm::vec3 eye = scene->camera.GetLookAtEye();
+			if (ImGui::DragFloat3("Target", &eye[0], 0.01f))
+			{
+				scene->camera.SetLookAtEye(eye);
 			}
 		}
 		if (ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_DefaultOpen))
@@ -906,6 +902,18 @@ public:
 			i++;
 				});
 		}
+		if (ImGui::CollapsingHeader("Shaders", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			if (ImGui::Button("Read Shaders(F5)"))
+			{
+				ReloadShaders();
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Compile Shaders(F6)"))
+			{
+				RecompileShaders();
+			}
+		}
 
 		ImGui::End();
 	}
@@ -939,9 +947,20 @@ public:
 	*/
 	inline void ResetCamera()
 	{
-		scene->camera.SetOrbitDistance(25.f);
+		scene->camera.SetOrbitDistance(50.f);
 		scene->camera.SetCenter({ 0,0,0 });
 		scene->camera.SetOrbitAngles({ 90,0,0 });
+	}
+
+	inline void ResetParticle()
+	{
+		auto& transform = scene->GetComponent<CTransform>(scene->GetSceneObject("sphere"));
+		auto& rb = scene->GetComponent<CRigidBody>(scene->GetSceneObject("sphere"));
+		transform.SetPosition(glm::vec3(0));
+		transform.SetEulerRotation(glm::vec3(0));
+		transform.SetScale(glm::vec3(1));
+		rb.position = glm::vec3(0);
+		rb.velocity = glm::vec3(0);
 	}
 
 	void OnWindowResize(int w, int h)
@@ -988,7 +1007,7 @@ public:
 			auto view = scene->registry.view<CRigidBody>();
 			view.each([&](auto& body)
 				{
-					body.ApplyForce(-force);
+					body.ApplyForce(force);
 					force = glm::vec3(0.0f);
 				});
 			scene->GetComponent<CVertexArrayObject>(scene->GetSceneObject("arrow")).visible = false;
@@ -1007,18 +1026,24 @@ public:
 		if (m1Down && shiftDown)
 		{
 			updateMousePos = false;
-			glm::vec3 right =
-				glm::cross(
+			const glm::vec3 right =
+				glm::normalize(glm::cross(
 					glm::normalize(scene->camera.GetCenter() - scene->camera.GetLookAtEye()),
-					scene->camera.GetLookAtUp());
-			force = right * deltaPos.x * 0.08f -
-				scene->camera.GetLookAtUp() * deltaPos.y * 0.0009f;
+					scene->camera.GetLookAtUp()));
+			const glm::vec3 up = glm::cross(glm::normalize(scene->camera.GetCenter() - scene->camera.GetLookAtEye()), -right);
+			force = right * deltaPos.x * 0.00008f - up * deltaPos.y * 0.00008f;
+			force = glm::normalize(force) * glm::min(glm::length(force), 1.0f);
+			
 			auto &mat = scene->GetComponent<CPhongMaterial>(scene->GetSceneObject("arrow"));
-			glm::vec3 color(glm::length(force)/1.2f, (1.2f - glm::length(force))/1.2f, 0.0f);
-			mat.ambient = mat.diffuse = mat.specular = color;
+			glm::vec3 color((1.f - glm::length(force) * COLOR_SHIFT_MULT), glm::length(force) * COLOR_SHIFT_MULT, 0.0f);
+			mat.specular = mat.ambient = mat.diffuse = color;
+			
 			auto &tra = scene->GetComponent<CTransform>(scene->GetSceneObject("arrow"));
-			tra.SetScale(glm::vec3(glm::length(force) / 1.2f, 0.1f, 0.1f));
-			tra.SetEulerRotation(glm::normalize(force));
+			tra.SetScale(glm::vec3(glm::length(force) * SCALE_MULT, 1.f, 1.f));
+			tra.SetEulerRotation(glm::vec3(
+				asin((-force.y) / glm::length(force)),
+				atan2f(force.z, -force.x) - 3.14f,
+				0.f));
 		}
 		else if (m1Down)
 			scene->camera.SetOrbitAngles(scene->camera.GetOrbitAngles()
@@ -1029,8 +1054,6 @@ public:
 
 		if (updateMousePos)
 			prevMousePos = { x,y };
-
-
 	}
 
 private:
@@ -1043,4 +1066,7 @@ private:
 	//---Force controls---//
 	bool shiftDown = false;
 	glm::vec3 force = glm::vec3(0.0f);
+
+	const float COLOR_SHIFT_MULT = 4.5f;
+	const float SCALE_MULT = 10.0f;
 };
