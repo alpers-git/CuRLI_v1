@@ -9,6 +9,8 @@
 #include <glm/gtx/log_base.hpp>
 #include <glm/gtc/matrix_access.hpp>
 #include <stdarg.h>
+#include <string>
+#include <map>
 
 struct Camera
 {
@@ -680,8 +682,8 @@ public:
 	Scene();
 	~Scene();
 
-	entt::entity CreateEntity();
-	void DestroyEntity(entt::entity entity);
+	entt::entity CreateSceneObject(std::string name);
+	//void DestroyEntity(entt::entity entity);
 
 	void Update();
 	
@@ -690,27 +692,82 @@ public:
 	* Use empty entity to fetch the first entity with the specified component
 	*/
 	template <typename C>
-	C& GetComponent(entt::entity& entity)
+	C& GetComponent(entt::entity entity)
 	{
 		return registry.view<C>().get<C>(entity);
 	};
 
 	/*
-	* Reads an obj file and adds and entity to the scene with a transform and a mesh
+	* Reads an obj file and adds and entity to the sceneObjects with a transform, phong material and a mesh
 	*/
 	entt::entity CreateModelObject(const std::string& meshPath, glm::vec3 position = glm::vec3(0.f),
 		glm::vec3 rotation = glm::vec3(0.f), glm::vec3 scale = glm::vec3(1.f));
 	/*
-	* Adds and entity to the scene with a transform and a mesh
+	* Adds and entity to the sceneObjects with a transform, phong material and a mesh
 	*/
 	entt::entity CreateModelObject(cy::TriMesh& mesh, glm::vec3 position = glm::vec3(0.f),
 		glm::vec3 rotation = glm::vec3(0.f), glm::vec3 scale = glm::vec3(1.f));
-	
+	/*
+	* Creates a Point light source
+	*/
 	entt::entity AddPointLight(glm::vec3 pos, float intesity,
 		glm::vec3 color = glm::vec3(1, 1, 1));
+
+	/*
+	* Inserts the registered entity to sceneObjects map with given name or given name + number returns identifier name
+	*/
+	inline std::string InsertSceneObject(std::string name, entt::entity entity)
+	{
+		auto it = sceneObjects.find(name);
+		if (it != sceneObjects.end())
+		{
+			int i = 1;
+			while (true)
+			{
+				it = sceneObjects.find(name + std::to_string(i));
+				if (it == sceneObjects.end())
+				{
+					sceneObjects[name + std::to_string(i)] = entity;
+					return name + std::to_string(i);
+				}
+				i++;
+			}
+		}
+		else
+			sceneObjects[name] = entity;
+		return name;
+	}
+	/*
+	* Gets the entity with the specified name
+	*/
+	inline entt::entity GetSceneObject(std::string name)
+	{
+		return sceneObjects[name];
+	}
+
+	/*
+	* Removes the enitity from the sceneObjects list and registry
+	*/
+	inline bool RemoveSceneObject(std::string name)
+	{
+		auto entity = sceneObjects[name];
+		sceneObjects.erase(name);
+		registry.destroy(entity);
+	}
+
+	inline std::map<std::string, entt::entity>::iterator sceneObjectsBegin()
+	{
+		return sceneObjects.begin(); 
+	}
+
+	inline std::map<std::string, entt::entity>::iterator sceneObjectsEnd()
+	{
+		return sceneObjects.end();
+	}
 
 
 	Camera camera;
 	entt::registry registry;
 private:
+	std::map<std::string, entt::entity> sceneObjects;
 };

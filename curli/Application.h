@@ -60,16 +60,13 @@ private:
 		//parse arguments
 		for (int i = 1; i < argc; i++)
 		{
-			printf("%s\n", argv[i]);
 			if (std::string(argv[i]).compare("-model")==0)
 			{
 				i++;
-				printf("\t%s\n", argv[i]);
 				bool hasRB = false;
 				std::string path;
 				for (; i < argc; i++)
 				{
-					printf("\t\t%s\n", argv[i]);
 					if (std::string(argv[i]).compare("--rb") == 0)
 					{
 						hasRB = true;
@@ -77,7 +74,6 @@ private:
 					else if (std::string(argv[i]).compare("--path") == 0)
 					{
 						i++;
-						printf("\t\t\t%s\n", argv[i]);
 						path = argv[i];
 					}
 					else

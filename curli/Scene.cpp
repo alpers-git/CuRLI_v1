@@ -20,16 +20,17 @@ void CLight::Update()
 {
 }
 
-entt::entity Scene::CreateEntity()
+entt::entity Scene::CreateSceneObject(std::string name)
 {
 	auto entity = registry.create();
+	InsertSceneObject(name, entity);
 	return entity;
 }
 
-void Scene::DestroyEntity(entt::entity entity)
-{
-	registry.destroy(entity);
-}
+//void Scene::DestroyEntity(entt::entity entity)
+//{
+//	registry.destroy(entity);
+//}
 
 void Scene::Update()
 {
@@ -48,7 +49,7 @@ void Scene::Update()
 
 entt::entity Scene::AddPointLight(glm::vec3 pos, float intesity, glm::vec3 color)
 {
-	auto entity = CreateEntity();
+	auto entity = CreateSceneObject("light");
 	registry.emplace<CLight>(entity, LightType::POINT, color, glm::min(intesity, 1.0f), pos, 
 		glm::vec3(0, 0, 0), 0, 0);
 	return entity;
@@ -56,18 +57,28 @@ entt::entity Scene::AddPointLight(glm::vec3 pos, float intesity, glm::vec3 color
 
 entt::entity Scene::CreateModelObject(const std::string& meshPath, glm::vec3 position, glm::vec3 rotation, glm::vec3 scale)
 {
-	auto entity = CreateEntity();
+	//from path get the part after the last "/" and before "."
+	auto name = meshPath.substr(meshPath.find_last_of("/\\") + 1);
+	name = name.substr(0, name.find_last_of("."));
+	auto entity = CreateSceneObject(name);
+	
 	registry.emplace<CTriMesh>(entity, meshPath);
 	registry.emplace<CTransform>(entity, position, rotation, scale);
 	registry.emplace<CPhongMaterial>(entity);
+	
+	
+	//InsertSceneObject(name, entity);
+
 	return entity;
 }
 
 entt::entity Scene::CreateModelObject(cy::TriMesh& mesh, glm::vec3 position, glm::vec3 rotation, glm::vec3 scale)
 {
-	auto entity = CreateEntity();
+	auto entity = CreateSceneObject("unnamed-");
 	registry.emplace<CTriMesh>(entity, mesh);
 	registry.emplace<CTransform>(entity, position, rotation, scale);
+	registry.emplace<CPhongMaterial>(entity);
+	//InsertSceneObject("unnamed-", entity);
 	return entity;
 }
 
