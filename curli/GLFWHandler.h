@@ -173,6 +173,7 @@ public:
 	
 	inline GLFWwindow* GetWindowPointer() { return windowHandle; }
 	inline void QueueEvent(Event event) { eventQueue.push(event); }
+	static inline float GetTime() { return glfwGetTime(); }
 	
 private:
 	GLFWHandler();

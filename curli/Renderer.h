@@ -847,23 +847,45 @@ public:
 			for (auto it = scene->sceneObjectsBegin(); it != scene->sceneObjectsEnd(); ++it)
 				ImGui::Text(it->first.c_str());
 			if (ImGui::Button("Reset Particle"))
-			{
 				ResetParticle();
+			
+			if (ImGui::Button("+VelocityField"))
+			{
+				auto velocityF = scene->CreateSceneObject("velocityField");
+				scene->registry.emplace<CVelocityField2D>(velocityF, [](glm::vec2 pos)
+					{
+						float x = pos.x;
+						float y = pos.y;
+						return glm::vec2(5.f * cos(0.5f * glm::pi<float>() * GLFWHandler::GetTime()),
+						sin(2.f * glm::pi<float>() * GLFWHandler::GetTime()));
+					}, CVelocityField2D::FieldPlane::XZ).scaling = 0.05f;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("-VelocityField"))
+			{
+				scene->RemoveSceneObject("velocityField");
+			}
+			auto transform = scene->GetComponent<CTransform>(scene->GetSceneObject("sphere"));
+			glm::vec3 pos = transform.GetPosition();
+			if (ImGui::DragFloat3("Position##1", &pos[0], 0.01f))
+			{
+				transform.SetPosition(pos);
 			}
 		}
 		if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			if (ImGui::Button("Reset Camera(F1)"))
-			{
 				ResetCamera();
-			}
+			ImGui::SameLine();
+			if (ImGui::Button("Look At Particle"))
+				LookAndPosition(scene->GetComponent<CTransform>(scene->GetSceneObject("sphere")).GetPosition());
 			glm::vec3 target = scene->camera.GetCenter();
 			if (ImGui::DragFloat3("Target", &target[0], 0.01f))
 			{
 				scene->camera.SetCenter(target);
 			}
 			glm::vec3 eye = scene->camera.GetLookAtEye();
-			if (ImGui::DragFloat3("Target", &eye[0], 0.01f))
+			if (ImGui::DragFloat3("Position", &eye[0], 0.01f))
 			{
 				scene->camera.SetLookAtEye(eye);
 			}
@@ -943,12 +965,19 @@ public:
 	}
 
 	/*
-	* Points camera to mesh center
+	* Points camera to 0,0,0 center
 	*/
 	inline void ResetCamera()
 	{
 		scene->camera.SetOrbitDistance(50.f);
 		scene->camera.SetCenter({ 0,0,0 });
+		scene->camera.SetOrbitAngles({ 90,0,0 });
+	}
+
+	inline void LookAndPosition(glm::vec3 target)
+	{
+		scene->camera.SetOrbitDistance(50.f);
+		scene->camera.SetCenter(target);
 		scene->camera.SetOrbitAngles({ 90,0,0 });
 	}
 
@@ -1042,7 +1071,7 @@ public:
 			tra.SetScale(glm::vec3(glm::length(force) * SCALE_MULT, 1.f, 1.f));
 			tra.SetEulerRotation(glm::vec3(
 				asin((-force.y) / glm::length(force)),
-				atan2f(force.z, -force.x) - 3.14f,
+				atan2f(force.z, -force.x) - glm::pi<float>(),
 				0.f));
 		}
 		else if (m1Down)

@@ -674,6 +674,25 @@ public:
 
 	void Update();
 };
+struct CVelocityField2D : Component
+{
+public:
+	
+	void Update();
+	//function pointer here
+	std::function<glm::vec2 (glm::vec2)> field;
+	float scaling = 1.f;
+	enum class FieldPlane
+	{
+		XY,YZ,XZ
+	}plane;
+	
+	CVelocityField2D(std::function<glm::vec2(glm::vec2)> field, FieldPlane plane = FieldPlane::XY)
+		:field(field), plane(plane)
+	{}
+
+	glm::vec3 VelocityOn(glm::vec2 p);
+};
 
 
 class Scene
@@ -753,6 +772,7 @@ public:
 		auto entity = sceneObjects[name];
 		sceneObjects.erase(name);
 		registry.destroy(entity);
+		return entity != entt::tombstone;
 	}
 
 	inline std::map<std::string, entt::entity>::iterator sceneObjectsBegin()
