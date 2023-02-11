@@ -9,11 +9,11 @@ namespace gui
 	void StyleColorsAlteredDracula()
 	{
 		auto& colors = ImGui::GetStyle().Colors;
-		colors[ImGuiCol_WindowBg] = ImVec4{ 0.1f, 0.1f, 0.13f, .6f };
+		colors[ImGuiCol_WindowBg] = ImVec4{ 0.1f, 0.1f, 0.13f, .8f };
 		colors[ImGuiCol_MenuBarBg] = ImVec4{ 0.16f, 0.16f, 0.21f, 1.0f };
 
 		// Border
-		colors[ImGuiCol_Border] = ImVec4{ 0.44f, 0.37f, 0.61f, 0.29f };
+		colors[ImGuiCol_Border] = ImVec4{ 0.44f, 0.37f, 0.61f, 0.99f };
 		colors[ImGuiCol_BorderShadow] = ImVec4{ 0.0f, 0.0f, 0.0f, 0.24f };
 
 		// Text
@@ -26,9 +26,9 @@ namespace gui
 		colors[ImGuiCol_HeaderActive] = ImVec4{ 0.16f, 0.16f, 0.21f, 1.0f };
 
 		// Buttons
-		colors[ImGuiCol_Button] = ImVec4{ 0.13f, 0.13f, 0.17, 1.0f };
-		colors[ImGuiCol_ButtonHovered] = ImVec4{ 0.19f, 0.2f, 0.25f, 1.0f };
-		colors[ImGuiCol_ButtonActive] = ImVec4{ 0.16f, 0.16f, 0.21f, 1.0f };
+		colors[ImGuiCol_Button] = ImVec4{ 0.44f, 0.37f, 0.61f, 0.94f };
+		colors[ImGuiCol_ButtonHovered] = ImVec4{ 0.74f, 0.58f, 0.98f, 1.0f };
+		colors[ImGuiCol_ButtonActive] = ImVec4{ 0.84f, 0.58f, 1.0f, 1.0f };
 		colors[ImGuiCol_CheckMark] = ImVec4{ 0.74f, 0.58f, 0.98f, 1.0f };
 
 		// Popups

@@ -674,6 +674,10 @@ public:
 
 	void Update();
 };
+enum class FieldPlane
+{
+	XY, YZ, XZ
+};
 struct CVelocityField2D : Component
 {
 public:
@@ -682,18 +686,31 @@ public:
 	//function pointer here
 	std::function<glm::vec2 (glm::vec2)> field;
 	float scaling = 1.f;
-	enum class FieldPlane
-	{
-		XY,YZ,XZ
-	}plane;
+	
+	FieldPlane plane;
 	
 	CVelocityField2D(std::function<glm::vec2(glm::vec2)> field, FieldPlane plane = FieldPlane::XY)
 		:field(field), plane(plane)
 	{}
 
-	glm::vec3 VelocityOn(glm::vec2 p);
+	glm::vec3 VelocityAt(glm::vec2 p);
 };
 
+struct CForceField2D : Component
+{
+public:
+	void Update();
+	//function pointer here
+	std::function<glm::vec2(glm::vec2)> field;
+	float scaling = 1.f;
+	FieldPlane plane;
+
+	CForceField2D(std::function<glm::vec2(glm::vec2)> field, FieldPlane plane = FieldPlane::XY)
+		:field(field), plane(plane)
+	{}
+
+	glm::vec3 ForceAt(glm::vec2 p);
+};
 
 class Scene
 {

@@ -849,22 +849,43 @@ public:
 			if (ImGui::Button("Reset Particle"))
 				ResetParticle();
 			
-			if (ImGui::Button("+VelocityField"))
+			static bool enableVF = false;
+			if (ImGui::Checkbox("VelocityField", &enableVF))
 			{
-				auto velocityF = scene->CreateSceneObject("velocityField");
-				scene->registry.emplace<CVelocityField2D>(velocityF, [](glm::vec2 pos)
-					{
-						float x = pos.x;
-						float y = pos.y;
-						return glm::vec2(5.f * cos(0.5f * glm::pi<float>() * GLFWHandler::GetTime()),
-						sin(2.f * glm::pi<float>() * GLFWHandler::GetTime()));
-					}, CVelocityField2D::FieldPlane::XZ).scaling = 0.05f;
+				if (enableVF)
+				{
+					auto velocityF = scene->CreateSceneObject("velocityField");
+					scene->registry.emplace<CVelocityField2D>(velocityF, [](glm::vec2 pos)
+						{
+							float x = pos.x;
+							float y = pos.y;
+							return glm::vec2(5.f * cos(0.5f * glm::pi<float>() * GLFWHandler::GetTime()),
+								sin(2.f * glm::pi<float>() * GLFWHandler::GetTime()));
+						}, FieldPlane::XZ).scaling = 0.05f;
+				}
+				else
+					scene->RemoveSceneObject("velocityField");
 			}
 			ImGui::SameLine();
-			if (ImGui::Button("-VelocityField"))
+			static bool enableFF = false;
+			if (ImGui::Checkbox("ForceField", &enableFF))
 			{
-				scene->RemoveSceneObject("velocityField");
+				if (enableFF)
+				{
+					auto forceF = scene->CreateSceneObject("forceField");
+					scene->registry.emplace<CForceField2D>(forceF, [](glm::vec2 pos)
+						{
+							float x = pos.x;
+							float y = pos.y;
+							float radius = sqrt(x * x + y * y);
+							float angle = atan2(y, x) + 0.49f * glm::pi<float>();
+							return glm::vec2(-radius * cos(angle), - radius * sin(angle));
+								}, FieldPlane::XZ).scaling = 0.05f;
+				}
+				else
+					scene->RemoveSceneObject("forceField");
 			}
+				
 			auto transform = scene->GetComponent<CTransform>(scene->GetSceneObject("sphere"));
 			glm::vec3 pos = transform.GetPosition();
 			if (ImGui::DragFloat3("Position##1", &pos[0], 0.01f))
@@ -990,6 +1011,7 @@ public:
 		transform.SetScale(glm::vec3(1));
 		rb.position = glm::vec3(0);
 		rb.velocity = glm::vec3(0);
+		rb.acceleration = glm::vec3(0);
 	}
 
 	void OnWindowResize(int w, int h)

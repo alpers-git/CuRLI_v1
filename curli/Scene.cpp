@@ -21,7 +21,7 @@ void CLight::Update()
 {
 }
 
-glm::vec3 CVelocityField2D::VelocityOn(glm::vec2 p)
+glm::vec3 CVelocityField2D::VelocityAt(glm::vec2 p)
 {
 	switch (this->plane)
 	{
@@ -52,27 +52,46 @@ void CVelocityField2D::Update()
 
 void CRigidBody::Update()
 {
-	/*float dragForceMagnitude = glm::pow(glm::length(velocity), 2.0f) * drag;
-	glm::vec3 dragForceVector = dragForceMagnitude * -glm::normalize(velocity);
-	printf("dragForceVector: %f, %f, %f\n velocity: %f, %f, %f, drag\n", dragForceVector.x, dragForceVector.y, dragForceVector.z, velocity.x, velocity.y, velocity.z, drag);
-	if (glm::pow(glm::length(velocity), 2.0f) > 0.0f)
+	const float stepSize = 0.1f;
+	for (float delta = 0.0f; delta < 1.0f; delta += stepSize)
 	{
-		ApplyForce(dragForceVector);
-		printf("hereaaaaaaaaaaaaaa\n");
+		velocity += acceleration * stepSize;
+
+		velocity += glm::pow(glm::length(velocity + 0.0000001f), 2.0f) 
+			* drag * -glm::normalize(velocity + 0.0000001f) * stepSize;
+
+		position += velocity * stepSize;
+		
 	}
-	else
+}
+
+void CForceField2D::Update()
+{
+}
+
+glm::vec3 CForceField2D::ForceAt(glm::vec2 p)
+{
+	switch (this->plane)
 	{
-		velocity = glm::vec3(0);
-		printf("here\n");
-	}*/
-	velocity += acceleration;
-
-	velocity *= 0.999f;
-
-	position += velocity;
-
-
-
+	case FieldPlane::XY:
+		return scaling * glm::vec3(field(p), 0.0f);
+		break;
+	case FieldPlane::XZ:
+	{
+		auto t = field(p);
+		return scaling * glm::vec3(t.x, 0.0f, t.y);
+		break;
+	}
+	case FieldPlane::YZ:
+	{
+		auto t = field(p);
+		return scaling * glm::vec3(0.0f, field(p).x, field(p).y);
+		break;
+	}
+	default:
+		return glm::vec3(0.0f);
+		break;
+	}
 }
 
 void CPhongMaterial::Update() 
@@ -95,11 +114,28 @@ void Scene::Update()
 	//call update functions of every component
 	registry.view<CRigidBody, CTransform>().each([&](CRigidBody& rigidBody, CTransform& transform)
 		{
+			int i = 0;
+			glm::vec3 velocityFContribution = glm::vec3(0.0f);
 			registry.view<CVelocityField2D>().each([&](auto vField)
 				{
-					rigidBody.velocity = vField.VelocityOn(
+					velocityFContribution += vField.VelocityAt(
 						glm::vec2(rigidBody.position.x, rigidBody.position.z));
+					i++;
 				});
+			if(i!=0)
+				rigidBody.velocity = velocityFContribution;
+			
+			i = 0;
+			glm::vec3 forceFContribution = glm::vec3(0.0f);
+			registry.view<CForceField2D>().each([&](auto fField)
+				{
+					forceFContribution += fField.ForceAt(
+						glm::vec2(rigidBody.position.x, rigidBody.position.z));
+					i++;
+				});
+			if (i != 0)
+				rigidBody.acceleration = forceFContribution / rigidBody.mass;
+			
 			rigidBody.Update();
 			transform.SetPosition(rigidBody.position);
 			//transform.SetEulerRotation(rigidBody.rotation);
