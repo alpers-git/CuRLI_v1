@@ -52,17 +52,24 @@ void CVelocityField2D::Update()
 
 void CRigidBody::Update()
 {
-	const float stepSize = 0.1f;
-	for (float delta = 0.0f; delta < 1.0f; delta += stepSize)
-	{
-		velocity += acceleration * stepSize;
+	const float stepSize = 1.f;
+	//euler method
+	/*velocity += acceleration * stepSize;
 
-		velocity += glm::pow(glm::length(velocity + 0.0000001f), 2.0f) 
-			* drag * -glm::normalize(velocity + 0.0000001f) * stepSize;
+	velocity += glm::pow(glm::length(velocity + 0.0000001f), 2.0f) 
+		* drag * -glm::normalize(velocity + 0.0000001f) * stepSize;
 
-		position += velocity * stepSize;
+	position += velocity * stepSize;*/
 		
-	}
+	//midpoint method
+	const glm::vec3 midVelocity = velocity + 0.5f * stepSize * acceleration
+		+ glm::pow(glm::length(velocity + 0.0000001f), 2.0f)
+		* drag * -glm::normalize(velocity + 0.0000001f) * 0.5f * stepSize;
+	const glm::vec3 midPosition = position + 0.5f * stepSize * midVelocity;
+	velocity += 0.5f * stepSize * acceleration
+		+ glm::pow(glm::length(velocity + 0.0000001f), 2.0f)
+		* drag * -glm::normalize(velocity + 0.0000001f) *  stepSize;
+	position += 0.5f * stepSize * midVelocity;
 }
 
 void CForceField2D::Update()

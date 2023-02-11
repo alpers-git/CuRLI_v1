@@ -17,7 +17,7 @@ public:
 		scene->AddPointLight(glm::vec3(10, 10, 0), .1, glm::vec3(0.8, 0.1, 0.0));//TODO
 		scene->AddPointLight(glm::vec3(-20, 0, 0), .5, glm::vec3(0.01, 0.1, 0.9));
 
-		scene->GetComponent<CRigidBody>(scene->GetSceneObject("sphere")).drag = 0.1f;
+		scene->GetComponent<CRigidBody>(scene->GetSceneObject("sphere")).drag = 0.05f;
 		
 		renderer = std::make_unique<T>(scene);
 		renderer->ParseArguments(argc, argv);

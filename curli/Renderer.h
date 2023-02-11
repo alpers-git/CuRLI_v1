@@ -861,7 +861,7 @@ public:
 							float y = pos.y;
 							return glm::vec2(5.f * cos(0.5f * glm::pi<float>() * GLFWHandler::GetTime()),
 								sin(2.f * glm::pi<float>() * GLFWHandler::GetTime()));
-						}, FieldPlane::XZ).scaling = 0.05f;
+						}, FieldPlane::XZ).scaling = 0.5f;
 				}
 				else
 					scene->RemoveSceneObject("velocityField");
@@ -878,7 +878,7 @@ public:
 							float x = pos.x;
 							float y = pos.y;
 							float radius = sqrt(x * x + y * y);
-							float angle = atan2(y, x) + 0.49f * glm::pi<float>();
+							float angle = atan2(y, x) + 0.5f * glm::pi<float>();
 							return glm::vec2(-radius * cos(angle), - radius * sin(angle));
 								}, FieldPlane::XZ).scaling = 0.05f;
 				}
