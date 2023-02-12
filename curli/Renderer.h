@@ -709,13 +709,13 @@ public:
 			"../assets/shaders/phong/shader.frag");
 		program->SetClearColor({ 0.f,0.f,0.1f,1.f });
 
-		const auto view = scene->registry.view<CTriMesh>();
-		view.each([&](const auto entity, const auto& mesh)
+		scene->registry.view<CTriMesh>()
+			.each([&](const auto entity, const auto& mesh)
 			{
 				scene->registry.emplace<CVertexArrayObject>(entity);
 			});
-		const auto viewVAO = scene->registry.view<CVertexArrayObject, CTriMesh>();
-		viewVAO.each([&](const auto entity, auto& vao, auto& mesh)
+		scene->registry.view<CVertexArrayObject, CTriMesh>()
+			.each([&](const auto entity, auto& vao, auto& mesh)
 			{
 				vao.CreateVAO();
 				VertexBufferObject vertexVBO(
@@ -771,8 +771,8 @@ public:
 	void PreUpdate()
 	{
 		int i = 0;
-		auto view2 = scene->registry.view<CLight>();
-		view2.each([&](auto& light)
+		scene->registry.view<CLight>()
+			.each([&](auto& light)
 			{
 				std::string shaderName("light[" + std::to_string(i) + "].position");
 				program->SetUniform(shaderName.c_str(), glm::vec3(scene->camera.GetViewMatrix() * glm::vec4(light.position, 1)));
@@ -803,9 +803,10 @@ public:
 					program->Use();
 					vao.Draw(GL_LINES);
 			});
-		auto view = scene->registry.view<CTransform, CVertexArrayObject, CPhongMaterial>
-			(entt::exclude<CBoundingBox>);
-		view.each([&](const auto entity, auto& transform, auto& vao, auto& material)
+
+		scene->registry.view<CTransform, CVertexArrayObject, CPhongMaterial>
+			(entt::exclude<CBoundingBox>)
+			.each([&](const auto entity, auto& transform, auto& vao, auto& material)
 			{
 				if (entity != scene->GetSceneObject("arrow"))
 				{
@@ -964,8 +965,8 @@ public:
 		if (ImGui::CollapsingHeader("Lights", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			int i = 0;
-			auto view = scene->registry.view<CLight>();
-			view.each([&](auto& light)
+			scene->registry.view<CLight>()
+				.each([&](auto& light)
 				{
 					std::string field1(std::string("Position##") + std::to_string(i));
 					std::string field2(std::string("Intensity##") + std::to_string(i));
