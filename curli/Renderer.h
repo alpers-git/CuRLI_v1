@@ -787,26 +787,24 @@ public:
 
 	void Update()
 	{
-		scene->registry.view <CBoundingBox, CTransform, CVertexArrayObject, CPhongMaterial>().each([&](const auto entity, 
-			const auto bbox, auto& transform, auto& vao, auto& material)
+		scene->registry.view <CBoundingBox, CVertexArrayObject>().each([&](const auto entity, 
+			const auto bbox, auto& vao)
 			{
-				if (true)
-				{
-					const auto mv = scene->camera.GetViewMatrix() * transform.GetModelMatrix();
+					const auto mv = scene->camera.GetViewMatrix();
 					const auto mvp = scene->camera.GetProjectionMatrix() * mv;
 					program->SetUniform("to_screen_space", mvp);
 					program->SetUniform("to_view_space", mv);
 					program->SetUniform("normals_to_view_space",
 						glm::transpose(glm::inverse(glm::mat3(mv))));
-					program->SetUniform("material.ka", material.ambient);
-					program->SetUniform("material.kd", material.diffuse);
-					program->SetUniform("material.ks", material.specular);
-					program->SetUniform("material.shininess", material.shininess);
+					program->SetUniform("material.ka", glm::vec3(1.0));
+					program->SetUniform("material.kd", glm::vec3(1.0));
+					program->SetUniform("material.ks", glm::vec3(1.0));
+					program->SetUniform("material.shininess", 0);
 					program->Use();
 					vao.Draw(GL_LINES);
-				}
 			});
-		auto view = scene->registry.view<CTransform, CVertexArrayObject, CPhongMaterial>();
+		auto view = scene->registry.view<CTransform, CVertexArrayObject, CPhongMaterial>
+			(entt::exclude<CBoundingBox>);
 		view.each([&](const auto entity, auto& transform, auto& vao, auto& material)
 			{
 				if (entity != scene->GetSceneObject("arrow"))

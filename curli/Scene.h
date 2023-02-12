@@ -800,7 +800,7 @@ public:
 	*/
 	inline entt::entity GetSceneObject(std::string name)
 	{
-		return sceneObjects[name];
+		return sceneObjects.find(name) == sceneObjects.end() ? entt::tombstone : sceneObjects[name];
 	}
 
 	/*

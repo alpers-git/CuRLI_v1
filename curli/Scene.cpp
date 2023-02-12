@@ -167,8 +167,6 @@ entt::entity Scene::CreateBoundingBox(glm::vec3 min, glm::vec3 max)
 {
 	auto entity = CreateSceneObject("boundingbox");
 	registry.emplace<CBoundingBox>(entity, min, max);
-	registry.emplace<CTransform>(entity, glm::vec3(0, 0, 0), glm::vec3(0, 0, 0), glm::vec3(1, 1, 1));
-	registry.emplace<CPhongMaterial>(entity);
 	registry.emplace<CVertexArrayObject>(entity);
 	CVertexArrayObject& vao = GetComponent<CVertexArrayObject>(entity);
 	vao.CreateVAO();
@@ -219,18 +217,15 @@ entt::entity Scene::CreateBoundingBox(glm::vec3 min, glm::vec3 max)
 		3,
 		1);
 	vao.AddVBO(vertexVBO);
-	VertexBufferObject normalsVBO(
+	/*VertexBufferObject normalsVBO(
 		(void*)vertexData,
 		24,
 		GL_FLOAT,
 		"norm",
 		3,
 		1);
-	vao.AddVBO(normalsVBO);
-	unsigned int indices[24];
-	for (int i = 0; i < 24; i++)
-		indices[i] = i;
-	//vao.CreateEBO(indices, 24);
+	vao.AddVBO(normalsVBO);*/
+
 	return entity;
 	
 }
