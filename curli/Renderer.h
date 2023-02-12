@@ -888,8 +888,11 @@ public:
 						{
 							float x = pos.x;
 							float y = pos.y;
-							return glm::vec2(5.f * cos(0.5f * glm::pi<float>() * GLFWHandler::GetTime()),
-								sin(2.f * glm::pi<float>() * GLFWHandler::GetTime()));
+							return glm::vec2(
+								1.0f, -y*0.3f
+								/*5.f * cos(0.5f * glm::pi<float>() * GLFWHandler::GetTime()),
+								sin(2.f * glm::pi<float>() * GLFWHandler::GetTime())*/
+							);
 						}, FieldPlane::XZ).scaling = 0.5f;
 				}
 				else
