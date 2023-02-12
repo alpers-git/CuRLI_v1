@@ -163,68 +163,63 @@ void Scene::Update()
 	
 }
 
-entt::entity Scene::CreateBoundingBox(glm::vec3 min, glm::vec3 max)
+entt::entity Scene::CreateBoundingBox(glm::vec3 min, glm::vec3 max, GLuint programID)
 {
 	auto entity = CreateSceneObject("boundingbox");
 	registry.emplace<CBoundingBox>(entity, min, max);
 	registry.emplace<CVertexArrayObject>(entity);
-	CVertexArrayObject& vao = GetComponent<CVertexArrayObject>(entity);
-	vao.CreateVAO();
-	glm::vec3 vertexData[24]
+	if (programID != -1)
 	{
-		min,
-		{max.x, min.y, min.z},
+		CVertexArrayObject& vao = GetComponent<CVertexArrayObject>(entity);
+		vao.CreateVAO();
+		glm::vec3 vertexData[24]
+		{
+			min,
+			{max.x, min.y, min.z},
 		
-		{max.x, min.y, min.z},
-		{max.x, max.y, min.z},
+			{max.x, min.y, min.z},
+			{max.x, max.y, min.z},
 		
-		{max.x, max.y, min.z},
-		{min.x, max.y, min.z},
+			{max.x, max.y, min.z},
+			{min.x, max.y, min.z},
 		
-		{min.x, max.y, min.z},
-		min,
+			{min.x, max.y, min.z},
+			min,
 
-		{min.x, max.y, min.z},
-		{min.x, max.y, max.z},
+			{min.x, max.y, min.z},
+			{min.x, max.y, max.z},
 		
-		{min.x, max.y, max.z},
-		{min.x, min.y, max.z},
+			{min.x, max.y, max.z},
+			{min.x, min.y, max.z},
 		
-		{min.x, min.y, max.z},
-		min,
+			{min.x, min.y, max.z},
+			min,
 		
-		{min.x, min.y, max.z},
-		{max.x, min.y, max.z},
+			{min.x, min.y, max.z},
+			{max.x, min.y, max.z},
 
-		{max.x, min.y, max.z},
-		{max.x, min.y, min.z},
+			{max.x, min.y, max.z},
+			{max.x, min.y, min.z},
 
-		{max.x, min.y, max.z},
-		max,
+			{max.x, min.y, max.z},
+			max,
 
-		max,
-		{max.x, max.y, min.z},
+			max,
+			{max.x, max.y, min.z},
 
-		max,
-		{min.x, max.y, max.z}
-	};
+			max,
+			{min.x, max.y, max.z}
+		};
 	
-	VertexBufferObject vertexVBO(
-		(void*)vertexData,
-		24,
-		GL_FLOAT,
-		"pos",
-		3,
-		1);
-	vao.AddVBO(vertexVBO);
-	/*VertexBufferObject normalsVBO(
-		(void*)vertexData,
-		24,
-		GL_FLOAT,
-		"norm",
-		3,
-		1);
-	vao.AddVBO(normalsVBO);*/
+		VertexBufferObject vertexVBO(
+			(void*)vertexData,
+			24,
+			GL_FLOAT,
+			"pos",
+			3,
+			programID);
+		vao.AddVBO(vertexVBO);
+	}
 
 	return entity;
 	

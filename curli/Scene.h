@@ -769,7 +769,7 @@ public:
 	/*
 	* Creates a bounding box that acts as a physics bound alongside with a VAO so it can be drawn
 	*/
-	entt::entity CreateBoundingBox(glm::vec3 min, glm::vec3 max);
+	entt::entity CreateBoundingBox(glm::vec3 min, glm::vec3 max, GLuint prograID = -1);
 
 	/*
 	* Inserts the registered entity to sceneObjects map with given name or given name + number returns identifier name

@@ -872,7 +872,7 @@ public:
 			{
 				if (enableBB)
 				{
-					scene->CreateBoundingBox(glm::vec3(-25), glm::vec3(25));
+					scene->CreateBoundingBox(glm::vec3(-25), glm::vec3(25), program->GetID());
 				}
 				else
 					scene->RemoveSceneObject("boundingbox");
