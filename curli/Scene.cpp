@@ -1,14 +1,6 @@
 #include <Scene.h>
 #include <GLFWHandler.h>
 
-void CTransform::Update()
-{
-}
-
-void CTriMesh::Update()
-{
-}
-
 Scene::Scene()
 {
 }
@@ -17,9 +9,52 @@ Scene::~Scene()
 {
 }
 
+void CTransform::Update()
+{
+}
+
+void CTriMesh::Update()
+{
+}
+
+
 void CLight::Update()
 {
 }
+
+void CVelocityField2D::Update()
+{
+}
+
+
+void CForceField2D::Update()
+{
+}
+
+void CRigidBody::Update()
+{
+	const float stepSize = 1.f;
+	//euler method
+	/*velocity += acceleration * stepSize;
+
+	velocity += glm::pow(glm::length(velocity + 0.0000001f), 2.0f) 
+		* drag * -glm::normalize(velocity + 0.0000001f) * stepSize;
+
+	position += velocity * stepSize;*/
+		
+	//midpoint method
+	const glm::vec3 midVelocity = velocity + 0.5f * stepSize * acceleration
+		+ glm::pow(glm::length(velocity + 0.0000001f), 2.0f)
+		* drag * -glm::normalize(velocity + 0.0000001f) * 0.5f * stepSize;
+	const glm::vec3 midPosition = position + 0.5f * stepSize * midVelocity;
+	velocity = velocity + 0.5f * stepSize * acceleration
+		+ glm::pow(glm::length(velocity + 0.0000001f), 2.0f)
+		* drag * -glm::normalize(velocity + 0.0000001f) *  stepSize;
+	
+	position = position + 0.5f * stepSize * midVelocity;
+}
+
+void CBoundingBox::Update(){}
 
 glm::vec3 CVelocityField2D::VelocityAt(glm::vec2 p)
 {
@@ -44,36 +79,6 @@ glm::vec3 CVelocityField2D::VelocityAt(glm::vec2 p)
 		return glm::vec3(0.0f);
 		break;
 	}
-}
-
-void CVelocityField2D::Update()
-{
-}
-
-void CRigidBody::Update()
-{
-	const float stepSize = 1.f;
-	//euler method
-	/*velocity += acceleration * stepSize;
-
-	velocity += glm::pow(glm::length(velocity + 0.0000001f), 2.0f) 
-		* drag * -glm::normalize(velocity + 0.0000001f) * stepSize;
-
-	position += velocity * stepSize;*/
-		
-	//midpoint method
-	const glm::vec3 midVelocity = velocity + 0.5f * stepSize * acceleration
-		+ glm::pow(glm::length(velocity + 0.0000001f), 2.0f)
-		* drag * -glm::normalize(velocity + 0.0000001f) * 0.5f * stepSize;
-	const glm::vec3 midPosition = position + 0.5f * stepSize * midVelocity;
-	velocity += 0.5f * stepSize * acceleration
-		+ glm::pow(glm::length(velocity + 0.0000001f), 2.0f)
-		* drag * -glm::normalize(velocity + 0.0000001f) *  stepSize;
-	position += 0.5f * stepSize * midVelocity;
-}
-
-void CForceField2D::Update()
-{
 }
 
 glm::vec3 CForceField2D::ForceAt(glm::vec2 p)
@@ -143,6 +148,10 @@ void Scene::Update()
 			if (i != 0)
 				rigidBody.acceleration = forceFContribution / rigidBody.mass;
 			
+			registry.view<CBoundingBox>().each([&](CBoundingBox bbox) {
+				bbox.Rebound(rigidBody);
+			});
+			
 			rigidBody.Update();
 			transform.SetPosition(rigidBody.position);
 			//transform.SetEulerRotation(rigidBody.rotation);
@@ -154,7 +163,79 @@ void Scene::Update()
 	
 }
 
-entt::entity Scene::AddPointLight(glm::vec3 pos, float intesity, glm::vec3 color)
+entt::entity Scene::CreateBoundingBox(glm::vec3 min, glm::vec3 max)
+{
+	auto entity = CreateSceneObject("boundingbox");
+	registry.emplace<CBoundingBox>(entity, min, max);
+	registry.emplace<CTransform>(entity, glm::vec3(0, 0, 0), glm::vec3(0, 0, 0), glm::vec3(1, 1, 1));
+	registry.emplace<CPhongMaterial>(entity);
+	registry.emplace<CVertexArrayObject>(entity);
+	CVertexArrayObject& vao = GetComponent<CVertexArrayObject>(entity);
+	vao.CreateVAO();
+	glm::vec3 vertexData[24]
+	{
+		min,
+		{max.x, min.y, min.z},
+		
+		{max.x, min.y, min.z},
+		{max.x, max.y, min.z},
+		
+		{max.x, max.y, min.z},
+		{min.x, max.y, min.z},
+		
+		{min.x, max.y, min.z},
+		min,
+
+		{min.x, max.y, min.z},
+		{min.x, max.y, max.z},
+		
+		{min.x, max.y, max.z},
+		{min.x, min.y, max.z},
+		
+		{min.x, min.y, max.z},
+		min,
+		
+		{min.x, min.y, max.z},
+		{max.x, min.y, max.z},
+
+		{max.x, min.y, max.z},
+		{max.x, min.y, min.z},
+
+		{max.x, min.y, max.z},
+		max,
+
+		max,
+		{max.x, max.y, min.z},
+
+		max,
+		{min.x, max.y, max.z}
+	};
+	
+	VertexBufferObject vertexVBO(
+		(void*)vertexData,
+		24,
+		GL_FLOAT,
+		"pos",
+		3,
+		1);
+	vao.AddVBO(vertexVBO);
+	VertexBufferObject normalsVBO(
+		(void*)vertexData,
+		24,
+		GL_FLOAT,
+		"norm",
+		3,
+		1);
+	vao.AddVBO(normalsVBO);
+	unsigned int indices[24];
+	for (int i = 0; i < 24; i++)
+		indices[i] = i;
+	//vao.CreateEBO(indices, 24);
+	return entity;
+	
+}
+
+entt::entity Scene::CreatePointLight(glm::vec3 pos, float intesity, glm::vec3 color)
 {
 	auto entity = CreateSceneObject("light");
 	registry.emplace<CLight>(entity, LightType::POINT, color, glm::min(intesity, 1.0f), pos, 
@@ -192,4 +273,21 @@ entt::entity Scene::CreateModelObject(cy::TriMesh& mesh, glm::vec3 position, glm
 void CRigidBody::ApplyForce(glm::vec3 force)
 {
 	velocity += force / mass;
+}
+#include <iostream>
+#include <windows.h>
+void CBoundingBox::Rebound(CRigidBody& rigidBody)
+{
+	glm::vec3 reboundNormal = glm::normalize(glm::vec3(
+		(rigidBody.position.x < min.x ? 1.0f : (rigidBody.position.x > max.x ? -1.0f : 0.0f)),
+		(rigidBody.position.y < min.y ? 1.0f : (rigidBody.position.y > max.y ? -1.0f : 0.0f)),
+		(rigidBody.position.z < min.z ? 1.0f : (rigidBody.position.z > max.z ? -1.0f : 0.0f))
+	));
+
+	if (!glm::any(glm::isnan(reboundNormal)) && reboundNormal != glm::vec3(0.0f))
+	{
+		rigidBody.position += reboundNormal * 0.01f;
+		rigidBody.velocity = glm::reflect(rigidBody.velocity, reboundNormal);
+		rigidBody.acceleration = glm::reflect(rigidBody.acceleration, reboundNormal);
+	}
 }

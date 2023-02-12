@@ -787,6 +787,25 @@ public:
 
 	void Update()
 	{
+		scene->registry.view <CBoundingBox, CTransform, CVertexArrayObject, CPhongMaterial>().each([&](const auto entity, 
+			const auto bbox, auto& transform, auto& vao, auto& material)
+			{
+				if (true)
+				{
+					const auto mv = scene->camera.GetViewMatrix() * transform.GetModelMatrix();
+					const auto mvp = scene->camera.GetProjectionMatrix() * mv;
+					program->SetUniform("to_screen_space", mvp);
+					program->SetUniform("to_view_space", mv);
+					program->SetUniform("normals_to_view_space",
+						glm::transpose(glm::inverse(glm::mat3(mv))));
+					program->SetUniform("material.ka", material.ambient);
+					program->SetUniform("material.kd", material.diffuse);
+					program->SetUniform("material.ks", material.specular);
+					program->SetUniform("material.shininess", material.shininess);
+					program->Use();
+					vao.Draw(GL_LINES);
+				}
+			});
 		auto view = scene->registry.view<CTransform, CVertexArrayObject, CPhongMaterial>();
 		view.each([&](const auto entity, auto& transform, auto& vao, auto& material)
 			{
@@ -849,6 +868,18 @@ public:
 			if (ImGui::Button("Reset Particle"))
 				ResetParticle();
 			
+			ImGui::SameLine();
+			static bool enableBB = false;
+			if (ImGui::Checkbox("Bounding Box", &enableBB))
+			{
+				if (enableBB)
+				{
+					scene->CreateBoundingBox(glm::vec3(-25), glm::vec3(25));
+				}
+				else
+					scene->RemoveSceneObject("boundingbox");
+			}
+			
 			static bool enableVF = false;
 			if (ImGui::Checkbox("VelocityField", &enableVF))
 			{
@@ -880,7 +911,7 @@ public:
 							float radius = sqrt(x * x + y * y);
 							float angle = atan2(y, x) + 0.5f * glm::pi<float>();
 							return glm::vec2(-radius * cos(angle), - radius * sin(angle));
-								}, FieldPlane::XZ).scaling = 0.05f;
+								}, FieldPlane::XZ).scaling = 0.00005f;
 				}
 				else
 					scene->RemoveSceneObject("forceField");

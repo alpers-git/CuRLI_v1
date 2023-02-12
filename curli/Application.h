@@ -13,9 +13,9 @@ public:
 		scene = std::make_shared<Scene>();
 		ParseArguments(argc, argv);
 		
-		scene->AddPointLight(glm::vec3(0, 0, 20), 1, glm::vec3(0.7, 0.8, 0.05));//TODO
-		scene->AddPointLight(glm::vec3(10, 10, 0), .1, glm::vec3(0.8, 0.1, 0.0));//TODO
-		scene->AddPointLight(glm::vec3(-20, 0, 0), .5, glm::vec3(0.01, 0.1, 0.9));
+		scene->CreatePointLight(glm::vec3(0, 0, 20), 1, glm::vec3(0.7, 0.8, 0.05));//TODO
+		scene->CreatePointLight(glm::vec3(10, 10, 0), .1, glm::vec3(0.8, 0.1, 0.0));//TODO
+		scene->CreatePointLight(glm::vec3(-20, 0, 0), .5, glm::vec3(0.01, 0.1, 0.9));
 
 		scene->GetComponent<CRigidBody>(scene->GetSceneObject("sphere")).drag = 0.05f;
 		

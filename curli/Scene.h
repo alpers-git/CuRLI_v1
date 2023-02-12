@@ -674,6 +674,7 @@ public:
 
 	void Update();
 };
+
 enum class FieldPlane
 {
 	XY, YZ, XZ
@@ -712,6 +713,22 @@ public:
 	glm::vec3 ForceAt(glm::vec2 p);
 };
 
+struct CBoundingBox : Component
+{
+public:
+	CBoundingBox(glm::vec3 min, glm::vec3 max)
+	{
+		this->min = glm::min(min, max);
+		this->max = glm::max(min, max);
+	}
+
+	glm::vec3 min;
+	glm::vec3 max;
+
+	void Update();
+	void Rebound(CRigidBody& rigidBody);
+};
+
 class Scene
 {
 public:
@@ -746,8 +763,13 @@ public:
 	/*
 	* Creates a Point light source
 	*/
-	entt::entity AddPointLight(glm::vec3 pos, float intesity,
+	entt::entity CreatePointLight(glm::vec3 pos, float intesity,
 		glm::vec3 color = glm::vec3(1, 1, 1));
+	
+	/*
+	* Creates a bounding box that acts as a physics bound alongside with a VAO so it can be drawn
+	*/
+	entt::entity CreateBoundingBox(glm::vec3 min, glm::vec3 max);
 
 	/*
 	* Inserts the registered entity to sceneObjects map with given name or given name + number returns identifier name
@@ -801,7 +823,6 @@ public:
 	{
 		return sceneObjects.end();
 	}
-
 
 	Camera camera;
 	entt::registry registry;
