@@ -913,7 +913,7 @@ public:
 							float radius = sqrt(x * x + y * y);
 							float angle = atan2(y, x) + 0.5f * glm::pi<float>();
 							return glm::vec2(-radius * cos(angle), - radius * sin(angle));
-								}, FieldPlane::XZ).scaling = 0.00005f;
+								}, FieldPlane::XZ).scaling = 0.5f;
 				}
 				else
 					scene->RemoveSceneObject("forceField");

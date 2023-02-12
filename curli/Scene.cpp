@@ -141,12 +141,26 @@ void Scene::Update()
 			glm::vec3 forceFContribution = glm::vec3(0.0f);
 			registry.view<CForceField2D>().each([&](auto fField)
 				{
-					forceFContribution += fField.ForceAt(
-						glm::vec2(rigidBody.position.x, rigidBody.position.z));
+					const float stepSize = 0.33f;
+					for (float step = 0; step < 1.0f; step+=stepSize)
+					{
+						const float r = glm::length(rigidBody.position);
+						const float deltaAngle = glm::length(rigidBody.velocity) *
+							stepSize/r;
+						glm::vec3 pPrime = glm::eulerAngleY(deltaAngle) * 
+							glm::vec4(rigidBody.position,1.0f);
+						forceFContribution = fField.ForceAt(
+							glm::vec2(pPrime.x, pPrime.z)) * stepSize;
+						//rigidBody.velocity = glm::vec3(0.0f);
+						//rigidBody.acceleration = forceFContribution / rigidBody.mass;
+						rigidBody.velocity = forceFContribution / rigidBody.mass * stepSize;
+						rigidBody.position += stepSize * rigidBody.velocity;
+						//rigidBody.Update();
+					}
 					i++;
 				});
-			if (i != 0)
-				rigidBody.acceleration = forceFContribution / rigidBody.mass;
+			/*if (i != 0)
+				rigidBody.acceleration = forceFContribution / rigidBody.mass;*/
 			
 			registry.view<CBoundingBox>().each([&](CBoundingBox bbox) {
 				bbox.Rebound(rigidBody);
