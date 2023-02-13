@@ -38,6 +38,7 @@ Most of these dependencies are included as submodules and compiles with CMake. O
 - [x] Idle function where animation between two colors are generated using linear interpolation of sine value of time(ms).
   
 Some Screenshots:
+
 <img src="./images/pr1_1.jpg" width=80%>
 <img src="./images/pr1_2.jpg" width=80%>
 
@@ -60,6 +61,7 @@ Some Screenshots:
 - Inside `PreUpdate()` function of this projects renderer (`TeapotRenderer`) I set the model matrix of the teapot to a rotation matrix that updates the angle over time. This causes teapot to revolve around itself.
 
 Some Screenshots:
+
 <img src="./images/pr2_1.png" width=80%>
 <img src="./images/pr2_2.png" width=80%>
 
@@ -81,5 +83,21 @@ Some Screenshots:
 - Using the ECS I let shaders render multiple light sources over multiple objects.
 
 Some Screenshots:
+
 <img src="./images/pr3_1.png" width=80%>
 <img src="./images/pr3_2.png" width=80%>
+
+---
+#### Physically Based Animation - Assignment 1
+###### A simple one-particle system:
+- [x] Rendering and shading 3D sphere as a particle.
+- [x] Mouse-based interaction that can interactively apply force.
+- [x] 3D arrow as force vector intidcator.
+- [x] Programmable VelocityField2D component with respective UI to add/remove from the scene.
+- [x] Programmable ForceField2D component with respective UI to add/remove from the scene.
+- [x] Euler integrator (explicit or implicit) and its selection UI.
+- [x] BoundingBox class with VertexArrayObject component so it can be drawn as GL_LINES.
+
+Some Screenshots:
+
+<img src="./images/pra1_1.png" width=80%>

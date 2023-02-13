@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <imgui.h>
+#include <ImguiHelpers.h>
 
 
 template <class T>
@@ -918,7 +919,10 @@ public:
 				else
 					scene->RemoveSceneObject("forceField");
 			}
-				
+			std::string text(scene->explicit_euler ? "Expilicit Euler" : "Implicit Euler");
+			ImGui::Text(text.c_str());
+			ImGui::SameLine();
+			ImGui::ToggleButton("Euler", &scene->explicit_euler);
 			auto transform = scene->GetComponent<CTransform>(scene->GetSceneObject("sphere"));
 			glm::vec3 pos = transform.GetPosition();
 			if (ImGui::DragFloat3("Position##1", &pos[0], 0.01f))

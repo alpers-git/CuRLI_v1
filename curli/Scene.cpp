@@ -144,18 +144,38 @@ void Scene::Update()
 					const float stepSize = 0.33f;
 					for (float step = 0; step < 1.0f; step+=stepSize)
 					{
-						const float r = glm::length(rigidBody.position);
-						const float deltaAngle = glm::length(rigidBody.velocity) *
-							stepSize/r;
-						glm::vec3 pPrime = glm::eulerAngleY(deltaAngle) * 
-							glm::vec4(rigidBody.position,1.0f);
-						forceFContribution = fField.ForceAt(
-							glm::vec2(pPrime.x, pPrime.z)) * stepSize;
-						//rigidBody.velocity = glm::vec3(0.0f);
-						//rigidBody.acceleration = forceFContribution / rigidBody.mass;
-						rigidBody.velocity = forceFContribution / rigidBody.mass * stepSize;
-						rigidBody.position += stepSize * rigidBody.velocity;
-						//rigidBody.Update();
+						if (!explicit_euler)
+						{
+							const float r = glm::length(rigidBody.position);
+							const float deltaAngle = glm::length(rigidBody.velocity) *
+								stepSize/r;
+							glm::vec3 pPrime = glm::eulerAngleY(deltaAngle) * 
+								glm::vec4(rigidBody.position,1.0f);
+							forceFContribution = fField.ForceAt(
+								glm::vec2(pPrime.x, pPrime.z)) * stepSize;
+							//rigidBody.velocity = glm::vec3(0.0f);
+							//rigidBody.acceleration = forceFContribution / rigidBody.mass;
+							rigidBody.velocity = forceFContribution / rigidBody.mass * stepSize 
+								+ glm::pow(glm::length(rigidBody.velocity + 0.0000001f), 2.0f)
+								* rigidBody.drag * -glm::normalize(rigidBody.velocity + 0.0000001f) * 0.5f * stepSize;
+							rigidBody.position += stepSize * rigidBody.velocity;
+							//rigidBody.Update();
+						}
+						else
+						{
+							//midpoint method
+							forceFContribution = fField.ForceAt(glm::vec2(rigidBody.position.x, rigidBody.position.z));
+							const glm::vec3 acceleration = forceFContribution / rigidBody.mass;
+							const glm::vec3 midVelocity = rigidBody.velocity + 0.5f * stepSize * acceleration
+								+ glm::pow(glm::length(rigidBody.velocity + 0.0000001f), 2.0f)
+								* rigidBody.drag * -glm::normalize(rigidBody.velocity + 0.0000001f) * 0.5f * stepSize;
+							const glm::vec3 midPosition = rigidBody.position + 0.5f * stepSize * midVelocity;
+							rigidBody.velocity = rigidBody.velocity + 0.5f * stepSize * acceleration
+								+ glm::pow(glm::length(rigidBody.velocity + 0.0000001f), 2.0f)
+								* rigidBody.drag * -glm::normalize(rigidBody.velocity + 0.0000001f) * stepSize;
+
+							rigidBody.position = rigidBody.position + 0.5f * stepSize * midVelocity;
+						}
 					}
 					i++;
 				});
@@ -165,8 +185,8 @@ void Scene::Update()
 			registry.view<CBoundingBox>().each([&](CBoundingBox bbox) {
 				bbox.Rebound(rigidBody);
 			});
-			
-			rigidBody.Update();
+			if (i == 0)
+				rigidBody.Update();
 			transform.SetPosition(rigidBody.position);
 			//transform.SetEulerRotation(rigidBody.rotation);
 			transform.Update();

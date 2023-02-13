@@ -826,6 +826,7 @@ public:
 
 	Camera camera;
 	entt::registry registry;
+	bool explicit_euler = true;
 private:
 	std::map<std::string, entt::entity> sceneObjects;
 };
