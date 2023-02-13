@@ -282,6 +282,17 @@ namespace gui
 								ImGui::EndTabItem();
 							}
 						});
+				//Draw Rigidbody tab
+				scene->registry.view<CBoundingBox>()
+					.each([&](auto e, auto& b)
+						{
+							if (e == selectedSceneObject && ImGui::BeginTabItem("Boundingbox"))
+							{
+								ImGui::DragFloat3("Min", &b.min[0], 0.01f);
+								ImGui::DragFloat3("Max", &b.max[0], 0.01f);
+								ImGui::EndTabItem();
+							}
+						});
 
 				ImGui::EndTabBar();
 			}
