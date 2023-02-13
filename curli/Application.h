@@ -4,7 +4,7 @@
 #include <ImguiHelpers.h>
 
 
-template <class T>
+template <class R>
 class Application
 {
 public:
@@ -19,7 +19,7 @@ public:
 
 		scene->GetComponent<CRigidBody>(scene->GetSceneObject("sphere")).drag = 0.005f;
 		
-		renderer = std::make_unique<T>(scene);
+		renderer = std::make_unique<R>(scene);
 		renderer->ParseArguments(argc, argv);
 	}
 	~Application() {}
@@ -55,7 +55,7 @@ public:
 		renderer->Terminate();
 	}
 private:
-	std::unique_ptr<T> renderer;
+	std::unique_ptr<R> renderer;
 	std::shared_ptr<Scene> scene;
 	
 	
