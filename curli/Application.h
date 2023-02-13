@@ -1,10 +1,10 @@
 #pragma once
 //#include <Scene.h>
 #include "Renderer.h"
-#include <ImguiHelpers.h>
+#include <GUIManager.h>
 
 
-template <class R>
+template <class R, class G>
 class Application
 {
 public:
@@ -21,6 +21,7 @@ public:
 		
 		renderer = std::make_unique<R>(scene);
 		renderer->ParseArguments(argc, argv);
+		guiManager = std::make_unique<G>(scene);
 	}
 	~Application() {}
 
@@ -33,7 +34,7 @@ public:
 		renderer->Initialize();
 
 		//Init imgui
-		gui::InitImgui(windowManager.GetWindowPointer());
+		guiManager->Initialize(windowManager.GetWindowPointer());
 
 		//Create a rendering loop with glfw
 		while (windowManager.IsRunning())
@@ -45,17 +46,19 @@ public:
 			renderer->Render();
 
 			//Draw the GUI
-			renderer->DrawGUI();
+			guiManager->DrawGUI();
+			//renderer->DrawGUI();
 
 			//Event handling
 			windowManager.DispatchEvents(*renderer);
 		}
 
-		gui::TerminateImgui();
+		guiManager->Terminate();
 		renderer->Terminate();
 	}
 private:
 	std::unique_ptr<R> renderer;
+	std::unique_ptr<G> guiManager;
 	std::shared_ptr<Scene> scene;
 	
 	

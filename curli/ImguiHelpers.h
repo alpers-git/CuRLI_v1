@@ -9,7 +9,7 @@ namespace gui
 	void StyleColorsAlteredDracula()
 	{
 		auto& colors = ImGui::GetStyle().Colors;
-		colors[ImGuiCol_WindowBg] = ImVec4{ 0.1f, 0.1f, 0.13f, .8f };
+		colors[ImGuiCol_WindowBg] = ImVec4{ 0.05f, 0.05f, 0.085f, .8f };
 		colors[ImGuiCol_MenuBarBg] = ImVec4{ 0.16f, 0.16f, 0.21f, 1.0f };
 
 		// Border
@@ -134,9 +134,9 @@ namespace ImGui
 			*v = !*v;
 		ImU32 col_bg;
 		if (ImGui::IsItemHovered())
-			col_bg = *v ? IM_COL32(145 + 20, 211, 68 + 20, 255) : IM_COL32(218 - 20, 218 - 20, 218 - 20, 255);
+			col_bg = *v ? IM_COL32(0.74f*255.f, 0.58f*255.f, 0.98f*255.f, 255) : IM_COL32(0.24*255.f, 0.24f*255.f, 0.32f*255.f, 255);
 		else
-			col_bg = *v ? IM_COL32(145, 211, 68, 255) : IM_COL32(218, 218, 218, 255);
+			col_bg = *v ? IM_COL32(0.44f*255.f, 0.37f*255.f, 0.61f*255.f, 255) : IM_COL32(0.16f*255.f, 0.16f*255.f, 0.21f*255.f, 255);
 
 		draw_list->AddRectFilled(p, ImVec2(p.x + width, p.y + height), col_bg, height * 0.5f);
 		draw_list->AddCircleFilled(ImVec2(*v ? (p.x + width - radius) : (p.x + radius), p.y + radius), radius - 1.5f, IM_COL32(255, 255, 255, 255));

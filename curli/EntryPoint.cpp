@@ -3,7 +3,7 @@
 
 int main(int argc, char const *argv[])
 {
-	Application<RBPlaygroundRenderer> app(argc, argv);
+	Application<RBPlaygroundRenderer, gui::ControlPanel> app(argc, argv);
 	app.Run();
 
     return 0;

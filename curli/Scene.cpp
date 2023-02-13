@@ -17,7 +17,6 @@ void CTriMesh::Update()
 {
 }
 
-
 void CLight::Update()
 {
 }
