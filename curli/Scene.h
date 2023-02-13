@@ -470,7 +470,10 @@ public:
 	{}
 
 	unsigned int GetID() { return glID; }
+	void SetDrawMode(GLenum mode) { drawMode = mode; }
+	GLenum GetDrawMode() { return drawMode; }
 	VertexBufferObject GetVBO(unsigned int index) { return VBOs[index]; }
+	unsigned int GetNumVBOs() { return VBOs.size(); }
 	unsigned int GetEBO() 
 	{ 
 		if (EBO == -1)
@@ -566,6 +569,13 @@ public:
 			glDrawElements(mode, numIndices, GL_UNSIGNED_INT, 0);
 		}
 	}
+	/*
+	* Draws the VAO using either glDrawArrays or glDrawArrays with the set mode
+	*/
+	void Draw()
+	{
+		Draw(drawMode);
+	}
 	
 
 	void Update() {}
@@ -575,6 +585,7 @@ private:
 	std::vector<VertexBufferObject> VBOs;
 	GLuint EBO;
 	unsigned int numIndices = 0;
+	GLenum drawMode = GL_TRIANGLES;
 };
 
 enum class LightType
@@ -624,6 +635,7 @@ public:
 		
 	}
 	
+	LightType GetLightType() { return lightType; }
 	
 	glm::vec3 color;
 	float intensity;

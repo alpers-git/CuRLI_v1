@@ -825,7 +825,7 @@ public:
 
 					//bind GLSL program
 					program->Use();
-					vao.Draw(GL_TRIANGLES);
+					vao.Draw();
 
 
 					auto arrow = scene->GetSceneObject("arrow");
@@ -844,7 +844,7 @@ public:
 					program->SetUniform("material.ks", mat.specular);
 					program->SetUniform("material.shininess", mat.shininess);
 
-					scene->GetComponent<CVertexArrayObject>(arrow).Draw(GL_TRIANGLES);
+					scene->GetComponent<CVertexArrayObject>(arrow).Draw();
 				}
 
 			});
