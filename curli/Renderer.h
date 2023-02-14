@@ -782,6 +782,321 @@ private:
 	bool ctrlDown = false;
 };
 
+class TexturedPhongRenderer : public Renderer<TexturedPhongRenderer>
+{
+public:
+	TexturedPhongRenderer(std::shared_ptr<Scene> scene) :Renderer(scene) {}
+	~TexturedPhongRenderer() {}
+
+	//override ParseArguments
+	void ParseArguments(int argc, char const* argv[])
+	{}
+
+	void Start()
+	{
+		printf("Initializing Renderer\n");
+		program->SetGLClearFlags(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+
+		program->CreatePipelineFromFiles("../assets/shaders/phong/shader.vert",
+			"../assets/shaders/phong/shader.frag");
+		program->SetClearColor({ 0.f,0.f,0.1f,1.f });
+
+		/*const auto view = scene->registry.view<CTriMesh>();
+		view.each([&](const auto entity, const auto& mesh)
+			{
+				scene->registry.emplace<CVertexArrayObject>(entity);
+			});
+		const auto viewVAO = scene->registry.view<CVertexArrayObject, CTriMesh>();
+		viewVAO.each([&](const auto entity, auto& vao, auto& mesh)
+			{
+				vao.CreateVAO();
+					VertexBufferObject vertexVBO(
+					mesh.GetVertexDataPtr(),
+					mesh.GetNumVertices(),
+					GL_FLOAT,
+					"pos",
+					3,
+					program->GetID());
+				vao.AddVBO(vertexVBO);
+				
+				mesh.ComputeNormals();
+				VertexBufferObject normalsVBO(
+					mesh.GetNormalDataPtr(),
+					mesh.GetNumNormals(),
+					GL_FLOAT,
+					"norm",
+					3,
+					program->GetID());
+				vao.AddVBO(normalsVBO);
+
+				vao.CreateEBO((unsigned int *)mesh.GetFaceDataPtr(), mesh.GetNumFaces()*3);
+			});*/
+
+		//Init camera
+		int windowWidth, windowHeight;
+		glfwGetWindowSize(GLFWHandler::GetInstance().GetWindowPointer(), &windowWidth, &windowHeight);
+		scene->camera = Camera(glm::vec3(0.f, 0.f, 0.0f), glm::vec3(0.0f, 0, 0), 1.f,
+			45.f, 0.01f, 100000.f, (float)windowWidth / (float)windowHeight, true);
+
+		ResetCamera();
+		
+		auto view3 = scene->registry.view<CTransform, CTriMesh>();
+		view3.each([&](auto& transform, auto& mesh)
+		{
+			transform.SetScale(glm::vec3(0.05f) *
+			(scene->camera.IsPerspective() ? 1.f : 1.f / glm::length(scene->camera.GetLookAtEye())));
+			transform.SetEulerRotation(glm::vec3(glm::radians(-90.f), 0, 0));
+			transform.SetPivot(mesh.GetBoundingBoxCenter());
+		});
+
+	}
+
+	void PreUpdate()
+	{
+		int i = 0;
+		auto view2 = scene->registry.view<CLight>();
+		view2.each([&](auto& light)
+			{
+				std::string shaderName("light[" + std::to_string(i) + "].position");
+				program->SetUniform(shaderName.c_str(), glm::vec3(scene->camera.GetViewMatrix() * glm::vec4(light.position, 1)));
+				shaderName = std::string("light[" + std::to_string(i) + "].intensity");
+				program->SetUniform(shaderName.c_str(), light.intensity);
+				shaderName = std::string("light[" + std::to_string(i) + "].color");
+				program->SetUniform(shaderName.c_str(), light.color);
+				i++;
+			});
+		program->SetUniform("light_count", i);
+	}
+
+	void Update()
+	{	
+		auto view = scene->registry.view<CTransform, CVertexArrayObject, CPhongMaterial>();
+		view.each([&](auto& transform, auto& vao, auto& material)
+			{
+
+				const auto mv =  scene->camera.GetViewMatrix() * transform.GetModelMatrix();
+				const auto mvp = scene->camera.GetProjectionMatrix() * mv;
+				program->SetUniform("to_screen_space", mvp);
+				program->SetUniform("to_view_space", mv);
+				program->SetUniform("normals_to_view_space",
+					glm::transpose(glm::inverse(glm::mat3(mv))));
+				program->SetUniform("material.ka", material.ambient);
+				program->SetUniform("material.kd", material.diffuse);
+				program->SetUniform("material.ks", material.specular);
+				program->SetUniform("material.shininess", material.shininess);
+				//bind GLSL program
+				program->Use();
+				vao.Draw(GL_TRIANGLES);
+			});
+	}
+
+	void End()
+	{
+		printf("Shutting down Renderer");
+	}
+
+	void UpdateGUI()
+	{
+		const ImGuiViewport* main_viewport = ImGui::GetMainViewport();
+		ImGui::SetNextWindowSize(ImVec2(main_viewport->WorkSize.x/5, main_viewport->WorkSize.y/2));
+		ImGui::SetNextWindowPos(ImVec2(main_viewport->WorkSize.x - main_viewport->WorkSize.x/5 -5, main_viewport->WorkPos.y + 5));
+		ImGui::Begin("Control panel", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
+		if (ImGui::CollapsingHeader("Shaders", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			if (ImGui::Button("Read Shaders(F5)"))
+			{
+				ReloadShaders();
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Compile Shaders(F6)"))
+			{
+				RecompileShaders();
+			}
+		}
+		if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			if (ImGui::Button("Reset Camera(F1)"))
+			{
+				ResetCamera();
+			}
+			//ImGui::SameLine();
+			glm::vec3 target = scene->camera.GetCenter();
+			if (ImGui::DragFloat3("Target", &target[0], 0.01f))
+			{
+				scene->camera.SetCenter(target);
+			}
+		}
+		if (ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			int i = 0;
+			auto view = scene->registry.view<CPhongMaterial>();
+			view.each([&](auto& material)
+				{
+					std::string field1(std::string("Specular##") + std::to_string(i));
+					std::string field2(std::string("Diffuse##") + std::to_string(i));
+					std::string field3(std::string("Ambient##") + std::to_string(i));
+					std::string field4(std::string("Shininess##") + std::to_string(i));
+					ImGui::ColorEdit3(field1.c_str(), &material.specular[0]);
+					ImGui::ColorEdit3(field2.c_str(), &material.diffuse[0]);
+					ImGui::ColorEdit3(field3.c_str(), &material.ambient[0]);
+					ImGui::DragFloat(field4.c_str(), &material.shininess, 0.1f, 0.f, 500.f);
+					ImGui::Separator();
+					i++;
+				});
+		}
+		if (ImGui::CollapsingHeader("Lights", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			int i  = 0;
+			auto view = scene->registry.view<CLight>();
+			view.each([&](auto& light)
+				{
+					std::string field1(std::string("Position##") + std::to_string(i));
+					std::string field2(std::string("Intensity##") + std::to_string(i));
+					std::string field3(std::string("Color##") + std::to_string(i));
+					ImGui::DragFloat3( field1.c_str(), &light.position[0], 0.01f);
+					ImGui::DragFloat(field2.c_str(), &light.intensity, 0.001f, 0.0f, 1.f);
+					ImGui::ColorEdit3(field3.c_str(), &light.color[0], 0.01f);
+					ImGui::Separator();
+					i++;
+				});
+		}
+		
+		ImGui::End();
+	}
+
+	/*
+	* Recompile the shaders
+	*/
+	inline void RecompileShaders()
+	{
+		if (program->CompileShaders())
+		{
+			printf("Shaders compiled successfully\n");
+			program->AttachVertexShader();
+			program->AttachFragmentShader();
+		}
+		else
+			printf("Shaders compilation failed\n");
+	}
+	/*
+	* Reloads and recompiles shaders
+	*/
+	inline void ReloadShaders()
+	{
+		program->SetVertexShaderSourceFromFile("../assets/shaders/phong/shader.vert");
+		program->SetFragmentShaderSourceFromFile("../assets/shaders/phong/shader.frag");
+		RecompileShaders();
+	}
+
+	/*
+	* Points camera to mesh center
+	*/
+	inline void ResetCamera()
+	{
+		scene->camera.SetOrbitDistance(25.f);
+		scene->camera.SetCenter({ 0,0,0 });
+		scene->camera.SetOrbitAngles({ 90,0,0 });
+	}
+
+	void OnWindowResize(int w, int h)
+	{
+		scene->camera.SetAspectRatio((float)w / (float)h);
+	}
+
+	void OnKeyboard(int key, int scancode, int action, int mods)
+	{
+		// if GLFW_ESC is pressed exit the application
+		if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+			glfwSetWindowShouldClose(GLFWHandler::GetInstance().GetWindowPointer(), true);
+		if (key == GLFW_KEY_F6 && action == GLFW_PRESS)
+			RecompileShaders();
+		if (key == GLFW_KEY_F5 && action == GLFW_PRESS)
+			ReloadShaders();
+		if (key == GLFW_KEY_F1 && action == GLFW_PRESS)
+			ResetCamera();
+		if (key == GLFW_KEY_P && action == GLFW_PRESS)
+			scene->camera.SetPerspective(!scene->camera.IsPerspective());
+		if (key == GLFW_KEY_LEFT_CONTROL && action == GLFW_PRESS)
+			ctrlDown = true;
+		else if (key == GLFW_KEY_LEFT_CONTROL && action == GLFW_RELEASE)
+			ctrlDown = false;
+	}
+
+	//orbit camera
+	void OnMouseButton(int button, int action, int mods)
+	{
+		if (button == GLFW_MOUSE_BUTTON_LEFT && (action == GLFW_PRESS || action == GLFW_REPEAT))
+			m1Down = true;
+		else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
+			m1Down = false;
+		if (button == GLFW_MOUSE_BUTTON_RIGHT && (action == GLFW_PRESS || action == GLFW_REPEAT))
+			m2Down = true;
+		else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE)
+			m2Down = false;
+	}
+	//orbit camera
+	void OnMouseMove(double x, double y)
+	{
+		bool updateMousePos = true;
+		glm::vec2 deltaPos(prevMousePos.x - x, prevMousePos.y - y);
+		if (m1Down && ctrlDown)
+		{
+			//UGLY CODE HERE
+			//fetch the first light
+			auto view2 = scene->registry.view<CLight>();
+			int i = 0;
+			view2.each([&](auto& light)
+				{
+					if (i == 0)
+					{
+						//get the angles around 0,0,0 based on position
+						glm::vec3 angles = glm::vec3(
+							asin((light.position.y) / glm::length(light.position)),
+							atan2f((-light.position.z), (light.position.x)) + 1.57f,
+							0.f);
+						//calculate new spherical coordinates using angles - mouse delta 
+						angles = angles + glm::vec3(deltaPos.y * .005f, -deltaPos.x * .004f, 0.f);
+						if (angles.x > 89.5f)
+							angles.x = 89.5f;
+						if (angles.x < -89.5f)
+							angles.x = -89.5f;
+						const float theta = angles.x;
+						const float phi = angles.y;
+						glm::vec3 unitSpherePos = {
+							cos(theta) * sin(phi),
+							sin(theta),
+							cos(theta) * cos(phi)
+						};
+						//Preserve the distance to center and set the new position
+						light.position = unitSpherePos * glm::length(light.position);
+					}
+					i++;
+				});
+
+		}
+		else if (m1Down)
+			scene->camera.SetOrbitAngles(scene->camera.GetOrbitAngles()
+				- glm::vec3(deltaPos.y * 0.5f, -deltaPos.x * 0.4f, 0.f));
+		
+		if (m2Down)
+			scene->camera.SetOrbitDistance(scene->camera.GetOrbitDistance() + deltaPos.y * 0.05f);
+		
+		if(updateMousePos)
+			prevMousePos = { x,y };
+
+
+	}
+
+private:
+	//--orbit controls--//
+	bool m1Down = false;
+	bool m2Down = false;
+	glm::vec2 prevMousePos;
+
+	bool ctrlDown = false;
+};
+
 
 class RBPlaygroundRenderer : public Renderer<RBPlaygroundRenderer>
 {
