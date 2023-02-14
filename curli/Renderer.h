@@ -135,36 +135,93 @@ protected:
 	*/
 	void OnGeometryChange()
 	{
-		printf("aaaa\n");
 		scene->registry.view<CVertexArrayObject, CTriMesh>()
 			.each([&](const auto entity, auto& vao, auto& mesh)
+			{
+				if (!vao.IsInitialized())
+					vao.CreateVAO();
+				if (vao.GetNumVBOs() == 0)//TODO
 				{
-					if (!vao.IsInitialized())
-						vao.CreateVAO();
-					if (vao.GetNumVBOs() == 0)//TODO
+					VertexBufferObject vertexVBO(
+						mesh.GetVertexDataPtr(),
+						mesh.GetNumVertices(),
+						GL_FLOAT,
+						"pos",
+						3,
+						program->GetID());
+					vao.AddVBO(vertexVBO);
+
+					mesh.ComputeNormals();
+					VertexBufferObject normalsVBO(
+						mesh.GetNormalDataPtr(),
+						mesh.GetNumNormals(),
+						GL_FLOAT,
+						"norm",
+						3,
+						program->GetID());
+					vao.AddVBO(normalsVBO);
+					vao.CreateEBO((unsigned int*)mesh.GetFaceDataPtr(), mesh.GetNumFaces() * 3);
+				}
+
+			});
+		scene->registry.view<CVertexArrayObject, CBoundingBox>()
+			.each([&](const auto entity, auto& vao, auto& bb)
+			{
+				if (!vao.IsInitialized())
+					vao.CreateVAO();
+				if (vao.GetNumVBOs() == 0)//TODO
+				{
+					vao.CreateVAO();
+					glm::vec3 vertexData[24]
 					{
-						VertexBufferObject vertexVBO(
-							mesh.GetVertexDataPtr(),
-							mesh.GetNumVertices(),
-							GL_FLOAT,
-							"pos",
-							3,
-							program->GetID());
-						vao.AddVBO(vertexVBO);
+						bb.min,
+						{bb.max.x, bb.min.y, bb.min.z},
 
-						mesh.ComputeNormals();
-						VertexBufferObject normalsVBO(
-							mesh.GetNormalDataPtr(),
-							mesh.GetNumNormals(),
-							GL_FLOAT,
-							"norm",
-							3,
-							program->GetID());
-						vao.AddVBO(normalsVBO);
-						vao.CreateEBO((unsigned int*)mesh.GetFaceDataPtr(), mesh.GetNumFaces() * 3);
-					}
+						{bb.max.x, bb.min.y, bb.min.z},
+						{bb.max.x, bb.max.y, bb.min.z},
 
-				});
+						{bb.max.x, bb.max.y, bb.min.z},
+						{bb.min.x, bb.max.y, bb.min.z},
+
+						{bb.min.x, bb.max.y, bb.min.z},
+						bb.min,
+
+						{bb.min.x, bb.max.y, bb.min.z},
+						{bb.min.x, bb.max.y, bb.max.z},
+
+						{bb.min.x, bb.max.y, bb.max.z},
+						{bb.min.x, bb.min.y, bb.max.z},
+
+						{bb.min.x, bb.min.y, bb.max.z},
+						bb.min,
+
+						{bb.min.x, bb.min.y, bb.max.z},
+						{bb.max.x, bb.min.y, bb.max.z},
+
+						{bb.max.x, bb.min.y, bb.max.z},
+						{bb.max.x, bb.min.y, bb.min.z},
+
+						{bb.max.x, bb.min.y, bb.max.z},
+						bb.max,
+
+						bb.max,
+						{bb.max.x, bb.max.y, bb.min.z},
+
+						bb.max,
+						{bb.min.x, bb.max.y, bb.max.z}
+					};
+
+					VertexBufferObject vertexVBO(
+						(void*)vertexData,
+						24,
+						GL_FLOAT,
+						"pos",
+						3,
+						program->GetID());
+					vao.AddVBO(vertexVBO);
+				}
+
+			});
 	};
 };
 
@@ -743,38 +800,9 @@ public:
 
 		program->CreatePipelineFromFiles("../assets/shaders/phong/shader.vert",
 			"../assets/shaders/phong/shader.frag");
-		program->SetClearColor({ 0.f,0.f,0.1f,1.f });
-
-		scene->registry.view<CTriMesh>()
-			.each([&](const auto entity, const auto& mesh)
-			{
-				scene->registry.emplace<CVertexArrayObject>(entity);
-			});
-		scene->registry.view<CVertexArrayObject, CTriMesh>()
-			.each([&](const auto entity, auto& vao, auto& mesh)
-			{
-				vao.CreateVAO();
-				VertexBufferObject vertexVBO(
-					mesh.GetVertexDataPtr(),
-					mesh.GetNumVertices(),
-					GL_FLOAT,
-					"pos",
-					3,
-					program->GetID());
-				vao.AddVBO(vertexVBO);
-
-				mesh.ComputeNormals();
-				VertexBufferObject normalsVBO(
-					mesh.GetNormalDataPtr(),
-					mesh.GetNumNormals(),
-					GL_FLOAT,
-					"norm",
-					3,
-					program->GetID());
-				vao.AddVBO(normalsVBO);
-
-				vao.CreateEBO((unsigned int*)mesh.GetFaceDataPtr(), mesh.GetNumFaces() * 3);
-			});
+		program->SetClearColor({ 0.01f,0.f,0.05f,1.f });
+		
+		OnGeometryChange();
 
 		//Init camera
 		int windowWidth, windowHeight;

@@ -251,7 +251,7 @@ namespace gui
 		}
 		void DrawSceneObjectsList()
 		{
-			if (ImGui::CollapsingHeader("Scene Objects"))
+			if (ImGui::CollapsingHeader("Scene Objects", ImGuiTreeNodeFlags_DefaultOpen))
 			{
 				if (ImGui::BeginListBox("##1", ImVec2(-FLT_MIN, 5 * ImGui::GetTextLineHeightWithSpacing())))
 				{
@@ -260,12 +260,16 @@ namespace gui
 						it = scene->sceneObjectsBegin(); it != scene->sceneObjectsEnd(); ++it)
 					{
 						const bool is_selected = (selectedSceneObject == it->second);
+						if(is_selected)
+							ImGui::PushStyleColor(ImGuiCol_Header,
+								ImGui::GetStyle().Colors[ImGuiCol_HeaderActive]);
 						if (ImGui::Selectable(it->first.c_str(), is_selected))
 							selectedSceneObject = it->second;
 
 						if (is_selected)
 						{
 							ImGui::SetItemDefaultFocus();
+							ImGui::PopStyleColor();
 						}
 
 						n++;

@@ -5,12 +5,11 @@
 void initializeVAOFromTriMesh(entt::registry& registry, entt::entity e)
 {
 	//check if entity has a trimesh
-	if (registry.all_of<CTriMesh>(e))
+	if (registry.any_of<CTriMesh, CBoundingBox>(e))
 	{
 		Event event;
 		event.type = Event::Type::GeometryChange;
 		GLFWHandler::GetInstance().QueueEvent(event);
-		printf("Geometry change event queued\n");
 	}
 }
 
@@ -331,7 +330,7 @@ entt::entity Scene::CreateModelObject(const std::string& meshPath, glm::vec3 pos
 	registry.emplace<CTriMesh>(entity, meshPath);
 	registry.emplace<CTransform>(entity, position, rotation, scale);
 	registry.emplace<CPhongMaterial>(entity);
-	
+	registry.emplace<CVertexArrayObject>(entity);
 	
 	//InsertSceneObject(name, entity);
 
@@ -344,6 +343,7 @@ entt::entity Scene::CreateModelObject(cy::TriMesh& mesh, glm::vec3 position, glm
 	registry.emplace<CTriMesh>(entity, mesh);
 	registry.emplace<CTransform>(entity, position, rotation, scale);
 	registry.emplace<CPhongMaterial>(entity);
+	registry.emplace<CVertexArrayObject>(entity);
 	//InsertSceneObject("unnamed-", entity);
 	return entity;
 }

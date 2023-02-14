@@ -23,7 +23,7 @@ namespace gui
 		// Headers
 		colors[ImGuiCol_Header] = ImVec4{ 0.13f, 0.13f, 0.17, 1.0f };
 		colors[ImGuiCol_HeaderHovered] = ImVec4{ 0.19f, 0.2f, 0.25f, 1.0f };
-		colors[ImGuiCol_HeaderActive] = ImVec4{ 0.16f, 0.16f, 0.21f, 1.0f };
+		colors[ImGuiCol_HeaderActive] = ImVec4{ 0.44f, 0.37f, 0.61f, 1.0f };
 
 		// Buttons
 		colors[ImGuiCol_Button] = ImVec4{ 0.44f, 0.37f, 0.61f, 0.94f };
