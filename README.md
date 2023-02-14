@@ -91,8 +91,8 @@ Some Screenshots:
 #### Physically Based Animation - Assignment 1
 ###### A simple one-particle system:
 - [x] Rendering and shading 3D sphere as a particle.
-- [x] Mouse-based interaction that can interactively apply force.
-- [x] 3D arrow as force vector intidcator.
+- [x] `LShift + Mouse drag` can interactively apply force.
+- [x] 3D arrow as force vector indicator.
 - [x] Programmable VelocityField2D component with respective UI to add/remove from the scene.
 - [x] Programmable ForceField2D component with respective UI to add/remove from the scene.
 - [x] Euler integrator (explicit or implicit) and its selection UI.
@@ -101,3 +101,27 @@ Some Screenshots:
 Some Screenshots:
 
 <img src="./images/pra1_1.png" width=80%>
+
+#### Project 4 - Textures
+###### Project 4 requirements:
+- [] Load and parse .mtl files associated with .obj files.
+- [] Load and decode .png files as textures.
+- [X] Use cmdline to read .obj files 
+  - Usage `-model --path ../path/to/your.obj`
+  - Appending `--rb` after `-model` tag attaches `CRigidBody` component to the model which includes this object in WIP physics events.
+- [] Display textures properly on the object.
+- [] Include the specular texture, specified in the mtl file, for adjusting the specular color of the object.
+
+###### Additional Features:
+- Improved UI using ImGUI and EnTT.
+  - Now scene objects are displayed in a list.
+  - Selecting an object from a list allows user to see different components attached to the object.
+- Using the Top menu bar user can load .obj files.
+  - `File>import .obj file`
+- Again using the top menu bar user can add components to the selected scene object.
+  - Under `Edit > Attach component`
+- User can also create empty entities to attach objects to it using `Edit>Create Entity`
+
+Some Screenshots:
+
+<img src="./images/pr4_1.png" width=80%>

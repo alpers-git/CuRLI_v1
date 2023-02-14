@@ -219,6 +219,7 @@ protected:
 						3,
 						program->GetID());
 					vao.AddVBO(vertexVBO);
+					vao.SetDrawMode(GL_LINES);
 				}
 
 			});
@@ -865,7 +866,7 @@ public:
 					program->SetUniform("material.ks", glm::vec3(1.0));
 					program->SetUniform("material.shininess", 0);
 					program->Use();
-					vao.Draw(GL_LINES);
+					vao.Draw();
 			});
 
 		scene->registry.view<CTransform, CVertexArrayObject, CPhongMaterial>
