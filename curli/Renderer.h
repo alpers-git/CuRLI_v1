@@ -130,7 +130,42 @@ protected:
 	* Called by DispatchEvent when keyboard is used
 	*/
 	void OnKeyboard(int key, int scancode, int action, int mods) {};
-	
+	/*
+	* Handles geometry updates
+	*/
+	void OnGeometryChange()
+	{
+		printf("aaaa\n");
+		scene->registry.view<CVertexArrayObject, CTriMesh>()
+			.each([&](const auto entity, auto& vao, auto& mesh)
+				{
+					if (!vao.IsInitialized())
+						vao.CreateVAO();
+					if (vao.GetNumVBOs() == 0)//TODO
+					{
+						VertexBufferObject vertexVBO(
+							mesh.GetVertexDataPtr(),
+							mesh.GetNumVertices(),
+							GL_FLOAT,
+							"pos",
+							3,
+							program->GetID());
+						vao.AddVBO(vertexVBO);
+
+						mesh.ComputeNormals();
+						VertexBufferObject normalsVBO(
+							mesh.GetNormalDataPtr(),
+							mesh.GetNumNormals(),
+							GL_FLOAT,
+							"norm",
+							3,
+							program->GetID());
+						vao.AddVBO(normalsVBO);
+						vao.CreateEBO((unsigned int*)mesh.GetFaceDataPtr(), mesh.GetNumFaces() * 3);
+					}
+
+				});
+	};
 };
 
 class AnimatedBGRenderer : public Renderer<AnimatedBGRenderer>

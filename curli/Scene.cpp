@@ -1,8 +1,23 @@
 #include <Scene.h>
 #include <GLFWHandler.h>
 
+
+void initializeVAOFromTriMesh(entt::registry& registry, entt::entity e)
+{
+	//check if entity has a trimesh
+	if (registry.all_of<CTriMesh>(e))
+	{
+		Event event;
+		event.type = Event::Type::GeometryChange;
+		GLFWHandler::GetInstance().QueueEvent(event);
+		printf("Geometry change event queued\n");
+	}
+}
+
 Scene::Scene()
 {
+	//create sinks for trimesh and VAO components
+	registry.on_construct<CVertexArrayObject>().connect<&initializeVAOFromTriMesh>();
 }
 
 Scene::~Scene()
@@ -154,7 +169,7 @@ void Scene::Update()
 								glm::vec2(pPrime.x, pPrime.z)) * stepSize;
 							//rigidBody.velocity = glm::vec3(0.0f);
 							//rigidBody.acceleration = forceFContribution / rigidBody.mass;
-							rigidBody.velocity = forceFContribution / rigidBody.mass * stepSize 
+							rigidBody.velocity += forceFContribution / rigidBody.mass * stepSize 
 								+ glm::pow(glm::length(rigidBody.velocity + 0.0000001f), 2.0f)
 								* rigidBody.drag * -glm::normalize(rigidBody.velocity + 0.0000001f) * 0.5f * stepSize;
 							rigidBody.position += stepSize * rigidBody.velocity;
@@ -194,6 +209,46 @@ void Scene::Update()
 	registry.view<CTriMesh>().each([&](CTriMesh& mesh) { mesh.Update(); });
 	registry.view<CLight>().each([&](CLight& light) { light.Update(); });
 	
+}
+
+bool Scene::EntityHas(entt::entity e, CType component)
+{
+	switch (component)
+	{
+	case CType::Transform:
+		return registry.all_of<CTransform>(e);
+		break;
+	case CType::TriMesh:
+		return registry.all_of<CTriMesh>(e);
+		break;
+	case CType::PhongMaterial:
+		return registry.all_of<CPhongMaterial>(e);
+		break;
+	case CType::Light:
+		return registry.all_of<CLight>(e);
+		break;
+	case CType::VAO:
+		return registry.all_of<CVertexArrayObject>(e);
+		break;
+	case CType::BoundingBox:
+		return registry.all_of<CBoundingBox>(e);
+		break;
+	case CType::VelocityField2D:
+		return registry.all_of<CVelocityField2D>(e);
+		break;
+	case CType::ForceField2D:
+		return registry.all_of<CForceField2D>(e);
+		break;
+	case CType::RigidBody:
+		return registry.all_of<CRigidBody>(e);
+		break;
+	case CType::Count:
+		break;
+	default:
+		return false;
+		break;
+	}
+	return false;
 }
 
 entt::entity Scene::CreateBoundingBox(glm::vec3 min, glm::vec3 max, GLuint programID)

@@ -3,6 +3,7 @@
 #include <ImguiHelpers.h>
 #include <GLFWHandler.h>
 #include <Scene.h>
+#include <windows.h>
 #include <string>
 
 namespace gui
@@ -76,12 +77,178 @@ namespace gui
 		};
 
 		void Draw() {
+			DrawTopMenu();
 			DrawSceneObjectsList();
 			DrawCameraController();
 		}
 
 	private:
 		entt::entity selectedSceneObject;
+		bool openComponentsPopup = false;
+		bool openCreateEntityPopup = false;
+		
+		void DrawTopMenu()
+		{
+			if (ImGui::BeginMainMenuBar())
+			{
+				if (ImGui::BeginMenu("File"))
+				{
+					if (ImGui::MenuItem("Import .obj from file")) 
+					{
+						OPENFILENAME ofn = { 0 };
+						TCHAR szFile[260] = { 0 };
+						// Initialize remaining fields of OPENFILENAME structure
+						ofn.lStructSize = sizeof(ofn);
+						ofn.lpstrFile = szFile;
+						ofn.nMaxFile = sizeof(szFile);
+						ofn.nFilterIndex = 1;
+						ofn.lpstrFileTitle = NULL;
+						ofn.nMaxFileTitle = 0;
+						ofn.lpstrInitialDir = NULL;
+						ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+
+						if (GetOpenFileName(&ofn) == TRUE)
+						{
+							printf("Loading: %s\n", ofn.lpstrFile);
+							//check if name ends with .obj
+							std::string::size_type idx;
+							std::string filename(ofn.lpstrFile);
+							idx = filename.rfind('.');
+
+							if (idx != std::string::npos)
+							{
+								std::string extension = filename.substr(idx + 1);
+								if (extension == "obj")
+								{
+									//load obj
+									scene->CreateModelObject(ofn.lpstrFile);
+								}
+								else
+									printf("File extension not supported\n");
+							}
+							else
+								printf("File extension not supported\n");
+							
+						}
+					}
+					ImGui::EndMenu();
+				}
+				if (ImGui::BeginMenu("Edit"))
+				{
+					if (ImGui::MenuItem("Create Entity", "CTRL+e"))
+					{
+						openCreateEntityPopup = true;
+					}
+					if (ImGui::MenuItem("Attach Component", "CTRL+Space")) 
+					{
+						openComponentsPopup = true;
+					}
+					ImGui::EndMenu();
+				}
+				ImGui::EndMainMenuBar();
+			}
+			//===============================================================
+			if (openComponentsPopup)
+			{
+				ImGui::OpenPopup("componentAdder");
+				openComponentsPopup = false;
+			}
+			if (ImGui::BeginPopup("componentAdder"))
+			{
+				if (ImGui::BeginListBox("Add Component", 
+					ImVec2(0, 5 * ImGui::GetTextLineHeightWithSpacing())))
+				{
+					const char* components[] = {
+						"Transform", "TriMesh",
+						"PhongMaterial", "Light",
+						"Vertex Array Object", "BoundingBox",
+						"VelocityField2D", "ForceField2D",
+						"RigidBody"};
+					for (int n = 0; n < IM_ARRAYSIZE(components); n++)
+					{
+						if (!scene->EntityHas(selectedSceneObject, ((CType)n)) && ImGui::Selectable(components[n]))
+						{
+							switch (((CType) n))
+							{
+							case CType::Transform:
+								scene->registry.emplace_or_replace<CTransform>(selectedSceneObject);
+								break;
+							case CType::TriMesh:
+								scene->registry.emplace_or_replace<CTriMesh>(selectedSceneObject);
+								break;
+							case CType::PhongMaterial:
+								scene->registry.emplace_or_replace<CPhongMaterial>(selectedSceneObject);
+								break;
+							case CType::Light:
+								scene->registry.emplace_or_replace<CLight>(selectedSceneObject, LightType::POINT, 
+									glm::vec3(1.0f), 1.0f, glm::vec3(0.0f), glm::vec3(0.0f), 0.0f, 0.0f);
+								break;
+							case CType::VAO:
+								scene->registry.emplace_or_replace<CVertexArrayObject>(selectedSceneObject);
+								break;
+							case CType::BoundingBox:
+								scene->registry.emplace_or_replace<CBoundingBox>(selectedSceneObject, glm::vec3(-10.0f), glm::vec3(10.0f));
+								break;
+							case CType::VelocityField2D:
+								scene->registry.emplace_or_replace<CVelocityField2D>(selectedSceneObject, [](glm::vec2 pos)
+									{
+										float x = pos.x;
+										float y = pos.y;
+										return glm::vec2(
+											1.0f, -y * 0.3f
+										);
+									},FieldPlane::XZ).scaling = 0.5f;
+								break;
+							case CType::ForceField2D:
+								scene->registry.emplace_or_replace<CForceField2D>(selectedSceneObject, [](glm::vec2 pos)
+									{
+										float x = pos.x;
+										float y = pos.y;
+										float radius = sqrt(x * x + y * y);
+										float angle = atan2(y, x) + 0.5f * glm::pi<float>();
+										return glm::vec2(-radius * cos(angle), -radius * sin(angle));
+									}, FieldPlane::XZ).scaling = 0.5f;
+								break;
+							case CType::RigidBody:
+								scene->registry.emplace_or_replace<CRigidBody>(selectedSceneObject);
+								break;
+							case CType::Count:
+								break;
+							default:
+								break;
+							}
+						}
+					}
+				ImGui::EndListBox();
+				}
+				
+				ImGui::EndPopup();
+			}
+			//---------------------------------------------------------------
+			if (openCreateEntityPopup)
+			{
+				ImGui::OpenPopup("entitycreator");
+				openCreateEntityPopup = false;
+			}
+			if (ImGui::BeginPopup("entitycreator"))
+			{
+				ImGui::Text("Create Entity");
+				ImGui::Separator();
+				static char buf[128] = "";
+				ImGui::InputText("Name", buf, IM_ARRAYSIZE(buf));
+				if (ImGui::Button("Create"))
+				{
+					scene->CreateSceneObject(buf);
+					ImGui::CloseCurrentPopup();
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Cancel"))
+				{
+					ImGui::CloseCurrentPopup();
+				}
+				ImGui::EndPopup();
+			}
+		}
 		void DrawSceneObjectsList()
 		{
 			if (ImGui::CollapsingHeader("Scene Objects"))

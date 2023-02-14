@@ -18,7 +18,8 @@ struct Event
 		MouseButton,
 		MouseMove,
 		MouseScroll,
-		Drop
+		Drop,
+		GeometryChange
 	};
 	Type type;
 	union
@@ -68,6 +69,11 @@ struct Event
 			int count;
 			const char** paths;
 		} drop;
+		
+		struct
+		{
+			int index;//todo
+		} geometryChange;
 	};
 };
 
@@ -108,6 +114,7 @@ public:
 				}
 				eventQueue.pop();
 			}
+			eventQueue = tempQueue;
 			return;
 		}
 		if (io.WantCaptureKeyboard) {
@@ -121,6 +128,7 @@ public:
 				}
 				eventQueue.pop();
 			}
+			eventQueue = tempQueue;
 			return;
 		}
 
@@ -161,6 +169,9 @@ public:
 				break;
 			case Event::Type::MouseScroll:
 				renderer.OnMouseScroll(eventQueue.front().mouseScroll.x, eventQueue.front().mouseScroll.y);
+				break;
+			case Event::Type::GeometryChange:
+				renderer.OnGeometryChange();//TODO
 				break;
 			/*case Event::Type::Drop:
 				renderer.OnDrop(eventQueue.front().drop.count, eventQueue.front().drop.paths);

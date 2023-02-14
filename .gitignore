@@ -36,3 +36,5 @@
 build/
 
 *.zip
+
+assets/models/imgui.ini

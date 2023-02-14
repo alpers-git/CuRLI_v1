@@ -194,10 +194,23 @@ private:
 	}
 };
 
+enum class CType{
+	Transform, TriMesh, 
+	PhongMaterial, Light,
+	VAO, BoundingBox,
+	VelocityField2D, ForceField2D,
+	RigidBody, Count
+};
 struct Component
 {
 	virtual void Update() = 0;
+	CType GetType() { return this->type; }
+protected:
+	CType type;
+	
 };
+
+
 
 struct CTransform : Component
 {
@@ -207,6 +220,7 @@ public:
 	{
 		//pivot = position;
 		CalculateModelMatrix();
+		type = CType::Transform;
 	}
 
 	//getter and setters
@@ -281,7 +295,6 @@ public:
 	}
 
 	void Update();
-	
 private:
 	glm::vec3 position = glm::vec3(0.f);
 	glm::vec3 rotation = glm::vec3(0.f);
@@ -296,9 +309,11 @@ private:
 struct CTriMesh : Component
 {
 public:
+	static constexpr CType type = CType::TriMesh;
 	CTriMesh(cy::TriMesh& mesh)
 		:mesh(mesh)
-	{}
+	{
+	}
 
 	CTriMesh(const std::string& path)
 		:mesh(cy::TriMesh())
@@ -308,7 +323,8 @@ public:
 	
 	CTriMesh()
 		:mesh(cy::TriMesh())
-	{}
+	{
+	}
 	
 	cy::TriMesh& GetMesh() { return mesh; }
 	
@@ -466,9 +482,12 @@ struct CVertexArrayObject : Component
 {
 public:
 	bool visible = true;
+	static constexpr CType type = CType::VAO;
 	CVertexArrayObject() : glID(-1), EBO(-1) //will pop up as a very high value as these are uints
-	{}
+	{
+	}
 
+	bool IsInitialized() { return initialized; }
 	unsigned int GetID() { return glID; }
 	void SetDrawMode(GLenum mode) { drawMode = mode; }
 	GLenum GetDrawMode() { return drawMode; }
@@ -488,6 +507,7 @@ public:
 	{
 		glGenVertexArrays(1, &glID);
 		glBindVertexArray(glID);
+		initialized = true;
 	}
 	/*
 	* Binds VAO
@@ -507,11 +527,16 @@ public:
 	*/
 	void CreateEBO(unsigned int* indices, unsigned int count)
 	{
-		glGenBuffers(1, &EBO);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(unsigned int), indices, GL_STATIC_DRAW);
-		
-		numIndices = count;
+		if (count > 0)
+		{
+			glGenBuffers(1, &EBO);
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+			glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(unsigned int), indices, GL_STATIC_DRAW);
+
+			numIndices = count;
+		}
+		else
+			printf("Cannot create EBO. 0 indices\n");
 	}
 	/*
 	* Deletes the VAO and all related buffers
@@ -555,7 +580,7 @@ public:
 		
 		if (VBOs.size() == 0)
 		{
-			printf("No VBOs in VAO\n");
+			//printf("No VBOs in VAO\n");
 			return;
 		}
 		Bind();
@@ -581,6 +606,7 @@ public:
 	void Update() {}
 	
 private:
+	bool initialized = false;
 	GLuint glID;
 	std::vector<VertexBufferObject> VBOs;
 	GLuint EBO;
@@ -597,14 +623,15 @@ enum class LightType
 struct CLight : Component
 {
 public:
-	CLight(LightType type, glm::vec3 color, float intensity, glm::vec3 position,
+	static constexpr CType type = CType::Light;
+	CLight(LightType ltype, glm::vec3 color, float intensity, glm::vec3 position,
 		glm::vec3 direction, float iCutoff, float oCutoff)
-		:lightType(type)
+		:lightType(ltype)
 	{
 		this->color = color;
 		this->intensity = intensity;
 		//Point light constructor
-		if (type == LightType::POINT)
+		if (ltype == LightType::POINT)
 		{
 			this->position = position;
 			//invalid values for safety
@@ -613,7 +640,7 @@ public:
 			outerCutoff = -1;
 		}
 		//Directional light constructor
-		else if (type == LightType::DIRECTIONAL)
+		else if (ltype == LightType::DIRECTIONAL)
 		{
 			this->direction = direction;
 			lightType = LightType::DIRECTIONAL;
@@ -624,7 +651,7 @@ public:
 			outerCutoff = -1;
 		}
 		//Spot light constructor
-		else if (type == LightType::SPOT)
+		else if (ltype == LightType::SPOT)
 		{
 			this->position = position;
 			this->direction = direction;
@@ -654,7 +681,9 @@ private:
 struct CRigidBody : Component
 {
 public:
-	CRigidBody(float mass, glm::vec3 position, glm::vec3 rotation, float drag = 0.0f)
+	static constexpr CType type = CType::RigidBody;
+	CRigidBody(float mass = 1.0f, glm::vec3 position = glm::vec3(0.0f),
+		glm::vec3 rotation= glm::vec3(0.0f), float drag = 0.0f)
 	{
 		this->mass = mass;
 		this->position = position;
@@ -679,6 +708,7 @@ private:
 struct CPhongMaterial : Component
 {
 public:
+	static constexpr CType type = CType::PhongMaterial;
 	glm::vec3 ambient = glm::vec3(0.2f, 0.2f, 0.3f);
 	glm::vec3 diffuse = glm::vec3(0.5f, 0.5f, 0.5f);
 	glm::vec3 specular = glm::vec3(0.9f, 0.9f, 0.9f);
@@ -694,7 +724,7 @@ enum class FieldPlane
 struct CVelocityField2D : Component
 {
 public:
-	
+	static constexpr CType type = CType::VelocityField2D;
 	void Update();
 	//function pointer here
 	std::function<glm::vec2 (glm::vec2)> field;
@@ -704,7 +734,8 @@ public:
 	
 	CVelocityField2D(std::function<glm::vec2(glm::vec2)> field, FieldPlane plane = FieldPlane::XY)
 		:field(field), plane(plane)
-	{}
+	{
+	}
 
 	glm::vec3 VelocityAt(glm::vec2 p);
 };
@@ -712,6 +743,7 @@ public:
 struct CForceField2D : Component
 {
 public:
+	static constexpr CType type = CType::ForceField2D;
 	void Update();
 	//function pointer here
 	std::function<glm::vec2(glm::vec2)> field;
@@ -720,7 +752,8 @@ public:
 
 	CForceField2D(std::function<glm::vec2(glm::vec2)> field, FieldPlane plane = FieldPlane::XY)
 		:field(field), plane(plane)
-	{}
+	{
+	}
 
 	glm::vec3 ForceAt(glm::vec2 p);
 };
@@ -728,6 +761,7 @@ public:
 struct CBoundingBox : Component
 {
 public:
+	static constexpr CType type = CType::BoundingBox;
 	CBoundingBox(glm::vec3 min, glm::vec3 max)
 	{
 		this->min = glm::min(min, max);
@@ -835,6 +869,11 @@ public:
 	{
 		return sceneObjects.end();
 	}
+	
+	/*
+	* Returns true if the entity has the given component
+	*/
+	bool EntityHas(entt::entity e, CType component);
 
 	Camera camera;
 	entt::registry registry;
