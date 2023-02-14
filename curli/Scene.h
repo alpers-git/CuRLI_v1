@@ -550,6 +550,7 @@ public:
 		}
 		if (numIndices > 0)
 			glDeleteBuffers(1, &EBO);
+		VBOs.clear();
 	}
 	
 	/*
@@ -761,18 +762,29 @@ public:
 struct CBoundingBox : Component
 {
 public:
+	friend class Scene;
 	static constexpr CType type = CType::BoundingBox;
 	CBoundingBox(glm::vec3 min, glm::vec3 max)
 	{
 		this->min = glm::min(min, max);
 		this->max = glm::max(min, max);
 	}
+	
+	glm::vec3 GetMin() { return min; }
+	glm::vec3 GetMax() { return max; }
+	
+	void SetMin(glm::vec3 min) { this->min = min; dirty = true; }
+	void SetMax(glm::vec3 max) { this->max = max; dirty = true; }
+	
+	inline bool IsDirty() { return dirty; }
 
-	glm::vec3 min;
-	glm::vec3 max;
 
 	void Update();
 	void Rebound(CRigidBody& rigidBody);
+private:
+	glm::vec3 min;
+	glm::vec3 max;
+	bool dirty = false;
 };
 
 class Scene

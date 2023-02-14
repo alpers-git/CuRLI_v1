@@ -174,41 +174,41 @@ protected:
 					vao.CreateVAO();
 					glm::vec3 vertexData[24]
 					{
-						bb.min,
-						{bb.max.x, bb.min.y, bb.min.z},
+						bb.GetMin(),
+						{bb.GetMax().x, bb.GetMin().y, bb.GetMin().z},
 
-						{bb.max.x, bb.min.y, bb.min.z},
-						{bb.max.x, bb.max.y, bb.min.z},
+						{bb.GetMax().x, bb.GetMin().y, bb.GetMin().z},
+						{bb.GetMax().x, bb.GetMax().y, bb.GetMin().z},
 
-						{bb.max.x, bb.max.y, bb.min.z},
-						{bb.min.x, bb.max.y, bb.min.z},
+						{bb.GetMax().x, bb.GetMax().y, bb.GetMin().z},
+						{bb.GetMin().x, bb.GetMax().y, bb.GetMin().z},
 
-						{bb.min.x, bb.max.y, bb.min.z},
-						bb.min,
+						{bb.GetMin().x, bb.GetMax().y, bb.GetMin().z},
+						bb.GetMin(),
 
-						{bb.min.x, bb.max.y, bb.min.z},
-						{bb.min.x, bb.max.y, bb.max.z},
+						{bb.GetMin().x, bb.GetMax().y, bb.GetMin().z},
+						{bb.GetMin().x, bb.GetMax().y, bb.GetMax().z},
 
-						{bb.min.x, bb.max.y, bb.max.z},
-						{bb.min.x, bb.min.y, bb.max.z},
+						{bb.GetMin().x, bb.GetMax().y, bb.GetMax().z},
+						{bb.GetMin().x, bb.GetMin().y, bb.GetMax().z},
 
-						{bb.min.x, bb.min.y, bb.max.z},
-						bb.min,
+						{bb.GetMin().x, bb.GetMin().y, bb.GetMax().z},
+						bb.GetMin(),
 
-						{bb.min.x, bb.min.y, bb.max.z},
-						{bb.max.x, bb.min.y, bb.max.z},
+						{bb.GetMin().x, bb.GetMin().y, bb.GetMax().z},
+						{bb.GetMax().x, bb.GetMin().y, bb.GetMax().z},
 
-						{bb.max.x, bb.min.y, bb.max.z},
-						{bb.max.x, bb.min.y, bb.min.z},
+						{bb.GetMax().x, bb.GetMin().y, bb.GetMax().z},
+						{bb.GetMax().x, bb.GetMin().y, bb.GetMin().z},
 
-						{bb.max.x, bb.min.y, bb.max.z},
-						bb.max,
+						{bb.GetMax().x, bb.GetMin().y, bb.GetMax().z},
+						bb.GetMax(),
 
-						bb.max,
-						{bb.max.x, bb.max.y, bb.min.z},
+						bb.GetMax(),
+						{bb.GetMax().x, bb.GetMax().y, bb.GetMin().z},
 
-						bb.max,
-						{bb.min.x, bb.max.y, bb.max.z}
+						bb.GetMax(),
+						{bb.GetMin().x, bb.GetMax().y, bb.GetMax().z}
 					};
 
 					VertexBufferObject vertexVBO(

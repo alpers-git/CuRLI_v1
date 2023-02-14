@@ -459,8 +459,10 @@ namespace gui
 						{
 							if (e == selectedSceneObject && ImGui::BeginTabItem("Boundingbox"))
 							{
-								ImGui::DragFloat3("Min", &b.min[0], 0.01f);
-								ImGui::DragFloat3("Max", &b.max[0], 0.01f);
+								glm::vec3 min = b.GetMin();
+								glm::vec3 max = b.GetMax();
+								if (ImGui::DragFloat3("Min", &min[0], 0.01f)) b.SetMin(min);
+								if (ImGui::DragFloat3("Max", &max[0], 0.01f)) b.SetMax(max);
 								ImGui::EndTabItem();
 							}
 						});

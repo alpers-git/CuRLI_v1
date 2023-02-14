@@ -207,6 +207,18 @@ void Scene::Update()
 	//registry.view<CTransform>().each([](CTransform& transform) { transform.Update(); });
 	registry.view<CTriMesh>().each([&](CTriMesh& mesh) { mesh.Update(); });
 	registry.view<CLight>().each([&](CLight& light) { light.Update(); });
+
+	registry.view<CBoundingBox>().each([&](const entt::entity& entity, CBoundingBox& bb) 
+		{
+			if (bb.IsDirty() && EntityHas(entity, CType::VAO))
+			{
+				GetComponent<CVertexArrayObject>(entity).Delete();
+				Event e;
+				e.type = Event::Type::GeometryChange;
+				GLFWHandler::GetInstance().QueueEvent(e);
+			}
+			bb.dirty = false;
+		});
 	
 }
 
@@ -369,3 +381,4 @@ void CBoundingBox::Rebound(CRigidBody& rigidBody)
 		rigidBody.acceleration = glm::reflect(rigidBody.acceleration, reboundNormal);
 	}
 }
+
