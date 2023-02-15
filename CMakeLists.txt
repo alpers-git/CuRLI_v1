@@ -53,8 +53,6 @@ set(LODEPNG_PATH  submodules/lodepng)
 file(GLOB LODEPNG_SOURCES ${LODEPNG_PATH}/*.cpp)
 add_library("lodepng" STATIC ${LODEPNG_PATH}/lodepng.cpp
                               ${LODEPNG_PATH}/lodepng.h)
-target_include_directories("lodepng" PUBLIC ${LODEPNG_PATH})
-
 #--------------------EnTT---------------------#
 add_subdirectory(submodules/entt)
 add_compile_options(-DENTT_BUILD_DOCS=ON)
