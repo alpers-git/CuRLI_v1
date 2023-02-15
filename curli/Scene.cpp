@@ -1,5 +1,6 @@
 #include <Scene.h>
 #include <GLFWHandler.h>
+#include <lodepng.h>
 
 
 void scheduleSynchForBuffers(entt::registry& registry, entt::entity e)
@@ -124,7 +125,12 @@ glm::vec3 CForceField2D::ForceAt(glm::vec2 p)
 }
 
 void CPhongMaterial::Update() 
-{}
+{
+}
+
+void CTexture2D::Update()
+{
+}
 
 entt::entity Scene::CreateSceneObject(std::string name)
 {
@@ -365,8 +371,8 @@ void CRigidBody::ApplyForce(glm::vec3 force)
 {
 	velocity += force / mass;
 }
-#include <iostream>
-#include <windows.h>
+
+
 void CBoundingBox::Rebound(CRigidBody& rigidBody)
 {
 	glm::vec3 reboundNormal = glm::normalize(glm::vec3(
@@ -382,4 +388,3 @@ void CBoundingBox::Rebound(CRigidBody& rigidBody)
 		rigidBody.acceleration = glm::reflect(rigidBody.acceleration, reboundNormal);
 	}
 }
-

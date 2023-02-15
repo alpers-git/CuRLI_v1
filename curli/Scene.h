@@ -196,10 +196,11 @@ private:
 
 enum class CType{
 	Transform, TriMesh, 
-	PhongMaterial, Light,
-	VAO, BoundingBox,
-	VelocityField2D, ForceField2D,
-	RigidBody, Count
+	PhongMaterial, Texture,
+	Light, VAO,
+	BoundingBox,VelocityField2D,
+	ForceField2D, RigidBody,
+	Count
 };
 struct Component
 {
@@ -209,8 +210,6 @@ protected:
 	CType type;
 	
 };
-
-
 
 struct CTransform : Component
 {
@@ -730,6 +729,84 @@ public:
 	float shininess = 450.f;
 
 	void Update();
+};
+
+struct CTexture2D : Component
+{
+public:
+	static constexpr CType type = CType::Texture;
+	
+	CTexture2D(std::string path, GLenum textUnit, GLenum wrap_s = GL_CLAMP_TO_BORDER, 
+		GLenum wrap_t = GL_CLAMP_TO_BORDER, GLenum dataType = GL_UNSIGNED_BYTE,
+		GLenum format = GL_RGB, short mipmap_level = 0)
+		:textUnit(textUnit), dataType(dataType), format(format), mipmap_level(mipmap_level)
+	{
+		std::vector<unsigned char> png;
+		std::vector<unsigned char> image; //the raw pixels
+		unsigned width, height;
+
+		//load and decode
+		unsigned error = lodepng::load_file(png, path);
+		if (error)
+		{
+			printf("Texture constructor\n\tlodepng:load error %d - %s\n", error, lodepng_error_text(error));
+			return;
+		}
+		error = lodepng::decode(image, width, height, png);
+
+		//if there's an error, display it
+		if (error)
+		{
+			printf("Texture constructor\n\tlodepng:decoder error %d - %s\n", error, lodepng_error_text(error));
+			return;
+		}
+		
+		glBindTexture(GL_TEXTURE_2D, glID);
+		
+		glTexImage2D(
+			GL_TEXTURE_2D,
+			mipmap_level > 0 ? mipmap_level : 0,
+			internalFormat,
+			width,
+			height,
+			0,
+			format,
+			dataType,
+			&image[0]);
+		
+		if (mipmap_level > 0)
+			glGenerateMipmap(GL_TEXTURE_2D);
+		
+		glTexParameteri(
+			GL_TEXTURE_2D,
+			GL_TEXTURE_MIN_FILTER,
+			mipmap_level > 0 ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
+
+		glTexParameteri(
+			GL_TEXTURE_2D,
+			GL_TEXTURE_MAG_FILTER,
+			GL_LINEAR);
+		
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap_s);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap_t);
+		
+	}
+	void Update();
+	
+	void Bind()
+	{
+		glActiveTexture(textUnit);
+		glBindTexture(GL_TEXTURE_2D, glID);
+	}
+private:
+	GLuint glID;
+	glm::ivec2 size;
+	GLenum format = GL_RGB;
+	short mipmap_level = 0;
+	GLenum dataType = GL_UNSIGNED_BYTE;
+	GLenum internalFormat = GL_RGB;
+
+	GLenum textUnit = GL_TEXTURE0;
 };
 
 enum class FieldPlane

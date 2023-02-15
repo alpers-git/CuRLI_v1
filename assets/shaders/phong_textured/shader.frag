@@ -8,10 +8,13 @@ struct Light{
 };
 
 //------------ Variying ------------
-layout (location = 2) in vec3 v_space_norm;
-layout (location = 3) in vec3 v_space_pos;
+layout (location = 3) in vec3 v_space_norm;
+layout (location = 4) in vec3 v_space_pos;
+layout (location = 5) in vec2 tex_coord;
 
 //------------ Uniforms ------------
+uniform int render_type = 0;//0 = phong-color, 1 = phong-texture, 2 = editor mode
+uniform sampler2D diffuse_tex;
 layout(location = 1) uniform mat4 to_view_space; //mv
 uniform int light_count;
 uniform Light light[8];
@@ -22,12 +25,11 @@ uniform struct Material {
      vec3 ks;
      float shininess;
 }material;
- uniform int renderType = 0;//0 = phong-color, 1 = phong-texture, 2 = editor mode
 
 out vec4 color;
 
 void main() {
-     if(renderType == 0)
+     if(render_type == 0)
      {
           color = vec4(0,0,0,1);
           vec3 v_space_norm = normalize(v_space_norm);
@@ -47,11 +49,11 @@ void main() {
 
           color = clamp(color + vec4(material.ka,1),0,1);
      }
-     else if(renderType == 1)
+     else if(render_type == 1)
      {
-          color = vec4(1,1,1,1);
+          color = texture(diffuse_tex, tex_coord);
      }
-     else if(renderType == 2)
+     else if(render_type == 2)
      {
           color = vec4(1,1,1,1);
      }
