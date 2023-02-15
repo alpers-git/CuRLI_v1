@@ -164,7 +164,7 @@ namespace gui
 			{
 				const char* components[] = {
 						"Transform", "TriMesh",
-						"PhongMaterial", "Light",
+						"PhongMaterial", "Texture", "Light",
 						"Vertex Array Object", "BoundingBox",
 						"VelocityField2D", "ForceField2D",
 						"RigidBody" };
