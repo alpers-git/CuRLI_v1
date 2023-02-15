@@ -38,3 +38,27 @@ build/
 *.zip
 
 assets/models/imgui.ini
+
+assets/models/yoda-body-bump.png
+
+assets/models/yoda-body-specular.png
+
+assets/models/yoda-body.png
+
+assets/models/yoda-credits.txt
+
+assets/models/yoda-eye.png
+
+assets/models/yoda-handfoot.png
+
+assets/models/yoda-handfoot-bump.png
+
+assets/models/yoda-head-bump.png
+
+assets/models/yoda-head-specular.png
+
+assets/models/yoda-head.png
+
+assets/models/yoda-stick.png
+
+assets/models/yoda.mtl
