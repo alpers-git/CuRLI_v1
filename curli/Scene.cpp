@@ -1,6 +1,5 @@
 #include <Scene.h>
 #include <GLFWHandler.h>
-#include <lodepng.h>
 
 
 void scheduleSynchForBuffers(entt::registry& registry, entt::entity e)

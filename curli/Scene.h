@@ -11,6 +11,7 @@
 #include <stdarg.h>
 #include <string>
 #include <map>
+#include <lodepng.h>
 
 struct Camera
 {

@@ -862,7 +862,7 @@ public:
 				program->SetUniform("normals_to_view_space",
 					glm::transpose(glm::inverse(glm::mat3(mv))));
 				
-				program->SetUniform("renderType", ((int)vao.GetRenderType()));
+				program->SetUniform("render_type", ((int)vao.GetRenderType()));
 				//bind GLSL program
 				program->Use();
 				vao.Draw();
