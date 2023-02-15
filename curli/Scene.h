@@ -354,8 +354,6 @@ public:
 	void* GetNormalDataPtr() { return &mesh.VN(0); }
 	void* GetTextureDataPtr() { return &mesh.VT(0); }
 	void* GetFaceDataPtr() { return &mesh.F(0); }
-
-	
 	
 	
 	//glm::vec3 GetFaceNormal(unsigned int index) { return glm::cy2GLM(mesh.FN(index)); }
@@ -404,6 +402,12 @@ public:
 	}
 
 	void Update();
+	
+	void Clear()
+	{
+		mesh.Clear();
+		bBoxInitialized = false;
+	}
 	
 private:
 	cy::TriMesh mesh;

@@ -798,40 +798,9 @@ public:
 		program->SetGLClearFlags(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
-		program->CreatePipelineFromFiles("../assets/shaders/phong/shader.vert",
-			"../assets/shaders/phong/shader.frag");
-		program->SetClearColor({ 0.f,0.f,0.1f,1.f });
-
-		/*const auto view = scene->registry.view<CTriMesh>();
-		view.each([&](const auto entity, const auto& mesh)
-			{
-				scene->registry.emplace<CVertexArrayObject>(entity);
-			});
-		const auto viewVAO = scene->registry.view<CVertexArrayObject, CTriMesh>();
-		viewVAO.each([&](const auto entity, auto& vao, auto& mesh)
-			{
-				vao.CreateVAO();
-					VertexBufferObject vertexVBO(
-					mesh.GetVertexDataPtr(),
-					mesh.GetNumVertices(),
-					GL_FLOAT,
-					"pos",
-					3,
-					program->GetID());
-				vao.AddVBO(vertexVBO);
-				
-				mesh.ComputeNormals();
-				VertexBufferObject normalsVBO(
-					mesh.GetNormalDataPtr(),
-					mesh.GetNumNormals(),
-					GL_FLOAT,
-					"norm",
-					3,
-					program->GetID());
-				vao.AddVBO(normalsVBO);
-
-				vao.CreateEBO((unsigned int *)mesh.GetFaceDataPtr(), mesh.GetNumFaces()*3);
-			});*/
+		program->CreatePipelineFromFiles("../assets/shaders/phong_textured/shader.vert",
+			"../assets/shaders/phong_textured/shader.frag");
+		program->SetClearColor({ 0.01f,0.f,0.05f,1.f });
 
 		//Init camera
 		int windowWidth, windowHeight;
@@ -887,7 +856,7 @@ public:
 				program->SetUniform("material.shininess", material.shininess);
 				//bind GLSL program
 				program->Use();
-				vao.Draw(GL_TRIANGLES);
+				vao.Draw();
 			});
 	}
 

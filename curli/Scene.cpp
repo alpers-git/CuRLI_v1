@@ -2,21 +2,24 @@
 #include <GLFWHandler.h>
 
 
-void initializeVAOFromTriMesh(entt::registry& registry, entt::entity e)
+void scheduleSynchForBuffers(entt::registry& registry, entt::entity e)
 {
+
 	//check if entity has a trimesh
-	if (registry.any_of<CTriMesh, CBoundingBox>(e))
+	if (registry.any_of<CTriMesh, CBoundingBox>(e) && registry.all_of<CVertexArrayObject>(e))
 	{
 		Event event;
 		event.type = Event::Type::GeometryChange;
 		GLFWHandler::GetInstance().QueueEvent(event);
 	}
+	
 }
 
 Scene::Scene()
 {
 	//create sinks for trimesh and VAO components
-	registry.on_construct<CVertexArrayObject>().connect<&initializeVAOFromTriMesh>();
+	registry.on_construct<CVertexArrayObject>().connect<&scheduleSynchForBuffers>();
+	registry.on_construct<CTriMesh>().connect<&scheduleSynchForBuffers>();
 }
 
 Scene::~Scene()
@@ -212,10 +215,12 @@ void Scene::Update()
 		{
 			if (bb.IsDirty() && EntityHas(entity, CType::VAO))
 			{
-				GetComponent<CVertexArrayObject>(entity).Delete();
-				Event e;
+				//GetComponent<CVertexArrayObject>(entity).Delete();
+				/*Event e;
 				e.type = Event::Type::GeometryChange;
-				GLFWHandler::GetInstance().QueueEvent(e);
+				GLFWHandler::GetInstance().QueueEvent(e);*/
+				//registry.erase<CVertexArrayObject>(entity);
+				registry.replace<CVertexArrayObject>(entity);
 			}
 			bb.dirty = false;
 		});

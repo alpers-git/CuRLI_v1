@@ -87,6 +87,26 @@ namespace gui
 		bool openComponentsPopup = false;
 		bool openCreateEntityPopup = false;
 		
+		inline bool openFilePicker(std::string &filePath)
+		{
+			OPENFILENAME ofn = { 0 };
+			TCHAR szFile[260] = { 0 };
+			// Initialize remaining fields of OPENFILENAME structure
+			ofn.lStructSize = sizeof(ofn);
+			ofn.lpstrFile = szFile;
+			ofn.nMaxFile = sizeof(szFile);
+			ofn.nFilterIndex = 1;
+			ofn.lpstrFileTitle = NULL;
+			ofn.nMaxFileTitle = 0;
+			ofn.lpstrInitialDir = NULL;
+			ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+			
+			bool result = (GetOpenFileName(&ofn) == TRUE);
+			filePath = std::string(ofn.lpstrFile);
+			return result;
+
+		}
+		
 		void DrawTopMenu()
 		{
 			if (ImGui::BeginMainMenuBar())
@@ -95,24 +115,12 @@ namespace gui
 				{
 					if (ImGui::MenuItem("Import .obj from file")) 
 					{
-						OPENFILENAME ofn = { 0 };
-						TCHAR szFile[260] = { 0 };
-						// Initialize remaining fields of OPENFILENAME structure
-						ofn.lStructSize = sizeof(ofn);
-						ofn.lpstrFile = szFile;
-						ofn.nMaxFile = sizeof(szFile);
-						ofn.nFilterIndex = 1;
-						ofn.lpstrFileTitle = NULL;
-						ofn.nMaxFileTitle = 0;
-						ofn.lpstrInitialDir = NULL;
-						ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-
-						if (GetOpenFileName(&ofn) == TRUE)
+						std::string filename;
+						if (openFilePicker(filename))
 						{
-							printf("Loading: %s\n", ofn.lpstrFile);
+							printf("Loading: %s\n", filename.c_str());
 							//check if name ends with .obj
 							std::string::size_type idx;
-							std::string filename(ofn.lpstrFile);
 							idx = filename.rfind('.');
 
 							if (idx != std::string::npos)
@@ -121,14 +129,13 @@ namespace gui
 								if (extension == "obj")
 								{
 									//load obj
-									scene->CreateModelObject(ofn.lpstrFile);
+									scene->CreateModelObject(filename);
 								}
 								else
 									printf("File extension not supported\n");
 							}
 							else
 								printf("File extension not supported\n");
-							
 						}
 					}
 					ImGui::EndMenu();
@@ -139,7 +146,7 @@ namespace gui
 					{
 						openCreateEntityPopup = true;
 					}
-					if (ImGui::MenuItem("Attach Component", "CTRL+Space")) 
+					if (ImGui::MenuItem("Attach/Detach Component", "CTRL+Space")) 
 					{
 						openComponentsPopup = true;
 					}
@@ -155,15 +162,15 @@ namespace gui
 			}
 			if (ImGui::BeginPopup("componentAdder"))
 			{
-				if (ImGui::BeginListBox("Add Component", 
-					ImVec2(0, 5 * ImGui::GetTextLineHeightWithSpacing())))
-				{
-					const char* components[] = {
+				const char* components[] = {
 						"Transform", "TriMesh",
 						"PhongMaterial", "Light",
 						"Vertex Array Object", "BoundingBox",
 						"VelocityField2D", "ForceField2D",
-						"RigidBody"};
+						"RigidBody" };
+				if (ImGui::BeginListBox("Add Component", 
+					ImVec2(0, 5 * ImGui::GetTextLineHeightWithSpacing())))
+				{
 					for (int n = 0; n < IM_ARRAYSIZE(components); n++)
 					{
 						if (!scene->EntityHas(selectedSceneObject, ((CType)n)) && ImGui::Selectable(components[n]))
@@ -221,7 +228,51 @@ namespace gui
 					}
 				ImGui::EndListBox();
 				}
-				
+				if (ImGui::BeginListBox("Remove Component",
+					ImVec2(0, 5 * ImGui::GetTextLineHeightWithSpacing())))
+				{
+					for (int n = 0; n < IM_ARRAYSIZE(components); n++)
+					{
+						if (scene->EntityHas(selectedSceneObject, ((CType)n)) && ImGui::Selectable(components[n]))
+						{
+							switch (((CType)n))
+							{
+							case CType::Transform:
+								scene->registry.erase<CTransform>(selectedSceneObject);
+								break;
+							case CType::TriMesh:
+								scene->registry.erase<CTriMesh>(selectedSceneObject);
+								break;
+							case CType::PhongMaterial:
+								scene->registry.erase<CPhongMaterial>(selectedSceneObject);
+								break;
+							case CType::Light:
+								scene->registry.erase<CLight>(selectedSceneObject);
+								break;
+							case CType::VAO:
+								scene->registry.erase<CVertexArrayObject>(selectedSceneObject);
+								break;
+							case CType::BoundingBox:
+								scene->registry.erase<CBoundingBox>(selectedSceneObject);
+								break;
+							case CType::VelocityField2D:
+								scene->registry.erase<CVelocityField2D>(selectedSceneObject);
+								break;
+							case CType::ForceField2D:
+								scene->registry.erase<CForceField2D>(selectedSceneObject);
+								break;
+							case CType::RigidBody:
+								scene->registry.erase<CRigidBody>(selectedSceneObject);
+								break;
+							case CType::Count:
+								break;
+							default:
+								break;
+							}
+						}
+					}
+					ImGui::EndListBox();
+				}
 				ImGui::EndPopup();
 			}
 			//---------------------------------------------------------------
@@ -374,6 +425,31 @@ namespace gui
 							if (e == selectedSceneObject && ImGui::BeginTabItem("Mesh"))
 							{
 								ImGui::Text("Mesh info");
+								if (ImGui::SmallButton("Load from file"))
+								{
+									std::string filename;
+									if (openFilePicker(filename))
+									{
+										printf("Loading: %s\n", filename.c_str());
+										//check if name ends with .obj
+										std::string::size_type idx;
+										idx = filename.rfind('.');
+
+										if (idx != std::string::npos)
+										{
+											std::string extension = filename.substr(idx + 1);
+											if (extension == "obj")
+											{
+												scene->registry.erase<CTriMesh>(e);
+												scene->registry.emplace<CTriMesh>(e, filename);
+											}
+											else
+												printf("File extension not supported\n");
+										}
+										else
+											printf("File extension not supported\n");
+									}
+								}
 								ImGui::SameLine();
 								if (ImGui::SmallButton("Calculate Normals"))
 									m.ComputeNormals();
