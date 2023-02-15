@@ -161,6 +161,7 @@ protected:
 						program->GetID());
 					vao.AddVBO(normalsVBO);
 					vao.CreateEBO((unsigned int*)mesh.GetFaceDataPtr(), mesh.GetNumFaces() * 3);
+					vao.SetRenderType(CVertexArrayObject::RenderType::PHONG);
 				}
 
 			});
@@ -220,6 +221,7 @@ protected:
 						program->GetID());
 					vao.AddVBO(vertexVBO);
 					vao.SetDrawMode(GL_LINES);
+					vao.SetRenderType(CVertexArrayObject::RenderType::EDITOR);
 				}
 
 			});
@@ -810,22 +812,22 @@ public:
 
 		ResetCamera();
 		
-		auto view3 = scene->registry.view<CTransform, CTriMesh>();
-		view3.each([&](auto& transform, auto& mesh)
-		{
-			transform.SetScale(glm::vec3(0.05f) *
-			(scene->camera.IsPerspective() ? 1.f : 1.f / glm::length(scene->camera.GetLookAtEye())));
-			transform.SetEulerRotation(glm::vec3(glm::radians(-90.f), 0, 0));
-			transform.SetPivot(mesh.GetBoundingBoxCenter());
-		});
+		scene->registry.view<CTransform, CTriMesh>()
+			.each([&](auto& transform, auto& mesh)
+			{
+				transform.SetScale(glm::vec3(0.05f) *
+				(scene->camera.IsPerspective() ? 1.f : 1.f / glm::length(scene->camera.GetLookAtEye())));
+				transform.SetEulerRotation(glm::vec3(glm::radians(-90.f), 0, 0));
+				transform.SetPivot(mesh.GetBoundingBoxCenter());
+			});
 
 	}
 
 	void PreUpdate()
 	{
 		int i = 0;
-		auto view2 = scene->registry.view<CLight>();
-		view2.each([&](auto& light)
+		scene->registry.view<CLight>()
+			.each([&](auto& light)
 			{
 				std::string shaderName("light[" + std::to_string(i) + "].position");
 				program->SetUniform(shaderName.c_str(), glm::vec3(scene->camera.GetViewMatrix() * glm::vec4(light.position, 1)));
@@ -840,20 +842,27 @@ public:
 
 	void Update()
 	{	
-		auto view = scene->registry.view<CTransform, CVertexArrayObject, CPhongMaterial>();
-		view.each([&](auto& transform, auto& vao, auto& material)
+		scene->registry.view<CVertexArrayObject>()
+			.each([&](const auto& entity, auto& vao)
 			{
-
-				const auto mv =  scene->camera.GetViewMatrix() * transform.GetModelMatrix();
-				const auto mvp = scene->camera.GetProjectionMatrix() * mv;
+				CPhongMaterial* material = scene->registry.try_get<CPhongMaterial>(entity);
+				CTransform* transform = scene->registry.try_get<CTransform>(entity);
+				
+				const glm::mat4 mv =  scene->camera.GetViewMatrix() * (transform ? 
+					transform->GetModelMatrix() : glm::mat4(1.0f));
+				const glm::mat4 mvp = scene->camera.GetProjectionMatrix() * mv;
+					
+				program->SetUniform("material.ka", material ? material->ambient : glm::vec3(0.0f));
+				program->SetUniform("material.kd", material ? material->diffuse : glm::vec3(0.0f));
+				program->SetUniform("material.ks", material ? material->specular : glm::vec3(0.0f));
+				program->SetUniform("material.shininess", material ? material->shininess : 0.0f);
+				
 				program->SetUniform("to_screen_space", mvp);
 				program->SetUniform("to_view_space", mv);
 				program->SetUniform("normals_to_view_space",
 					glm::transpose(glm::inverse(glm::mat3(mv))));
-				program->SetUniform("material.ka", material.ambient);
-				program->SetUniform("material.kd", material.diffuse);
-				program->SetUniform("material.ks", material.specular);
-				program->SetUniform("material.shininess", material.shininess);
+				
+				program->SetUniform("renderType", ((int)vao.GetRenderType()));
 				//bind GLSL program
 				program->Use();
 				vao.Draw();

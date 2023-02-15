@@ -484,6 +484,10 @@ public:
 };
 struct CVertexArrayObject : Component
 {
+	enum RenderType
+	{
+		PHONG, PHONG_TEXTURE, EDITOR
+	};
 public:
 	bool visible = true;
 	static constexpr CType type = CType::VAO;
@@ -588,6 +592,7 @@ public:
 			//printf("No VBOs in VAO\n");
 			return;
 		}
+		
 		Bind();
 		
 		if (numIndices == 0)
@@ -606,7 +611,11 @@ public:
 	{
 		Draw(drawMode);
 	}
-	
+	/*
+	* Set the render type of the VAO which sets the uniform used in shaders
+	*/
+	void SetRenderType(RenderType type) { renderType = type; }
+	RenderType GetRenderType() { return renderType; }
 
 	void Update() {}
 	
@@ -617,6 +626,7 @@ private:
 	GLuint EBO;
 	unsigned int numIndices = 0;
 	GLenum drawMode = GL_TRIANGLES;
+	RenderType renderType = PHONG; //0 = phong-color, 1 = phong-texture, 2 = editor mode 
 };
 
 enum class LightType

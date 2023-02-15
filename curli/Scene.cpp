@@ -19,6 +19,7 @@ Scene::Scene()
 {
 	//create sinks for trimesh and VAO components
 	registry.on_construct<CVertexArrayObject>().connect<&scheduleSynchForBuffers>();
+	registry.on_update<CVertexArrayObject>().connect<&scheduleSynchForBuffers>();
 	registry.on_construct<CTriMesh>().connect<&scheduleSynchForBuffers>();
 }
 
@@ -215,11 +216,6 @@ void Scene::Update()
 		{
 			if (bb.IsDirty() && EntityHas(entity, CType::VAO))
 			{
-				//GetComponent<CVertexArrayObject>(entity).Delete();
-				/*Event e;
-				e.type = Event::Type::GeometryChange;
-				GLFWHandler::GetInstance().QueueEvent(e);*/
-				//registry.erase<CVertexArrayObject>(entity);
 				registry.replace<CVertexArrayObject>(entity);
 			}
 			bb.dirty = false;
