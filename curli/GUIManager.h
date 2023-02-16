@@ -542,6 +542,27 @@ namespace gui
 								ImGui::EndTabItem();
 							}
 						});
+				
+				//Draw CTriMesh tab
+				scene->registry.view<CTextures2D>()
+					.each([&](auto e, auto& t)
+						{
+							if (e == selectedSceneObject && ImGui::BeginTabItem("Texture2D"))
+							{
+								ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+								for (int j = 0; j < t.GetNumTextures(); j++)
+								{
+									//get viewport size
+									ImGui::BeginGroup();
+									ImGui::Text("Texture %d", j);
+									ImGui::Image((void*)(intptr_t)t.GetGLID(j), ImVec2(viewportPanelSize.x/2, viewportPanelSize.x / 2));
+									ImGui::EndGroup();
+									if (j % 2 == 0)
+										ImGui::SameLine();
+								}
+								ImGui::EndTabItem();
+							}
+						});
 
 				ImGui::EndTabBar();
 			}

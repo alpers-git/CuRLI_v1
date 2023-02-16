@@ -162,6 +162,20 @@ protected:
 					vao.AddVBO(normalsVBO);
 					vao.CreateEBO((unsigned int*)mesh.GetFaceDataPtr(), mesh.GetNumFaces() * 3);
 					vao.SetRenderType(CVertexArrayObject::RenderType::PHONG);
+
+					if (mesh.GetNumTextureVertices() > 0)
+					{
+						VertexBufferObject texVBO(
+							mesh.GetTextureDataPtr(),
+							mesh.GetNumTextureVertices(),
+							GL_FLOAT,
+							"texc",
+							2,
+							program->GetID());
+						vao.AddVBO(texVBO);
+						
+						vao.SetRenderType(CVertexArrayObject::RenderType::PHONG_TEXTURE);
+					}
 				}
 
 			});
@@ -226,6 +240,17 @@ protected:
 
 			});
 	};
+	/*
+	* Handles texture updates
+	*/
+	void OnTextureChange()
+	{
+		scene->registry.view<CTextures2D>()
+			.each([&](const auto entity, auto& texture)
+				{
+					texture.CreateTextures();
+				});
+	}
 };
 
 class AnimatedBGRenderer : public Renderer<AnimatedBGRenderer>
@@ -820,7 +845,6 @@ public:
 				transform.SetEulerRotation(glm::vec3(glm::radians(-90.f), 0, 0));
 				transform.SetPivot(mesh.GetBoundingBoxCenter());
 			});
-
 	}
 
 	void PreUpdate()
@@ -861,8 +885,17 @@ public:
 				program->SetUniform("to_view_space", mv);
 				program->SetUniform("normals_to_view_space",
 					glm::transpose(glm::inverse(glm::mat3(mv))));
-				
+
+				CTextures2D* textures = scene->registry.try_get<CTextures2D>(entity);
+				if (textures)
+				{
+					textures->Bind(0);
+					program->SetUniform("diffuse_tex", textures->GetTextureUnitNum(0));
+					textures->Bind(1);
+					program->SetUniform("specular_tex", textures->GetTextureUnitNum(1));
+				}
 				program->SetUniform("render_type", ((int)vao.GetRenderType()));
+				
 				//bind GLSL program
 				program->Use();
 				vao.Draw();
@@ -875,74 +908,8 @@ public:
 	}
 
 	void UpdateGUI()
-	{
-		const ImGuiViewport* main_viewport = ImGui::GetMainViewport();
-		ImGui::SetNextWindowSize(ImVec2(main_viewport->WorkSize.x/5, main_viewport->WorkSize.y/2));
-		ImGui::SetNextWindowPos(ImVec2(main_viewport->WorkSize.x - main_viewport->WorkSize.x/5 -5, main_viewport->WorkPos.y + 5));
-		ImGui::Begin("Control panel", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
-		if (ImGui::CollapsingHeader("Shaders", ImGuiTreeNodeFlags_DefaultOpen))
-		{
-			if (ImGui::Button("Read Shaders(F5)"))
-			{
-				ReloadShaders();
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("Compile Shaders(F6)"))
-			{
-				RecompileShaders();
-			}
-		}
-		if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
-		{
-			if (ImGui::Button("Reset Camera(F1)"))
-			{
-				ResetCamera();
-			}
-			//ImGui::SameLine();
-			glm::vec3 target = scene->camera.GetCenter();
-			if (ImGui::DragFloat3("Target", &target[0], 0.01f))
-			{
-				scene->camera.SetCenter(target);
-			}
-		}
-		if (ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_DefaultOpen))
-		{
-			int i = 0;
-			auto view = scene->registry.view<CPhongMaterial>();
-			view.each([&](auto& material)
-				{
-					std::string field1(std::string("Specular##") + std::to_string(i));
-					std::string field2(std::string("Diffuse##") + std::to_string(i));
-					std::string field3(std::string("Ambient##") + std::to_string(i));
-					std::string field4(std::string("Shininess##") + std::to_string(i));
-					ImGui::ColorEdit3(field1.c_str(), &material.specular[0]);
-					ImGui::ColorEdit3(field2.c_str(), &material.diffuse[0]);
-					ImGui::ColorEdit3(field3.c_str(), &material.ambient[0]);
-					ImGui::DragFloat(field4.c_str(), &material.shininess, 0.1f, 0.f, 500.f);
-					ImGui::Separator();
-					i++;
-				});
-		}
-		if (ImGui::CollapsingHeader("Lights", ImGuiTreeNodeFlags_DefaultOpen))
-		{
-			int i  = 0;
-			auto view = scene->registry.view<CLight>();
-			view.each([&](auto& light)
-				{
-					std::string field1(std::string("Position##") + std::to_string(i));
-					std::string field2(std::string("Intensity##") + std::to_string(i));
-					std::string field3(std::string("Color##") + std::to_string(i));
-					ImGui::DragFloat3( field1.c_str(), &light.position[0], 0.01f);
-					ImGui::DragFloat(field2.c_str(), &light.intensity, 0.001f, 0.0f, 1.f);
-					ImGui::ColorEdit3(field3.c_str(), &light.color[0], 0.01f);
-					ImGui::Separator();
-					i++;
-				});
-		}
-		
-		ImGui::End();
-	}
-
+	{}
+	
 	/*
 	* Recompile the shaders
 	*/
@@ -962,8 +929,8 @@ public:
 	*/
 	inline void ReloadShaders()
 	{
-		program->SetVertexShaderSourceFromFile("../assets/shaders/phong/shader.vert");
-		program->SetFragmentShaderSourceFromFile("../assets/shaders/phong/shader.frag");
+		program->SetVertexShaderSourceFromFile("../assets/shaders/phong_textured/shader.vert");
+		program->SetFragmentShaderSourceFromFile("../assets/shaders/phong_textured/shader.frag");
 		RecompileShaders();
 	}
 

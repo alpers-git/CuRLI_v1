@@ -4,6 +4,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/euler_angles.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <cyTriMesh.h>
 #include <CyToGLMHelper.h>
 #include <glm/gtx/log_base.hpp>
@@ -331,11 +332,22 @@ public:
 	unsigned int GetNumVertices() { return mesh.NV(); }
 	unsigned int GetNumFaces() { return mesh.NF(); }
 	unsigned int GetNumNormals() { return mesh.NVN(); }
-	unsigned int GetNumTextureVertices() { return mesh.NVT(); }
+	unsigned int GetNumTextureVertices() { return  textCoords.size() ==0 ? mesh.NVT() : textCoords.size(); }
 	
 	glm::vec3 GetVertex(unsigned int index) { return glm::cy2GLM(mesh.V(index)); }
 	glm::vec3 GetVNormal(unsigned int index) { return glm::cy2GLM(mesh.VN(index)); }
-	glm::vec3 GetVTexture(unsigned int index) { return glm::cy2GLM(mesh.VT(index)); }
+	glm::vec2 GetVTexture(unsigned int index) { return glm::cy2GLM(mesh.VT(index)); }
+	
+	
+	unsigned int GetNumMaterials() { return mesh.NM(); }
+	
+	glm::vec3 GetMatAmbientColor(unsigned int index) { return glm::make_vec3(mesh.M(index).Ka); }
+	glm::vec3 GetMatDiffuseColor(unsigned int index) { return glm::make_vec3(mesh.M(index).Kd); }
+	glm::vec3 GetMatSpecularColor(unsigned int index) { return glm::make_vec3(mesh.M(index).Ks); }
+	
+	std::string GetMatAmbientTexture(unsigned int index) { return mesh.M(index).map_Ka; }
+	std::string GetMatDiffuseTexture(unsigned int index) { return mesh.M(index).map_Kd; }
+	std::string GetMatSpecularTexture(unsigned int index) { return mesh.M(index).map_Ks; }
 	
 	glm::ivec3 GetFNormal(unsigned int index) { 
 		const auto tmp = mesh.FN(index);
@@ -352,11 +364,17 @@ public:
 
 	void* GetVertexDataPtr() { return &mesh.V(0); }
 	void* GetNormalDataPtr() { return &mesh.VN(0); }
-	void* GetTextureDataPtr() { return &mesh.VT(0); }
+	void* GetTextureDataPtr() { 
+		//return &mesh.VT(0);
+		return &textCoords[0];
+	}
 	void* GetFaceDataPtr() { return &mesh.F(0); }
+
 	
-	
-	//glm::vec3 GetFaceNormal(unsigned int index) { return glm::cy2GLM(mesh.FN(index)); }
+	/*
+	* Reorder texture vertices so that they are in the same order as the vertices
+	*/
+	void RemapTextureVertices();
 
 	inline void ComputeBoundingBox()
 	{
@@ -411,6 +429,7 @@ public:
 	
 private:
 	cy::TriMesh mesh;
+	std::vector<glm::vec2> textCoords;
 	bool bBoxInitialized = false;
 };
 
@@ -732,19 +751,17 @@ public:
 	void Update();
 };
 
-struct CTexture2D : Component
+
+struct Texture2D
 {
 public:
-	static constexpr CType type = CType::Texture;
-	
-	CTexture2D(std::string path, GLenum textUnit, GLenum wrap_s = GL_CLAMP_TO_BORDER, 
-		GLenum wrap_t = GL_CLAMP_TO_BORDER, GLenum dataType = GL_UNSIGNED_BYTE,
-		GLenum format = GL_RGB, short mipmap_level = 0)
-		:textUnit(textUnit), dataType(dataType), format(format), mipmap_level(mipmap_level)
+	Texture2D(std::string path, GLenum textUnit, GLenum wrapS = GL_REPEAT,
+		GLenum wrapT = GL_REPEAT, GLenum dataType = GL_UNSIGNED_BYTE,
+		GLenum format = GL_RGBA, int mipmapLevel = -1)
+		:textUnit(textUnit), dataType(dataType), format(format),
+		mipmapLevel(mipmapLevel), wrapS(wrapS), wrapT(wrapT)
 	{
 		std::vector<unsigned char> png;
-		std::vector<unsigned char> image; //the raw pixels
-		unsigned width, height;
 
 		//load and decode
 		unsigned error = lodepng::load_file(png, path);
@@ -761,12 +778,18 @@ public:
 			printf("Texture constructor\n\tlodepng:decoder error %d - %s\n", error, lodepng_error_text(error));
 			return;
 		}
-		
+	}
+	GLuint GetGLID() { return glID; }
+	glm::ivec2 GetDimensions() { return glm::ivec2(width, height); }
+
+	void CreateTexture()
+	{
+		glGenTextures(1, &glID);
 		glBindTexture(GL_TEXTURE_2D, glID);
-		
+
 		glTexImage2D(
 			GL_TEXTURE_2D,
-			mipmap_level > 0 ? mipmap_level : 0,
+			mipmapLevel >= 0 ? mipmapLevel : 0,
 			internalFormat,
 			width,
 			height,
@@ -774,40 +797,138 @@ public:
 			format,
 			dataType,
 			&image[0]);
-		
-		if (mipmap_level > 0)
+
+		if (mipmapLevel >= 0)
 			glGenerateMipmap(GL_TEXTURE_2D);
-		
+
 		glTexParameteri(
 			GL_TEXTURE_2D,
 			GL_TEXTURE_MIN_FILTER,
-			mipmap_level > 0 ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
+			mipmapLevel >= 0 ? GL_NEAREST_MIPMAP_LINEAR : GL_LINEAR);
 
 		glTexParameteri(
 			GL_TEXTURE_2D,
 			GL_TEXTURE_MAG_FILTER,
-			GL_LINEAR);
-		
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap_s);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap_t);
-		
+			mipmapLevel >= 0 ? GL_NEAREST_MIPMAP_LINEAR : GL_LINEAR);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapS);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT);
+
 	}
-	void Update();
-	
+
 	void Bind()
 	{
 		glActiveTexture(textUnit);
 		glBindTexture(GL_TEXTURE_2D, glID);
 	}
+
+	void Unbind()
+	{
+		glBindTexture(GL_TEXTURE_2D, 0);
+	}
+
+	int GetTextureUnitNum()
+	{
+		return textUnit - GL_TEXTURE0;
+	}
+	GLenum GetTextureUnit()
+	{
+		return textUnit;
+	}
+	
 private:
+	std::vector<unsigned char> image;
+
 	GLuint glID;
+	unsigned width, height;
 	glm::ivec2 size;
-	GLenum format = GL_RGB;
-	short mipmap_level = 0;
+	GLenum wrapS, wrapT;
+	GLenum format = GL_RGBA;
+	int mipmapLevel = 0;
 	GLenum dataType = GL_UNSIGNED_BYTE;
-	GLenum internalFormat = GL_RGB;
+	GLenum internalFormat = GL_RGBA;
 
 	GLenum textUnit = GL_TEXTURE0;
+};
+struct CTextures2D : Component
+{
+public:
+	static constexpr CType type = CType::Texture;
+	
+	CTextures2D()
+	{}
+	
+	void Update();
+	void AddTexture(std::string path, GLenum textUnit, GLenum wrapS = GL_REPEAT,
+		GLenum wrapT = GL_REPEAT, GLenum dataType = GL_UNSIGNED_BYTE,
+		GLenum format = GL_RGBA, int mipmapLevel = -1)
+	{
+		textures.push_back(Texture2D(path, textUnit, wrapS, wrapT, dataType, format, mipmapLevel));
+	}
+	unsigned int GetNumTextures()
+	{
+		return textures.size();
+	}
+	GLuint GetGLID(unsigned int index)
+	{
+		if (index >= 0 && index < textures.size())
+			return textures[index].GetGLID();
+		else
+			printf("CTextures2D::GetGLID\n\tindex out of range\n");
+		return 0;
+	}
+	void CreateTextures()
+	{
+		for (auto& t : textures)
+			t.CreateTexture();
+	}
+	void Bind(unsigned int index)
+	{
+		if (index >= 0 && index < textures.size())
+			textures[index].Bind();
+		else
+			printf("CTextures2D::Bind\n\tindex out of range\n");
+	}
+	void Unbind(unsigned int index)
+	{
+		if (index >= 0 && index < textures.size())
+			textures[index].Unbind();
+		else
+			printf("CTextures2D::Unbind\n\tindex out of range\n");
+	}
+	glm::ivec2 GetDimensions(unsigned int index)
+	{
+		if (index >= 0 && index < textures.size())
+			return textures[index].GetDimensions();
+		else
+		{
+			printf("CTextures2D::GetDimensions\n\tindex out of range\n");
+			return glm::ivec2(0);
+		}
+	}
+	int GetTextureUnitNum(unsigned int index)
+	{
+		if (index >= 0 && index < textures.size())
+			return textures[index].GetTextureUnitNum();
+		else
+		{
+			printf("CTextures2D::GetTextureUnitNum\n\tindex out of range\n");
+			return -1;
+		}
+	}
+	GLenum GetTextureUnit(unsigned int index)
+	{
+		if (index >= 0 && index < textures.size())
+			return textures[index].GetTextureUnit();
+		else
+		{
+			printf("CTextures2D::GetTextureUnit\n\tindex out of range\n");
+			return -1;
+		}
+	}
+	
+private:
+	std::vector<Texture2D> textures;
 };
 
 enum class FieldPlane

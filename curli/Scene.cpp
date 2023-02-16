@@ -15,12 +15,35 @@ void scheduleSynchForBuffers(entt::registry& registry, entt::entity e)
 	
 }
 
+void scheduleSychForTextures(entt::registry& registry, entt::entity e)
+{
+	//check if entity has a trimesh
+	if (registry.any_of<CTriMesh>(e))
+	{
+		auto& mesh = registry.get<CTriMesh>(e);
+		if (mesh.GetNumTextureVertices() != mesh.GetNumVertices())
+		{
+			mesh.RemapTextureVertices();
+			
+			registry.emplace_or_replace<CVertexArrayObject>(e);
+		}
+		
+		Event event;
+		event.type = Event::Type::TextureChange;
+		GLFWHandler::GetInstance().QueueEvent(event);
+	}
+}
+
 Scene::Scene()
 {
 	//create sinks for trimesh and VAO components
 	registry.on_construct<CVertexArrayObject>().connect<&scheduleSynchForBuffers>();
 	registry.on_update<CVertexArrayObject>().connect<&scheduleSynchForBuffers>();
 	registry.on_construct<CTriMesh>().connect<&scheduleSynchForBuffers>();
+	registry.on_update<CTriMesh>().connect<&scheduleSynchForBuffers>();
+	
+	registry.on_construct<CTextures2D>().connect<&scheduleSychForTextures>();
+	registry.on_update<CTextures2D>().connect<&scheduleSychForTextures>();
 }
 
 Scene::~Scene()
@@ -29,6 +52,42 @@ Scene::~Scene()
 
 void CTransform::Update()
 {
+}
+
+void CTriMesh::RemapTextureVertices()
+{
+	//Go over the faces and push texture vertices from face data into a temptexture array
+	textCoords.resize(GetNumVertices());
+	std::fill(textCoords.begin(), textCoords.end(), glm::vec2(-1.f));
+	float min=999.f, max=-999.f;
+	for (size_t i = 0; i < GetNumFaces(); i++)
+	{
+		auto tFace = GetFTexture(i);
+		auto face = GetFace(i);
+		for (size_t j = 0; j < 3; j++)
+		{
+			if (textCoords[face[j]].x > -1.0f || textCoords[face[j]].y > -1.0f)
+				textCoords[face[j]] = (textCoords[face[j]] + GetVTexture(tFace[j])) * 0.5f;
+			else
+				textCoords[face[j]] = GetVTexture(tFace[j]);
+				//printf("whoops %f %f at %d\n", textCoords[face[j]].x, textCoords[face[j]].y, face[j]);
+			min = glm::min(glm::min(textCoords[face[j]].x, textCoords[face[j]].y), min);
+			max = glm::max(glm::max(textCoords[face[j]].x, textCoords[face[j]].y), max);
+		}
+	}
+	/*for (int i = 0; i < GetNumVertices(); i++)
+	{
+			textCoords[i].x = (textCoords[i].x - min) / (max - min);
+			textCoords[i].y = (textCoords[i].y - min) / (max - min);
+	}*/
+	//mesh.SetNumTexVerts(textCoords.size());
+	////set each mesh.VT(i) to textCoords[i]
+	//for (size_t i = 0; i < textCoords.size(); i++)
+	//{
+	//	mesh.VT(i).x = textCoords.at(i).x;
+	//	mesh.VT(i).y = textCoords.at(i).y;
+	//}
+	
 }
 
 void CTriMesh::Update()
@@ -127,7 +186,7 @@ void CPhongMaterial::Update()
 {
 }
 
-void CTexture2D::Update()
+void CTextures2D::Update()
 {
 }
 
@@ -345,12 +404,35 @@ entt::entity Scene::CreateModelObject(const std::string& meshPath, glm::vec3 pos
 	name = name.substr(0, name.find_last_of("."));
 	auto entity = CreateSceneObject(name);
 	
-	registry.emplace<CTriMesh>(entity, meshPath);
+	auto mesh = registry.emplace<CTriMesh>(entity, meshPath);
 	registry.emplace<CTransform>(entity, position, rotation, scale);
-	registry.emplace<CPhongMaterial>(entity);
+	auto& material = registry.emplace<CPhongMaterial>(entity);
 	registry.emplace<CVertexArrayObject>(entity);
 	
-	//InsertSceneObject(name, entity);
+	if (mesh.GetNumMaterials() > 0)
+	{
+		material.ambient = mesh.GetMatAmbientColor(0);
+		material.diffuse = mesh.GetMatDiffuseColor(0);
+		material.specular = mesh.GetMatSpecularColor(0);
+		
+		std::string path = meshPath.substr(0, meshPath.find_last_of("/\\") + 1);
+		
+		/*if (!mesh.GetMatAmbientTexture(0).empty())
+			registry.emplace<CTexture2D>(entity, path + mesh.GetMatAmbientTexture(0));*/
+		if (!mesh.GetMatDiffuseTexture(0).empty() || !mesh.GetMatSpecularTexture(0).empty())
+		{
+			auto& textures = registry.emplace<CTextures2D>(entity);
+
+			if (!mesh.GetMatDiffuseTexture(0).empty())
+				textures.AddTexture(path + mesh.GetMatDiffuseTexture(0), GL_TEXTURE0);
+			
+			if (!mesh.GetMatSpecularTexture(0).empty())
+				textures.AddTexture(path + mesh.GetMatSpecularTexture(0), GL_TEXTURE0 + 1);
+			
+		}
+			
+	}
+	
 
 	return entity;
 }
@@ -362,7 +444,6 @@ entt::entity Scene::CreateModelObject(cy::TriMesh& mesh, glm::vec3 position, glm
 	registry.emplace<CTransform>(entity, position, rotation, scale);
 	registry.emplace<CPhongMaterial>(entity);
 	registry.emplace<CVertexArrayObject>(entity);
-	//InsertSceneObject("unnamed-", entity);
 	return entity;
 }
 

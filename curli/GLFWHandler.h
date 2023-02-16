@@ -19,7 +19,8 @@ struct Event
 		MouseMove,
 		MouseScroll,
 		Drop,
-		GeometryChange
+		GeometryChange,
+		TextureChange
 	};
 	Type type;
 	union
@@ -74,6 +75,10 @@ struct Event
 		{
 			int index;//todo
 		} geometryChange;
+		struct
+		{
+			int index;//todo
+		} textureChange;
 	};
 };
 
@@ -172,6 +177,9 @@ public:
 				break;
 			case Event::Type::GeometryChange:
 				renderer.OnGeometryChange();//TODO
+				break;
+			case Event::Type::TextureChange:
+				renderer.OnTextureChange();//TODO
 				break;
 			/*case Event::Type::Drop:
 				renderer.OnDrop(eventQueue.front().drop.count, eventQueue.front().drop.paths);

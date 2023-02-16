@@ -104,13 +104,13 @@ Some Screenshots:
 
 #### Project 4 - Textures
 ###### Project 4 requirements:
-- [] Load and parse .mtl files associated with .obj files.
-- [] Load and decode .png files as textures.
+- [X] Load and parse .mtl files associated with .obj files.
+- [X] Load and decode .png files as textures.
 - [X] Use cmdline to read .obj files 
   - Usage `-model --path ../path/to/your.obj`
   - Appending `--rb` after `-model` tag attaches `CRigidBody` component to the model which includes this object in WIP physics events.
-- [] Display textures properly on the object.
-- [] Include the specular texture, specified in the mtl file, for adjusting the specular color of the object.
+- [X] Display textures properly on the object.
+- [x] Include the specular texture, specified in the mtl file, for adjusting the specular color of the object.
 
 ###### Additional Features:
 - Improved UI using ImGUI and EnTT.
@@ -122,6 +122,9 @@ Some Screenshots:
   - Under `Edit > Attach component`
 - User can also create empty entities to attach objects to it using `Edit>Create Entity`
 
+Note: These UVs are damn bad... the seam is too visible and badly generated.
+
 Some Screenshots:
 
 <img src="./images/pr4_1.png" width=80%>
+<img src="./images/pr4_2.png" width=80%>
