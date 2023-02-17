@@ -364,10 +364,7 @@ public:
 
 	void* GetVertexDataPtr() { return &mesh.V(0); }
 	void* GetNormalDataPtr() { return &mesh.VN(0); }
-	void* GetTextureDataPtr() { 
-		//return &mesh.VT(0);
-		return &textCoords[0];
-	}
+	void* GetTextureDataPtr() { return &textCoords[0];}
 	void* GetFaceDataPtr() { return &mesh.F(0); }
 
 	
@@ -815,6 +812,11 @@ public:
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT);
 
 	}
+	
+	void Delete()
+	{
+		glDeleteTextures(1, &glID);
+	}
 
 	void Bind()
 	{
@@ -882,6 +884,24 @@ public:
 		for (auto& t : textures)
 			t.CreateTexture();
 	}
+
+	void DeleteTextures()
+	{
+		for (auto& t : textures)
+			t.Delete();
+	}
+	
+	void DeleteTexture(unsigned int index)
+	{
+		if (index >= 0 && index < textures.size())
+		{
+			textures[index].Delete();
+			textures.erase(textures.begin() + index);
+		}
+		else
+			printf("CTextures2D::DeleteTexture\n\tindex out of range\n");
+	}
+	
 	void Bind(unsigned int index)
 	{
 		if (index >= 0 && index < textures.size())

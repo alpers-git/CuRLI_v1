@@ -547,15 +547,36 @@ namespace gui
 				scene->registry.view<CTextures2D>()
 					.each([&](auto e, auto& t)
 						{
-							if (e == selectedSceneObject && ImGui::BeginTabItem("Texture2D"))
+							if (e == selectedSceneObject && ImGui::BeginTabItem("Textures2D"))
 							{
+								if (ImGui::Button("Load Texture"))//TODO does not WORK
+								{
+									std::string path;
+									if (openFilePicker(path))
+									{
+										//Get extension
+										std::string extension = path.substr(path.find_last_of(".") + 1);
+										printf("Extension: %s\n", extension.c_str());
+										//Check if extension is supported
+										if (extension == "png" || extension == "jpg" || extension == "jpeg" || extension == "bmp")
+										{
+											t.AddTexture(path, t.GetNumTextures());
+										}
+										else
+										{
+											std::cout << "ERROR::TEXTURE::UNSUPPORTED_EXTENSION::" << extension << std::endl;
+										}
+									}
+								}
 								ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 								for (int j = 0; j < t.GetNumTextures(); j++)
 								{
 									//get viewport size
 									ImGui::BeginGroup();
-									ImGui::Text("Texture %d", j);
+									ImGui::Text("At TextureUnit %d", t.GetTextureUnitNum(j));
 									ImGui::Image((void*)(intptr_t)t.GetGLID(j), ImVec2(viewportPanelSize.x/2, viewportPanelSize.x / 2));
+									if (ImGui::Button("Remove"))
+										t.DeleteTexture(j);
 									ImGui::EndGroup();
 									if (j % 2 == 0)
 										ImGui::SameLine();

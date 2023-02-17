@@ -14,8 +14,6 @@ public:
 		ParseArguments(argc, argv);
 		
 		scene->CreatePointLight(glm::vec3(0, 0, 20), 1, glm::vec3(0.85, 0.8, 0.95));//TODO
-
-		//scene->GetComponent<CRigidBody>(scene->GetSceneObject("sphere")).drag = 0.005f;
 		
 		renderer = std::make_unique<R>(scene);
 		renderer->ParseArguments(argc, argv);
