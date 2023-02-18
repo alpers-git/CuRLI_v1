@@ -12,7 +12,7 @@
 #include <glm/gtc/matrix_access.hpp>
 #include <stdarg.h>
 #include <string>
-#include <map>
+#include <unordered_map>
 #include <lodepng.h>
 
 //define a macro that takes a function calls it and ctaches opengl errors
@@ -212,7 +212,7 @@ private:
 enum class CType{
 	Transform, TriMesh, 
 	PhongMaterial, Texture,
-	Light, VAO,
+	Light,
 	BoundingBox,VelocityField2D,
 	ForceField2D, RigidBody,
 	Count
@@ -431,7 +431,6 @@ public:
 		
 		for (auto& normal : vertexNormals)
 			normal = glm::normalize(normal);
-		
 	}
 	
 	inline glm::vec3 GetBoundingBoxMin()
@@ -489,221 +488,6 @@ private:
 	glm::vec3 bBoxMin = glm::vec3(FLT_MAX);
 	glm::vec3 bBoxMax = glm::vec3(-FLT_MAX);
 	bool bBoxInitialized = false;
-};
-
-struct VertexBufferObject
-{
-public:
-	GLuint glID = -1;
-	unsigned int dataSize = 0;
-	
-	std::string attribName = "";
-	GLint attribSize = 0; // 1, 2, 3, 4
-	GLenum type; // GL_FLOAT, GL_DOUBLE, GL_INT, GL_UNSIGNED_INT, GL_SHORT, GL_UNSIGNED_SHORT, GL_BYTE, GL_UNSIGNED_BYTE
-	GLuint stride = 0;
-	GLuint offset = 0;
-	GLboolean normalized = GL_FALSE;
-	GLenum usage = GL_STATIC_DRAW;
-
-	VertexBufferObject(void* data, unsigned int dataSize, GLenum type, std::string attribName, GLenum attribSize, GLuint programID,
-		GLenum usage = GL_STATIC_DRAW, GLuint stride = 0, GLuint offset = 0, GLboolean normalized = GL_FALSE)
-		:dataSize(dataSize), type(type), attribName(attribName), attribSize(attribSize), stride(stride), offset(offset)
-	{
-		GL_CALL(glGenBuffers(1, &glID));
-		GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, glID));
-		
-		unsigned int t_size = 0;
-		switch (type)
-		{
-		case GL_FLOAT:
-			data = (float*)data;
-			t_size = sizeof(float);
-			break;
-		case GL_DOUBLE:
-			data = (double*)data;
-			t_size = sizeof(double);
-			break;
-		case GL_INT:
-			data = (int*)data;
-			t_size = sizeof(int);
-			break;
-		case GL_UNSIGNED_INT:
-			data = (unsigned int*)data;
-			t_size = sizeof(unsigned int);
-			break;
-		case GL_SHORT:
-			data = (short*)data;
-			t_size = sizeof(short);
-			break;
-		case GL_UNSIGNED_SHORT:
-			data = (unsigned short*)data;
-			t_size = sizeof(unsigned short);
-			break;
-		case GL_BYTE:
-			data = (char*)data;
-			t_size = sizeof(char);
-			break;
-		case GL_UNSIGNED_BYTE:
-			data = (unsigned char*)data;
-			t_size = sizeof(unsigned char);
-			break;
-		default:
-			break;
-		}
-
-		GL_CALL(glBufferData(GL_ARRAY_BUFFER, dataSize * t_size * attribSize, data, usage));
-
-		GLuint loc = glGetAttribLocation(programID, attribName.c_str());
-		GL_CALL(glEnableVertexAttribArray(loc));
-		
-		GL_CALL(glVertexAttribPointer(loc, attribSize, type, normalized, stride, (void*)offset));
-	}
-};
-struct CVertexArrayObject : Component
-{
-	enum RenderType
-	{
-		PHONG, PHONG_TEXTURE, EDITOR
-	};
-public:
-	bool visible = true;
-	static constexpr CType type = CType::VAO;
-	CVertexArrayObject() : glID(-1), EBO(-1) //will pop up as a very high value as these are uints
-	{
-	}
-
-	bool IsInitialized() { return initialized; }
-	unsigned int GetID() { return glID; }
-	void SetDrawMode(GLenum mode) { drawMode = mode; }
-	GLenum GetDrawMode() { return drawMode; }
-	VertexBufferObject GetVBO(unsigned int index) { return VBOs[index]; }
-	unsigned int GetNumVBOs() { return VBOs.size(); }
-	unsigned int GetEBO() 
-	{ 
-		if (EBO == -1)
-			printf("EBO not initialized");
-		return EBO;
-	}
-
-	/*
-	* Creates and binds a VAO
-	*/
-	void CreateVAO()
-	{
-		GL_CALL(glGenVertexArrays(1, &glID));
-		GL_CALL(glBindVertexArray(glID));
-		initialized = true;
-	}
-	/*
-	* Binds VAO
-	*/
-	void Bind()
-	{
-		GL_CALL(glBindVertexArray(glID));
-	}
-
-	/*
-	* Pushes a vertex buffer object to the VBO vector and binds it
-	*/
-	void AddVBO(VertexBufferObject& vbo) { VBOs.push_back(vbo); }
-
-	/*
-	* Creates a element buffer object and binds it
-	*/
-	void CreateEBO(unsigned int* indices, unsigned int count)
-	{
-		if (count > 0)
-		{
-			GL_CALL(glGenBuffers(1, &EBO));
-			GL_CALL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO));
-			GL_CALL(glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(unsigned int), indices, GL_STATIC_DRAW));
-
-			numIndices = count;
-		}
-		else
-			printf("Cannot create EBO. 0 indices\n");
-	}
-	/*
-	* Deletes the VAO and all related buffers
-	*/
-	void Delete()
-	{
-		GL_CALL(glDeleteVertexArrays(1, &glID));
-		for (unsigned int i = 0; i < VBOs.size(); i++)
-		{
-			GL_CALL(glDeleteBuffers(1, &VBOs[i].glID));
-		}
-		if (numIndices > 0)
-			GL_CALL(glDeleteBuffers(1, &EBO));
-		VBOs.clear();
-	}
-	
-	/*
-	* Deletes the selected VBO
-	*/
-	void DeleteVBO(unsigned int index)
-	{
-		GL_CALL(glDeleteBuffers(1, &VBOs[index].glID));
-		VBOs.erase(VBOs.begin() + index);
-	}
-	
-	/*
-	* Deletes the EBO
-	*/
-	void DeleteEBO()
-	{
-		GL_CALL(glDeleteBuffers(1, &EBO));
-		numIndices = 0;
-	}
-
-	/*
-	* Draws the VAO using either glDrawArrays or glDrawArrays with the specified mode
-	*/
-	void Draw(GLenum mode)
-	{
-		if (!visible)
-			return;
-		
-		if (VBOs.size() == 0)
-		{
-			//printf("No VBOs in VAO\n");
-			return;
-		}
-		
-		Bind();
-		
-		if (numIndices == 0)
-		{
-			GL_CALL(glDrawArrays(mode, 0, VBOs[0].dataSize));
-		}
-		else
-		{
-			GL_CALL(glDrawElements(mode, numIndices, GL_UNSIGNED_INT, 0));
-		}
-	}
-	/*
-	* Draws the VAO using either glDrawArrays or glDrawArrays with the set mode
-	*/
-	void Draw()
-	{
-		Draw(drawMode);
-	}
-	/*
-	* Set the render type of the VAO which sets the uniform used in shaders
-	*/
-	void SetRenderType(RenderType type) { renderType = type; }
-	RenderType GetRenderType() { return renderType; }
-
-	void Update() {}
-	
-private:
-	bool initialized = false;
-	GLuint glID;
-	std::vector<VertexBufferObject> VBOs;
-	GLuint EBO;
-	unsigned int numIndices = 0;
-	GLenum drawMode = GL_TRIANGLES;
-	RenderType renderType = PHONG; //0 = phong-color, 1 = phong-texture, 2 = editor mode 
 };
 
 enum class LightType
@@ -1166,12 +950,12 @@ public:
 		return entity != entt::tombstone;
 	}
 
-	inline std::map<std::string, entt::entity>::iterator sceneObjectsBegin()
+	inline std::unordered_map<std::string, entt::entity>::iterator sceneObjectsBegin()
 	{
 		return sceneObjects.begin(); 
 	}
 
-	inline std::map<std::string, entt::entity>::iterator sceneObjectsEnd()
+	inline std::unordered_map<std::string, entt::entity>::iterator sceneObjectsEnd()
 	{
 		return sceneObjects.end();
 	}
@@ -1185,5 +969,5 @@ public:
 	entt::registry registry;
 	bool explicit_euler = true;
 private:
-	std::map<std::string, entt::entity> sceneObjects;
+	std::unordered_map<std::string, entt::entity> sceneObjects;
 };

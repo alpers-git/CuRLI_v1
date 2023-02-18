@@ -11,13 +11,13 @@ public:
 	Application(int argc, char const* argv[]) 
 	{
 		scene = std::make_shared<Scene>();
+		renderer = std::make_unique<R>(scene);
+		guiManager = std::make_unique<G>(scene);
 		ParseArguments(argc, argv);
+		renderer->ParseArguments(argc, argv);
 		
 		scene->CreatePointLight(glm::vec3(0, 0, 20), 1, glm::vec3(0.85, 0.8, 0.95));//TODO
 		
-		renderer = std::make_unique<R>(scene);
-		renderer->ParseArguments(argc, argv);
-		guiManager = std::make_unique<G>(scene);
 	}
 	~Application() {}
 

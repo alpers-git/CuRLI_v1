@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <GLFW/glfw3.h>
 #include <queue>
+#include <entt/entt.hpp>
 
 struct Event
 {
@@ -73,7 +74,7 @@ struct Event
 		
 		struct
 		{
-			int index;//todo
+			entt::entity e;//todo
 		} geometryChange;
 		struct
 		{
@@ -176,7 +177,7 @@ public:
 				renderer.OnMouseScroll(eventQueue.front().mouseScroll.x, eventQueue.front().mouseScroll.y);
 				break;
 			case Event::Type::GeometryChange:
-				renderer.OnGeometryChange();//TODO
+				renderer.OnGeometryChange(eventQueue.front().geometryChange.e);
 				break;
 			case Event::Type::TextureChange:
 				renderer.OnTextureChange();//TODO

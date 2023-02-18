@@ -164,8 +164,7 @@ namespace gui
 			{
 				const char* components[] = {
 						"Transform", "TriMesh",
-						"PhongMaterial", "Texture", "Light",
-						"Vertex Array Object", "BoundingBox",
+						"PhongMaterial", "Texture", "Light", "BoundingBox",
 						"VelocityField2D", "ForceField2D",
 						"RigidBody" };
 				if (ImGui::BeginListBox("Add Component", 
@@ -189,9 +188,6 @@ namespace gui
 							case CType::Light:
 								scene->registry.emplace_or_replace<CLight>(selectedSceneObject, LightType::POINT, 
 									glm::vec3(1.0f), 1.0f, glm::vec3(0.0f), glm::vec3(0.0f), 0.0f, 0.0f);
-								break;
-							case CType::VAO:
-								scene->registry.emplace_or_replace<CVertexArrayObject>(selectedSceneObject);
 								break;
 							case CType::BoundingBox:
 								scene->registry.emplace_or_replace<CBoundingBox>(selectedSceneObject, glm::vec3(-10.0f), glm::vec3(10.0f));
@@ -249,9 +245,6 @@ namespace gui
 							case CType::Light:
 								scene->registry.erase<CLight>(selectedSceneObject);
 								break;
-							case CType::VAO:
-								scene->registry.erase<CVertexArrayObject>(selectedSceneObject);
-								break;
 							case CType::BoundingBox:
 								scene->registry.erase<CBoundingBox>(selectedSceneObject);
 								break;
@@ -307,7 +300,7 @@ namespace gui
 				if (ImGui::BeginListBox("##1", ImVec2(-FLT_MIN, 5 * ImGui::GetTextLineHeightWithSpacing())))
 				{
 					int n = 0;
-					for (std::map<std::string, entt::entity>::iterator
+					for (std::unordered_map<std::string, entt::entity>::iterator
 						it = scene->sceneObjectsBegin(); it != scene->sceneObjectsEnd(); ++it)
 					{
 						const bool is_selected = (selectedSceneObject == it->second);
@@ -452,7 +445,13 @@ namespace gui
 								}
 								ImGui::SameLine();
 								if (ImGui::SmallButton("Calculate Normals"))
+								{
 									m.ComputeNormals();
+									Event event;
+									event.type = Event::Type::GeometryChange;
+									event.geometryChange.e = e;
+									GLFWHandler::GetInstance().QueueEvent(event);
+								}
 								ImGui::Text("# Vertices:");
 								ImGui::SameLine();
 								ImGui::TextColored(ImColor(0.6f,0.7f,0.8f), "%d", m.GetNumVertices());
@@ -473,63 +472,7 @@ namespace gui
 								ImGui::EndTabItem();
 							}
 						});
-				//Draw Rigidbody tab
-				scene->registry.view<CVertexArrayObject>()
-					.each([&](auto e, auto& v)
-						{
-							if (e == selectedSceneObject && ImGui::BeginTabItem("VAO"))
-							{
-								ImGui::Text("Vertex Array Object info");
-								ImGui::Checkbox("Visible", &v.visible);
-
-								const char* modes[] = { "GL_POINTS", "GL_LINES", "GL_LINE_STRIP", "GL_LINE_LOOP",
-									"GL_TRIANGLES", "GL_TRIANGLE_STRIP", "GL_TRIANGLE_FAN"};
-								int item_current_idx = v.GetDrawMode();
-								const char* combo_preview_value = modes[item_current_idx];
-								if (ImGui::BeginCombo("Modes", combo_preview_value, 0))
-								{
-									for (int n = 0; n < IM_ARRAYSIZE(modes); n++)
-									{
-										const bool is_selected = (item_current_idx == n);
-										if (ImGui::Selectable(modes[n], is_selected))
-										{
-											item_current_idx = n;
-											v.SetDrawMode(n);
-										}
-
-										if (is_selected)
-											ImGui::SetItemDefaultFocus();
-									}
-									ImGui::EndCombo();
-								}
-
-								for (size_t i = 0; i < v.GetNumVBOs(); i++)
-								{
-									const auto& vbo = v.GetVBO(i);
-									ImGui::Text("Attribute:");
-									ImGui::SameLine();
-									ImGui::TextColored(ImColor(0.6f, 0.2f, 0.6f), "%s (layout = %d)", vbo.attribName.c_str(), vbo.glID);
-									ImGui::Text("Count:");
-									ImGui::SameLine();
-									ImGui::TextColored(ImColor(0.6f, 0.7f, 0.8f), "%d", vbo.dataSize);
-									ImGui::Text("Attrib Size:");
-									ImGui::SameLine();
-									ImGui::TextColored(ImColor(0.6f, 0.7f, 0.8f), "%d", vbo.attribSize);
-									ImGui::Text("Stride:");
-									ImGui::SameLine();
-									ImGui::TextColored(ImColor(0.4f, 0.3f, 0.8f), "%d", vbo.stride);
-									ImGui::Text("Offset:");
-									ImGui::SameLine();
-									ImGui::TextColored(ImColor(0.4f, 0.3f, 0.8f), "%d", vbo.offset);
-
-									if(i+1 != v.GetNumVBOs())
-										ImGui::Separator();
-
-								}
-								ImGui::EndTabItem();
-							}
-						});
-				//Draw Rigidbody tab
+				//Draw CBoundingBox tab
 				scene->registry.view<CBoundingBox>()
 					.each([&](auto e, auto& b)
 						{
@@ -543,7 +486,7 @@ namespace gui
 							}
 						});
 				
-				//Draw CTriMesh tab
+				//Draw CTextures tab
 				scene->registry.view<CTextures2D>()
 					.each([&](auto e, auto& t)
 						{

@@ -68,6 +68,7 @@ protected:
 	//unsigned int VBO, VAO, EBO;
 	std::unique_ptr<OpenGLProgram> program;
 	std::shared_ptr<Scene> scene;
+	std::unordered_map<entt::entity, unsigned int> entity2VAOIndex;
 
 	/*
 	* Parses arguments called when application starts
@@ -135,112 +136,116 @@ protected:
 	/*
 	* Handles geometry updates
 	*/
-	void OnGeometryChange()
+	void OnGeometryChange(entt::entity e)
 	{
-		scene->registry.view<CVertexArrayObject, CTriMesh>()
-			.each([&](const auto entity, auto& vao, auto& mesh)
-			{
-				if (!vao.IsInitialized())
-					vao.CreateVAO();
-				if (vao.GetNumVBOs() == 0)//TODO
-				{
-					VertexBufferObject vertexVBO(
-						mesh.GetVertexDataPtr(),
-						mesh.GetNumVertices(),
-						GL_FLOAT,
-						"pos",
-						3,
-						program->GetID());
-					vao.AddVBO(vertexVBO);
+		if (entity2VAOIndex.find(e) != entity2VAOIndex.end())
+		{
+			program->vaos[entity2VAOIndex[e]].Delete();
+			entity2VAOIndex.erase(e);
+		}
+		auto* mesh = scene->registry.try_get<CTriMesh>(e);
+		program->vaos.push_back(VertexArrayObject());
+		entity2VAOIndex[e] = program->vaos.size() - 1;
+		VertexBufferObject vertexVBO(
+			mesh->GetVertexDataPtr(),
+			mesh->GetNumVertices(),
+			GL_FLOAT,
+			"pos",
+			3,
+			program->GetID());
+		program->vaos.back().AddVBO(vertexVBO);
 
-					mesh.ComputeNormals();
-					VertexBufferObject normalsVBO(
-						mesh.GetNormalDataPtr(),
-						mesh.GetNumNormals(),
-						GL_FLOAT,
-						"norm",
-						3,
-						program->GetID());
-					vao.AddVBO(normalsVBO);
-					vao.CreateEBO((unsigned int*)mesh.GetFaceDataPtr(), mesh.GetNumFaces() * 3);
-					vao.SetRenderType(CVertexArrayObject::RenderType::PHONG);
+		if (mesh->GetNumNormals() > 0)
+		{
+			VertexBufferObject normalsVBO(
+				mesh->GetNormalDataPtr(),
+				mesh->GetNumNormals(),
+				GL_FLOAT,
+				"norm",
+				3,
+				program->GetID());
+			program->vaos.back().AddVBO(normalsVBO);		
+		}
+		if (mesh->GetNumTextureVertices() > 0 && mesh->GetTextureDataPtr() != nullptr)
+		{
+			VertexBufferObject texVBO(
+				mesh->GetTextureDataPtr(),
+				mesh->GetNumTextureVertices(),
+				GL_FLOAT,
+				"texc",
+				2,
+				program->GetID());
+			program->vaos.back().AddVBO(texVBO);
 
-					if (mesh.GetNumTextureVertices() > 0 && mesh.GetTextureDataPtr() != nullptr)
-					{
-						VertexBufferObject texVBO(
-							mesh.GetTextureDataPtr(),
-							mesh.GetNumTextureVertices(),
-							GL_FLOAT,
-							"texc",
-							2,
-							program->GetID());
-						vao.AddVBO(texVBO);
-						
-						//vao.SetRenderType(CVertexArrayObject::RenderType::PHONG_TEXTURE);
-					}
-				}
+			//vao.SetRenderType(CVertexArrayObject::RenderType::PHONG_TEXTURE);
+		}
+		if(mesh->GetNumFaces() > 0)
+		{
+			program->vaos.back().CreateEBO(
+				(unsigned int*)mesh->GetFaceDataPtr(),
+				mesh->GetNumFaces()*3);
+		}
+		program->vaos.back().SetDrawMode(GL_TRIANGLES);
+		//scene->registry.view<CVertexArrayObject, CBoundingBox>()
+		//	.each([&](const auto entity, auto& vao, auto& bb)
+		//	{
+		//		if (!vao.IsInitialized())
+		//			vao.CreateVAO();
+		//		if (vao.GetNumVBOs() == 0)//TODO
+		//		{
+		//			vao.CreateVAO();
+		//			glm::vec3 vertexData[24]
+		//			{
+		//				bb.GetMin(),
+		//				{bb.GetMax().x, bb.GetMin().y, bb.GetMin().z},
 
-			});
-		scene->registry.view<CVertexArrayObject, CBoundingBox>()
-			.each([&](const auto entity, auto& vao, auto& bb)
-			{
-				if (!vao.IsInitialized())
-					vao.CreateVAO();
-				if (vao.GetNumVBOs() == 0)//TODO
-				{
-					vao.CreateVAO();
-					glm::vec3 vertexData[24]
-					{
-						bb.GetMin(),
-						{bb.GetMax().x, bb.GetMin().y, bb.GetMin().z},
+		//				{bb.GetMax().x, bb.GetMin().y, bb.GetMin().z},
+		//				{bb.GetMax().x, bb.GetMax().y, bb.GetMin().z},
 
-						{bb.GetMax().x, bb.GetMin().y, bb.GetMin().z},
-						{bb.GetMax().x, bb.GetMax().y, bb.GetMin().z},
+		//				{bb.GetMax().x, bb.GetMax().y, bb.GetMin().z},
+		//				{bb.GetMin().x, bb.GetMax().y, bb.GetMin().z},
 
-						{bb.GetMax().x, bb.GetMax().y, bb.GetMin().z},
-						{bb.GetMin().x, bb.GetMax().y, bb.GetMin().z},
+		//				{bb.GetMin().x, bb.GetMax().y, bb.GetMin().z},
+		//				bb.GetMin(),
 
-						{bb.GetMin().x, bb.GetMax().y, bb.GetMin().z},
-						bb.GetMin(),
+		//				{bb.GetMin().x, bb.GetMax().y, bb.GetMin().z},
+		//				{bb.GetMin().x, bb.GetMax().y, bb.GetMax().z},
 
-						{bb.GetMin().x, bb.GetMax().y, bb.GetMin().z},
-						{bb.GetMin().x, bb.GetMax().y, bb.GetMax().z},
+		//				{bb.GetMin().x, bb.GetMax().y, bb.GetMax().z},
+		//				{bb.GetMin().x, bb.GetMin().y, bb.GetMax().z},
 
-						{bb.GetMin().x, bb.GetMax().y, bb.GetMax().z},
-						{bb.GetMin().x, bb.GetMin().y, bb.GetMax().z},
+		//				{bb.GetMin().x, bb.GetMin().y, bb.GetMax().z},
+		//				bb.GetMin(),
 
-						{bb.GetMin().x, bb.GetMin().y, bb.GetMax().z},
-						bb.GetMin(),
+		//				{bb.GetMin().x, bb.GetMin().y, bb.GetMax().z},
+		//				{bb.GetMax().x, bb.GetMin().y, bb.GetMax().z},
 
-						{bb.GetMin().x, bb.GetMin().y, bb.GetMax().z},
-						{bb.GetMax().x, bb.GetMin().y, bb.GetMax().z},
+		//				{bb.GetMax().x, bb.GetMin().y, bb.GetMax().z},
+		//				{bb.GetMax().x, bb.GetMin().y, bb.GetMin().z},
 
-						{bb.GetMax().x, bb.GetMin().y, bb.GetMax().z},
-						{bb.GetMax().x, bb.GetMin().y, bb.GetMin().z},
+		//				{bb.GetMax().x, bb.GetMin().y, bb.GetMax().z},
+		//				bb.GetMax(),
 
-						{bb.GetMax().x, bb.GetMin().y, bb.GetMax().z},
-						bb.GetMax(),
+		//				bb.GetMax(),
+		//				{bb.GetMax().x, bb.GetMax().y, bb.GetMin().z},
 
-						bb.GetMax(),
-						{bb.GetMax().x, bb.GetMax().y, bb.GetMin().z},
+		//				bb.GetMax(),
+		//				{bb.GetMin().x, bb.GetMax().y, bb.GetMax().z}
+		//			};
 
-						bb.GetMax(),
-						{bb.GetMin().x, bb.GetMax().y, bb.GetMax().z}
-					};
+		//			VertexBufferObject vertexVBO(
+		//				(void*)vertexData,
+		//				24,
+		//				GL_FLOAT,
+		//				"pos",
+		//				3,
+		//				program->GetID());
+		//			vao.AddVBO(vertexVBO);
+		//			vao.SetDrawMode(GL_LINES);
+		//			vao.SetRenderType(CVertexArrayObject::RenderType::EDITOR);
+		//		}
 
-					VertexBufferObject vertexVBO(
-						(void*)vertexData,
-						24,
-						GL_FLOAT,
-						"pos",
-						3,
-						program->GetID());
-					vao.AddVBO(vertexVBO);
-					vao.SetDrawMode(GL_LINES);
-					vao.SetRenderType(CVertexArrayObject::RenderType::EDITOR);
-				}
-
-			});
+		//	});
 	};
 	/*
 	* Handles texture updates
@@ -323,7 +328,11 @@ public:
 		program->CreatePipelineFromFiles("../assets/shaders/simple/shader.vert",
 			"../assets/shaders/simple/shader.frag");
 
-		OnGeometryChange();
+		scene->registry.view<CTriMesh>()
+			.each([&](const auto entity, auto& mesh)
+				{
+					OnGeometryChange(entity);
+				});
 
 		//Init camera
 		int windowWidth, windowHeight;
@@ -350,16 +359,15 @@ public:
 
 	void Update()
 	{
-		auto view = scene->registry.view<CTransform, CVertexArrayObject>();
-
-		view.each([&](auto& transform, auto& vao)
+		auto view = scene->registry.view<CTransform>();
+		view.each([&](const auto& e, auto& transform)
 			{
 
 				const auto mvp = scene->camera.GetProjectionMatrix() * scene->camera.GetViewMatrix() * transform.GetModelMatrix();
 				program->SetUniform("mvp", mvp);
 				//bind GLSL program
 				program->Use();
-				vao.Draw(GL_POINTS);
+				program->vaos[entity2VAOIndex[e]].Draw(GL_POINTS);
 			});
 	}
 
@@ -496,36 +504,11 @@ public:
 			"../assets/shaders/phong/shader.frag");
 		program->SetClearColor({ 0.f,0.f,0.1f,1.f });
 
-		const auto view = scene->registry.view<CTriMesh>();
-		view.each([&](const auto entity, const auto& mesh)
-			{
-				scene->registry.emplace<CVertexArrayObject>(entity);
-			});
-		const auto viewVAO = scene->registry.view<CVertexArrayObject, CTriMesh>();
-		viewVAO.each([&](const auto entity, auto& vao, auto& mesh)
-			{
-				vao.CreateVAO();
-				VertexBufferObject vertexVBO(
-				mesh.GetVertexDataPtr(),
-				mesh.GetNumVertices(),
-				GL_FLOAT,
-				"pos",
-				3,
-				program->GetID());
-				vao.AddVBO(vertexVBO);
-				
-				mesh.ComputeNormals();
-				VertexBufferObject normalsVBO(
-					mesh.GetNormalDataPtr(),
-					mesh.GetNumNormals(),
-					GL_FLOAT,
-					"norm",
-					3,
-					program->GetID());
-				vao.AddVBO(normalsVBO);
-
-				vao.CreateEBO((unsigned int *)mesh.GetFaceDataPtr(), mesh.GetNumFaces()*3);
-			});
+		scene->registry.view<CTriMesh>()
+			.each([&](const auto entity, auto& mesh)
+				{
+					OnGeometryChange(entity);
+				});
 
 		//Init camera
 		int windowWidth, windowHeight;
@@ -565,8 +548,8 @@ public:
 
 	void Update()
 	{	
-		auto view = scene->registry.view<CTransform, CVertexArrayObject, CPhongMaterial>();
-		view.each([&](auto& transform, auto& vao, auto& material)
+		auto view = scene->registry.view<CTransform, CPhongMaterial>();
+		view.each([&](const auto& entity, auto& transform, auto& material)
 			{
 
 				const auto mv =  scene->camera.GetViewMatrix() * transform.GetModelMatrix();
@@ -581,7 +564,7 @@ public:
 				program->SetUniform("material.shininess", material.shininess);
 				//bind GLSL program
 				program->Use();
-				vao.Draw(GL_TRIANGLES);
+				program->vaos[entity2VAOIndex[entity]].Draw();
 			});
 	}
 
@@ -847,40 +830,40 @@ public:
 
 	void Update()
 	{	
-		scene->registry.view<CVertexArrayObject>()
-			.each([&](const auto& entity, auto& vao)
-			{
-				CPhongMaterial* material = scene->registry.try_get<CPhongMaterial>(entity);
-				CTransform* transform = scene->registry.try_get<CTransform>(entity);
-				
-				const glm::mat4 mv =  scene->camera.GetViewMatrix() * (transform ? 
-					transform->GetModelMatrix() : glm::mat4(1.0f));
-				const glm::mat4 mvp = scene->camera.GetProjectionMatrix() * mv;
-					
-				program->SetUniform("material.ka", material ? material->ambient : glm::vec3(0.0f));
-				program->SetUniform("material.kd", material ? material->diffuse : glm::vec3(0.0f));
-				program->SetUniform("material.ks", material ? material->specular : glm::vec3(0.0f));
-				program->SetUniform("material.shininess", material ? material->shininess : 0.0f);
-				
-				program->SetUniform("to_screen_space", mvp);
-				program->SetUniform("to_view_space", mv);
-				program->SetUniform("normals_to_view_space",
-					glm::transpose(glm::inverse(glm::mat3(mv))));
+		//scene->registry.view<CVertexArrayObject>()
+		//	.each([&](const auto& entity, auto& vao)
+		//	{
+		//		CPhongMaterial* material = scene->registry.try_get<CPhongMaterial>(entity);
+		//		CTransform* transform = scene->registry.try_get<CTransform>(entity);
+		//		
+		//		const glm::mat4 mv =  scene->camera.GetViewMatrix() * (transform ? 
+		//			transform->GetModelMatrix() : glm::mat4(1.0f));
+		//		const glm::mat4 mvp = scene->camera.GetProjectionMatrix() * mv;
+		//			
+		//		program->SetUniform("material.ka", material ? material->ambient : glm::vec3(0.0f));
+		//		program->SetUniform("material.kd", material ? material->diffuse : glm::vec3(0.0f));
+		//		program->SetUniform("material.ks", material ? material->specular : glm::vec3(0.0f));
+		//		program->SetUniform("material.shininess", material ? material->shininess : 0.0f);
+		//		
+		//		program->SetUniform("to_screen_space", mvp);
+		//		program->SetUniform("to_view_space", mv);
+		//		program->SetUniform("normals_to_view_space",
+		//			glm::transpose(glm::inverse(glm::mat3(mv))));
 
-				CTextures2D* textures = scene->registry.try_get<CTextures2D>(entity);
-				if (textures)
-				{
-					textures->Bind(0);
-					program->SetUniform("diffuse_tex", textures->GetTextureUnitNum(0));
-					textures->Bind(1);
-					program->SetUniform("specular_tex", textures->GetTextureUnitNum(1));
-				}
-				program->SetUniform("render_type", ((int)vao.GetRenderType()));
-				
-				//bind GLSL program
-				program->Use();
-				vao.Draw();
-			});
+		//		CTextures2D* textures = scene->registry.try_get<CTextures2D>(entity);
+		//		if (textures)
+		//		{
+		//			textures->Bind(0);
+		//			program->SetUniform("diffuse_tex", textures->GetTextureUnitNum(0));
+		//			textures->Bind(1);
+		//			program->SetUniform("specular_tex", textures->GetTextureUnitNum(1));
+		//		}
+		//		program->SetUniform("render_type", ((int)vao.GetRenderType()));
+		//		
+		//		//bind GLSL program
+		//		program->Use();
+		//		vao.Draw();
+		//	});
 	}
 
 	void End()
@@ -1044,7 +1027,7 @@ public:
 			"../assets/shaders/phong/shader.frag");
 		program->SetClearColor({ 0.01f,0.f,0.05f,1.f });
 		
-		OnGeometryChange();
+		//OnGeometryChange();
 
 		//Init camera
 		int windowWidth, windowHeight;
@@ -1055,7 +1038,7 @@ public:
 		ResetCamera();
 
 		auto arrow = scene->GetSceneObject("arrow");
-		scene->GetComponent<CVertexArrayObject>(arrow).visible = false;
+		//scene->GetComponent<CVertexArrayObject>(arrow).visible = false;
 		auto& material = scene->GetComponent<CPhongMaterial>(arrow);
 		material.ambient = glm::vec3(0.0, 1.0f, 0.0f);
 		material.diffuse = glm::vec3(0.0, 1.0f, 0.0f);
@@ -1093,66 +1076,66 @@ public:
 
 	void Update()
 	{
-		scene->registry.view <CBoundingBox, CVertexArrayObject>().each([&](const auto entity, 
-			const auto bbox, auto& vao)
-			{
-					const auto mv = scene->camera.GetViewMatrix();
-					const auto mvp = scene->camera.GetProjectionMatrix() * mv;
-					program->SetUniform("to_screen_space", mvp);
-					program->SetUniform("to_view_space", mv);
-					program->SetUniform("normals_to_view_space",
-						glm::transpose(glm::inverse(glm::mat3(mv))));
-					program->SetUniform("material.ka", glm::vec3(1.0));
-					program->SetUniform("material.kd", glm::vec3(1.0));
-					program->SetUniform("material.ks", glm::vec3(1.0));
-					program->SetUniform("material.shininess", 0);
-					program->Use();
-					vao.Draw();
-			});
+		//scene->registry.view <CBoundingBox, CVertexArrayObject>().each([&](const auto entity, 
+		//	const auto bbox, auto& vao)
+		//	{
+		//			const auto mv = scene->camera.GetViewMatrix();
+		//			const auto mvp = scene->camera.GetProjectionMatrix() * mv;
+		//			program->SetUniform("to_screen_space", mvp);
+		//			program->SetUniform("to_view_space", mv);
+		//			program->SetUniform("normals_to_view_space",
+		//				glm::transpose(glm::inverse(glm::mat3(mv))));
+		//			program->SetUniform("material.ka", glm::vec3(1.0));
+		//			program->SetUniform("material.kd", glm::vec3(1.0));
+		//			program->SetUniform("material.ks", glm::vec3(1.0));
+		//			program->SetUniform("material.shininess", 0);
+		//			program->Use();
+		//			vao.Draw();
+		//	});
 
-		scene->registry.view<CTransform, CVertexArrayObject, CPhongMaterial>
-			(entt::exclude<CBoundingBox>)
-			.each([&](const auto entity, auto& transform, auto& vao, auto& material)
-			{
-				if (entity != scene->GetSceneObject("arrow"))
-				{
+		//scene->registry.view<CTransform, CVertexArrayObject, CPhongMaterial>
+		//	(entt::exclude<CBoundingBox>)
+		//	.each([&](const auto entity, auto& transform, auto& vao, auto& material)
+		//	{
+		//		if (entity != scene->GetSceneObject("arrow"))
+		//		{
 
-					const auto mv = scene->camera.GetViewMatrix() * transform.GetModelMatrix();
-					const auto mvp = scene->camera.GetProjectionMatrix() * mv;
-					program->SetUniform("to_screen_space", mvp);
-					program->SetUniform("to_view_space", mv);
-					program->SetUniform("normals_to_view_space",
-						glm::transpose(glm::inverse(glm::mat3(mv))));
-					program->SetUniform("material.ka", material.ambient);
-					program->SetUniform("material.kd", material.diffuse);
-					program->SetUniform("material.ks", material.specular);
-					program->SetUniform("material.shininess", material.shininess);
+		//			const auto mv = scene->camera.GetViewMatrix() * transform.GetModelMatrix();
+		//			const auto mvp = scene->camera.GetProjectionMatrix() * mv;
+		//			program->SetUniform("to_screen_space", mvp);
+		//			program->SetUniform("to_view_space", mv);
+		//			program->SetUniform("normals_to_view_space",
+		//				glm::transpose(glm::inverse(glm::mat3(mv))));
+		//			program->SetUniform("material.ka", material.ambient);
+		//			program->SetUniform("material.kd", material.diffuse);
+		//			program->SetUniform("material.ks", material.specular);
+		//			program->SetUniform("material.shininess", material.shininess);
 
-					//bind GLSL program
-					program->Use();
-					vao.Draw();
+		//			//bind GLSL program
+		//			program->Use();
+		//			vao.Draw();
 
 
-					auto arrow = scene->GetSceneObject("arrow");
-					auto tra = scene->GetComponent<CTransform>(arrow);
-					auto mat = scene->GetComponent<CPhongMaterial>(arrow);
-					tra.SetPosition(transform.GetPosition());
-					const auto mv2 = scene->camera.GetViewMatrix() * tra.GetModelMatrix();
-					const auto mvp2 = scene->camera.GetProjectionMatrix() * mv2;
-					program->SetUniform("to_screen_space", mvp2);
-					program->SetUniform("to_view_space", mv2);
-					program->SetUniform("normals_to_view_space",
-						glm::transpose(glm::inverse(glm::mat3(mv2))));
+		//			auto arrow = scene->GetSceneObject("arrow");
+		//			auto tra = scene->GetComponent<CTransform>(arrow);
+		//			auto mat = scene->GetComponent<CPhongMaterial>(arrow);
+		//			tra.SetPosition(transform.GetPosition());
+		//			const auto mv2 = scene->camera.GetViewMatrix() * tra.GetModelMatrix();
+		//			const auto mvp2 = scene->camera.GetProjectionMatrix() * mv2;
+		//			program->SetUniform("to_screen_space", mvp2);
+		//			program->SetUniform("to_view_space", mv2);
+		//			program->SetUniform("normals_to_view_space",
+		//				glm::transpose(glm::inverse(glm::mat3(mv2))));
 
-					program->SetUniform("material.ka", mat.ambient);
-					program->SetUniform("material.kd", mat.diffuse);
-					program->SetUniform("material.ks", mat.specular);
-					program->SetUniform("material.shininess", mat.shininess);
+		//			program->SetUniform("material.ka", mat.ambient);
+		//			program->SetUniform("material.kd", mat.diffuse);
+		//			program->SetUniform("material.ks", mat.specular);
+		//			program->SetUniform("material.shininess", mat.shininess);
 
-					scene->GetComponent<CVertexArrayObject>(arrow).Draw();
-				}
+		//			scene->GetComponent<CVertexArrayObject>(arrow).Draw();
+		//		}
 
-			});
+		//	});
 	}
 
 	void End()
@@ -1390,8 +1373,8 @@ public:
 		if (button == GLFW_MOUSE_BUTTON_LEFT && (action == GLFW_PRESS || action == GLFW_REPEAT))
 		{
 			m1Down = true;
-			if(shiftDown)
-				scene->GetComponent<CVertexArrayObject>(scene->GetSceneObject("arrow")).visible = true;
+			/*if(shiftDown)
+				scene->GetComponent<CVertexArrayObject>(scene->GetSceneObject("arrow")).visible = true;*/
 		}
 		else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
 		{
@@ -1403,7 +1386,7 @@ public:
 					body.ApplyForce(force);
 					force = glm::vec3(0.0f);
 				});
-			scene->GetComponent<CVertexArrayObject>(scene->GetSceneObject("arrow")).visible = false;
+			/*scene->GetComponent<CVertexArrayObject>(scene->GetSceneObject("arrow")).visible = false;*/
 		}
 
 		if (button == GLFW_MOUSE_BUTTON_RIGHT && (action == GLFW_PRESS || action == GLFW_REPEAT))

@@ -5,11 +5,12 @@
 void scheduleSynchForBuffers(entt::registry& registry, entt::entity e)
 {
 
-	//check if entity has a trimesh
-	if (registry.any_of<CTriMesh, CBoundingBox>(e) && registry.all_of<CVertexArrayObject>(e))
+	////check if entity has a trimesh
+	if (registry.any_of<CTriMesh>(e))
 	{
 		Event event;
 		event.type = Event::Type::GeometryChange;
+		event.geometryChange.e = e;
 		GLFWHandler::GetInstance().QueueEvent(event);
 	}
 	
@@ -18,27 +19,27 @@ void scheduleSynchForBuffers(entt::registry& registry, entt::entity e)
 void scheduleSychForTextures(entt::registry& registry, entt::entity e)
 {
 	//check if entity has a trimesh
-	if (registry.any_of<CTriMesh>(e))
-	{
-		auto& mesh = registry.get<CTriMesh>(e);
-		if (mesh.GetNumTextureVertices() != mesh.GetNumVertices())
-		{
-			//mesh.RemapVertices();
-			
-			registry.emplace_or_replace<CVertexArrayObject>(e);
-		}
-		
-		Event event;
-		event.type = Event::Type::TextureChange;
-		GLFWHandler::GetInstance().QueueEvent(event);
-	}
+	//if (registry.any_of<CTriMesh>(e))
+	//{
+	//	auto& mesh = registry.get<CTriMesh>(e);
+	//	if (mesh.GetNumTextureVertices() != mesh.GetNumVertices())
+	//	{
+	//		//mesh.RemapVertices();
+	//		
+	//		registry.emplace_or_replace<CVertexArrayObject>(e);
+	//	}
+	//	
+	//	Event event;
+	//	event.type = Event::Type::TextureChange;
+	//	GLFWHandler::GetInstance().QueueEvent(event);
+	//}
 }
 
 Scene::Scene()
 {
 	//create sinks for trimesh and VAO components
-	registry.on_construct<CVertexArrayObject>().connect<&scheduleSynchForBuffers>();
-	registry.on_update<CVertexArrayObject>().connect<&scheduleSynchForBuffers>();
+	/*registry.on_construct<CVertexArrayObject>().connect<&scheduleSynchForBuffers>();
+	registry.on_update<CVertexArrayObject>().connect<&scheduleSynchForBuffers>();*/
 	registry.on_construct<CTriMesh>().connect<&scheduleSynchForBuffers>();
 	registry.on_update<CTriMesh>().connect<&scheduleSynchForBuffers>();
 	
@@ -336,10 +337,6 @@ void Scene::Update()
 
 	registry.view<CBoundingBox>().each([&](const entt::entity& entity, CBoundingBox& bb) 
 		{
-			if (bb.IsDirty() && EntityHas(entity, CType::VAO))
-			{
-				registry.replace<CVertexArrayObject>(entity);
-			}
 			bb.dirty = false;
 		});
 	
@@ -360,9 +357,6 @@ bool Scene::EntityHas(entt::entity e, CType component)
 		break;
 	case CType::Light:
 		return registry.all_of<CLight>(e);
-		break;
-	case CType::VAO:
-		return registry.all_of<CVertexArrayObject>(e);
 		break;
 	case CType::BoundingBox:
 		return registry.all_of<CBoundingBox>(e);
@@ -389,11 +383,8 @@ entt::entity Scene::CreateBoundingBox(glm::vec3 min, glm::vec3 max, GLuint progr
 {
 	auto entity = CreateSceneObject("boundingbox");
 	registry.emplace<CBoundingBox>(entity, min, max);
-	registry.emplace<CVertexArrayObject>(entity);
 	if (programID != -1)
 	{
-		CVertexArrayObject& vao = GetComponent<CVertexArrayObject>(entity);
-		vao.CreateVAO();
 		glm::vec3 vertexData[24]
 		{
 			min,
@@ -432,15 +423,6 @@ entt::entity Scene::CreateBoundingBox(glm::vec3 min, glm::vec3 max, GLuint progr
 			max,
 			{min.x, max.y, max.z}
 		};
-	
-		VertexBufferObject vertexVBO(
-			(void*)vertexData,
-			24,
-			GL_FLOAT,
-			"pos",
-			3,
-			programID);
-		vao.AddVBO(vertexVBO);
 	}
 
 	return entity;
@@ -465,7 +447,6 @@ entt::entity Scene::CreateModelObject(const std::string& meshPath, glm::vec3 pos
 	auto mesh = registry.emplace<CTriMesh>(entity, meshPath);
 	auto& transform = registry.emplace<CTransform>(entity, position, rotation, scale);
 	auto& material = registry.emplace<CPhongMaterial>(entity);
-	registry.emplace<CVertexArrayObject>(entity);
 	
 	transform.SetPivot(mesh.GetBoundingBoxCenter());
 	
@@ -503,7 +484,6 @@ entt::entity Scene::CreateModelObject(cy::TriMesh& mesh, glm::vec3 position, glm
 	registry.emplace<CTriMesh>(entity, mesh);
 	registry.emplace<CTransform>(entity, position, rotation, scale);
 	registry.emplace<CPhongMaterial>(entity);
-	registry.emplace<CVertexArrayObject>(entity);
 	return entity;
 }
 
