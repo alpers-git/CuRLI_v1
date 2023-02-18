@@ -1,9 +1,22 @@
 #pragma once
 #include <glad/glad.h>
+#include <GLFW/glfw3.h>
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <glm/glm.hpp>
+
+//define a macro that takes a function calls it and ctaches opengl errors
+#define GL_CALL(func) \
+do { \
+    func; \
+    GLenum error = glGetError(); \
+    if (error != GL_NO_ERROR) { \
+        const char* errorString = (const char*)glad_glGetString(GL_VERSION); \
+        const char* description = (const char*)glfwGetError(NULL); \
+        printf("OpenGL error %d (%s) at %s:%d - %s\n", error, errorString, __FILE__, __LINE__, description); \
+    } \
+} while (false)
 
 struct Shader
 {
@@ -21,15 +34,15 @@ struct Shader
 	{
 		if (source)
 			delete[] source;
-		glDeleteShader(glID);
+		GL_CALL(glDeleteShader(glID));
 	}
 
 	bool Compile()
 	{
-		glShaderSource(glID, 1, &source, NULL);
-		glCompileShader(glID);
+		GL_CALL(glShaderSource(glID, 1, &source, NULL));
+		GL_CALL(glCompileShader(glID));
 		int success;
-		glGetShaderiv(glID, GL_COMPILE_STATUS, &success);
+		GL_CALL(glGetShaderiv(glID, GL_COMPILE_STATUS, &success));
 		if (!success)
 		{
 			GLchar infoLog[512];
@@ -42,10 +55,10 @@ struct Shader
 
 	bool AttachShader(GLuint program)
 	{
-		glAttachShader(program, glID);
-		glLinkProgram(program);
+		GL_CALL(glAttachShader(program, glID));
+		GL_CALL(glLinkProgram(program));
 		int status;
-		glGetProgramiv(glID, GL_LINK_STATUS, &status);
+		GL_CALL(glGetProgramiv(glID, GL_LINK_STATUS, &status));
 		if (!status)
 		{
 			char infoLog[512];
@@ -95,8 +108,6 @@ struct Shader
 		fileStream.close();
 		SetSource(content.c_str(), compile);
 	}
-
-
 };
 
 class OpenGLProgram
@@ -105,15 +116,15 @@ public:
 	OpenGLProgram()
 	{
 		glID = glCreateProgram();
-		glEnable(GL_DEPTH_TEST);
-		glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
+		GL_CALL(glEnable(GL_DEPTH_TEST));
+		GL_CALL(glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w));
 		
 		vertexShader = new Shader(GL_VERTEX_SHADER);
 		fragmentShader = new Shader(GL_FRAGMENT_SHADER);
 	};
 	~OpenGLProgram()
 	{
-		glDeleteProgram(glID);
+		GL_CALL(glDeleteProgram(glID));
 		delete vertexShader;
 		delete fragmentShader;
 	};
@@ -174,7 +185,7 @@ public:
 			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;
 			return;
 		}
-		glUniform1i(location, value);
+		GL_CALL(glUniform1i(location, value));
 	}
 	inline void SetUniform(const char* name, float value)
 	{
@@ -184,9 +195,9 @@ public:
 			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;
 			return;
 		}
-		glUniform1f(location, value);
+		GL_CALL(glUniform1f(location, value));
 	}
-	
+
 	inline void SetUniform(const char* name, glm::vec2 value)
 	{
 		GLint location = glGetUniformLocation(glID, name);
@@ -195,7 +206,7 @@ public:
 			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;
 			return;
 		}
-		glUniform2f(location, value.x, value.y);
+		GL_CALL(glUniform2f(location, value.x, value.y));
 	}
 	inline void SetUniform(const char* name, glm::vec3 value)
 	{
@@ -205,7 +216,7 @@ public:
 			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;
 			return;
 		}
-		glUniform3f(location, value.x, value.y, value.z);
+		GL_CALL(glUniform3f(location, value.x, value.y, value.z));
 	}
 	inline void SetUniform(const char* name, glm::vec4 value)
 	{
@@ -215,8 +226,7 @@ public:
 			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;
 			return;
 		}
-
-		glUniform4f(location, value.x, value.y, value.z, value.w);
+		GL_CALL(glUniform4f(location, value.x, value.y, value.z, value.w));
 	}
 
 	inline void SetUniform(const char* name, glm::mat2 value)
@@ -227,7 +237,7 @@ public:
 			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;
 			return;
 		}
-		glUniformMatrix2fv(location, 1, GL_FALSE, &value[0][0]);
+		GL_CALL(glUniformMatrix2fv(location, 1, GL_FALSE, &value[0][0]));
 	}
 
 	inline void SetUniform(const char* name, glm::mat3 value)
@@ -238,9 +248,9 @@ public:
 			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;
 			return;
 		}
-		glUniformMatrix3fv(location, 1, GL_FALSE, &value[0][0]);
+		GL_CALL(glUniformMatrix3fv(location, 1, GL_FALSE, &value[0][0]));
 	}
-	
+
 	inline void SetUniform(const char* name, glm::mat4 value)
 	{
 		GLint location = glGetUniformLocation(glID, name);
@@ -249,7 +259,7 @@ public:
 			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;
 			return;
 		}
-		glUniformMatrix4fv(location, 1, GL_FALSE, &value[0][0]);
+		GL_CALL(glUniformMatrix4fv(location, 1, GL_FALSE, &value[0][0]));
 	}
 
 	inline void SetGLClearFlags(GLbitfield flags)
@@ -259,12 +269,12 @@ public:
 	inline void SetClearColor(glm::vec4 color)
 	{
 		clearColor = color;
-		glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
+		GL_CALL(glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w));
 	}
 
 	inline void Clear()
 	{
-		glClear(clearFlags);
+		GL_CALL(glClear(clearFlags));
 	}
 	
 private:

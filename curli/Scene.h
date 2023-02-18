@@ -1,5 +1,6 @@
 #pragma once
 #include <glad/glad.h>
+#include <GLFW/glfw3.h>
 #include <entt/entt.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -13,6 +14,18 @@
 #include <string>
 #include <map>
 #include <lodepng.h>
+
+//define a macro that takes a function calls it and ctaches opengl errors
+#define GL_CALL(func) \
+do { \
+    func; \
+    GLenum error = glGetError(); \
+    if (error != GL_NO_ERROR) { \
+        const char* errorString = (const char*)glad_glGetString(GL_VERSION); \
+        const char* description = (const char*)glfwGetError(NULL); \
+        printf("OpenGL error %d (%s) at %s:%d - %s\n", error, errorString, __FILE__, __LINE__, description); \
+    } \
+} while (false)
 
 struct Camera
 {
@@ -312,44 +325,61 @@ struct CTriMesh : Component
 public:
 	static constexpr CType type = CType::TriMesh;
 	CTriMesh(cy::TriMesh& mesh)
-		:mesh(mesh)
 	{
+		InitializeFrom(mesh);
 	}
 
 	CTriMesh(const std::string& path)
-		:mesh(cy::TriMesh())
 	{
 		LoadObj(path.c_str());
 	}
 	
 	CTriMesh()
-		:mesh(cy::TriMesh())
 	{
 	}
 	
-	cy::TriMesh& GetMesh() { return mesh; }
+	//cy::TriMesh& GetMesh() { return mesh; }
 	
-	unsigned int GetNumVertices() { return mesh.NV(); }
-	unsigned int GetNumFaces() { return mesh.NF(); }
-	unsigned int GetNumNormals() { return mesh.NVN(); }
-	unsigned int GetNumTextureVertices() { return  textCoords.size() ==0 ? mesh.NVT() : textCoords.size(); }
+	unsigned int GetNumVertices() { return vertices.size(); }
+	unsigned int GetNumFaces() { return faces.size(); }
+	unsigned int GetNumNormals() { return vertexNormals.size(); }
+	unsigned int GetNumTextureVertices() { return  textureCoords.size(); }
 	
-	glm::vec3 GetVertex(unsigned int index) { return glm::cy2GLM(mesh.V(index)); }
-	glm::vec3 GetVNormal(unsigned int index) { return glm::cy2GLM(mesh.VN(index)); }
-	glm::vec2 GetVTexture(unsigned int index) { return glm::cy2GLM(mesh.VT(index)); }
+	glm::vec3 GetVertex(unsigned int index) { return vertices.at(index); }
+	glm::vec3 GetVNormal(unsigned int index) { return vertexNormals.at(index);}
+	glm::vec2 GetVTexture(unsigned int index) { return textureCoords.at(index); }
+	glm::uvec3 GetFace(unsigned int index) { return faces.at(index); }
 	
 	
-	unsigned int GetNumMaterials() { return mesh.NM(); }
+	//unsigned int GetNumMaterials() { return mesh.NM(); }
 	
-	glm::vec3 GetMatAmbientColor(unsigned int index) { return glm::make_vec3(mesh.M(index).Ka); }
+	/*glm::vec3 GetMatAmbientColor(unsigned int index) { return glm::make_vec3(mesh.M(index).Ka); }
 	glm::vec3 GetMatDiffuseColor(unsigned int index) { return glm::make_vec3(mesh.M(index).Kd); }
-	glm::vec3 GetMatSpecularColor(unsigned int index) { return glm::make_vec3(mesh.M(index).Ks); }
+	glm::vec3 GetMatSpecularColor(unsigned int index) { return glm::make_vec3(mesh.M(index).Ks); }*/
 	
-	std::string GetMatAmbientTexture(unsigned int index) { return mesh.M(index).map_Ka; }
-	std::string GetMatDiffuseTexture(unsigned int index) { return mesh.M(index).map_Kd; }
-	std::string GetMatSpecularTexture(unsigned int index) { return mesh.M(index).map_Ks; }
+	/*std::string GetMatAmbientTexture(unsigned int index) 
+	{ 
+		if (GetNumMaterials() > index && mesh.M(index).map_Ka.data == nullptr)
+			return std::string();
+		else
+			return mesh.M(index).map_Ka; 
+	}
+	std::string GetMatDiffuseTexture(unsigned int index) 
+	{
+		if (GetNumMaterials() > index && mesh.M(index).map_Kd.data == nullptr)
+			return std::string();
+		else
+			return mesh.M(index).map_Kd;
+	}
+	std::string GetMatSpecularTexture(unsigned int index)
+	{
+		if (GetNumMaterials() > index && mesh.M(index).map_Ks.data == nullptr)
+			return std::string();
+		else
+			return mesh.M(index).map_Ks;
+	}*/
 	
-	glm::ivec3 GetFNormal(unsigned int index) { 
+	/*glm::ivec3 GetFNormal(unsigned int index) { 
 		const auto tmp = mesh.FN(index);
 		return glm::ivec3(tmp.v[0], tmp.v[1], tmp.v[2]);
 	}
@@ -360,54 +390,77 @@ public:
 	glm::ivec3 GetFTexture(unsigned int index) {
 		const auto tmp = mesh.FT(index);
 		return glm::ivec3(tmp.v[0], tmp.v[1], tmp.v[2]);
-	}
+	}*/
 
-	void* GetVertexDataPtr() { return &mesh.V(0); }
-	void* GetNormalDataPtr() { return &mesh.VN(0); }
-	void* GetTextureDataPtr() { return &textCoords[0];}
-	void* GetFaceDataPtr() { return &mesh.F(0); }
+	void* GetVertexDataPtr() { return &vertices.front(); }
+	void* GetNormalDataPtr() { return &vertexNormals.front(); }
+	void* GetTextureDataPtr() { return &textureCoords.front();}
+	void* GetFaceDataPtr() { return &faces.front(); }
 
 	
 	/*
-	* Reorder texture vertices so that they are in the same order as the vertices
+	* Create opengl friendly single buffer indexed mesh from cy::TriMesh
 	*/
-	void RemapTextureVertices();
+	void InitializeFrom(cy::TriMesh& mesh);
 
 	inline void ComputeBoundingBox()
 	{
-		mesh.ComputeBoundingBox();
+		for (auto vertex : vertices)
+		{
+			bBoxMax = glm::max(bBoxMax, vertex);
+			bBoxMin = glm::min(bBoxMin, vertex);
+		}
 		bBoxInitialized = true;
 	}
 
 	inline void ComputeNormals()
 	{
-		mesh.ComputeNormals();
+		vertexNormals.resize(vertices.size());
+		for(auto face : faces)
+		{
+			glm::vec3 v1 = vertices[face.x];
+			glm::vec3 v2 = vertices[face.y];
+			glm::vec3 v3 = vertices[face.z];
+
+			glm::vec3 normal = glm::normalize(glm::cross(v2 - v1, v3 - v1));
+
+			vertexNormals[face.x] += normal;
+			vertexNormals[face.y] += normal;
+			vertexNormals[face.z] += normal;
+		}
+		
+		for (auto& normal : vertexNormals)
+			normal = glm::normalize(normal);
+		
 	}
 	
 	inline glm::vec3 GetBoundingBoxMin()
 	{
 		if (!bBoxInitialized)
 			ComputeBoundingBox();
-		return glm::cy2GLM(mesh.GetBoundMin());
+		return bBoxMin;
 	}
 
 	inline glm::vec3 GetBoundingBoxMax()
 	{
 		if (!bBoxInitialized)
 			ComputeBoundingBox();
-		return glm::cy2GLM(mesh.GetBoundMax());
+		return bBoxMax;
 	}
 
 	inline glm::vec3 GetBoundingBoxCenter()
 	{
 		if (!bBoxInitialized)
 			ComputeBoundingBox();
-		return glm::cy2GLM(mesh.GetBoundMax() + mesh.GetBoundMin()) * .5f;
+		return (bBoxMin + bBoxMax) * .5f;
 	}
 
 	inline void LoadObj(const std::string& path)
 	{
+		cy::TriMesh mesh;
 		mesh.LoadFromFileObj(path.c_str());
+		InitializeFrom(mesh);
+		
 		printf("Loaded model with %d vertices, vertex normals %d, texture vertices %d, and faces %d from %s\n",
 			GetNumVertices(),
 			GetNumNormals(),
@@ -420,13 +473,21 @@ public:
 	
 	void Clear()
 	{
-		mesh.Clear();
 		bBoxInitialized = false;
+		vertices.clear();
+		vertexNormals.clear();
+		textureCoords.clear();
+		faces.clear();
 	}
 	
 private:
-	cy::TriMesh mesh;
-	std::vector<glm::vec2> textCoords;
+	std::vector<glm::vec3> vertices;
+	std::vector<glm::vec3> vertexNormals;
+	std::vector<glm::vec2> textureCoords;
+	std::vector<glm::uvec3> faces;
+	
+	glm::vec3 bBoxMin = glm::vec3(FLT_MAX);
+	glm::vec3 bBoxMax = glm::vec3(-FLT_MAX);
 	bool bBoxInitialized = false;
 };
 
@@ -448,8 +509,8 @@ public:
 		GLenum usage = GL_STATIC_DRAW, GLuint stride = 0, GLuint offset = 0, GLboolean normalized = GL_FALSE)
 		:dataSize(dataSize), type(type), attribName(attribName), attribSize(attribSize), stride(stride), offset(offset)
 	{
-		glGenBuffers(1, &glID);
-		glBindBuffer(GL_ARRAY_BUFFER, glID);
+		GL_CALL(glGenBuffers(1, &glID));
+		GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, glID));
 		
 		unsigned int t_size = 0;
 		switch (type)
@@ -490,12 +551,12 @@ public:
 			break;
 		}
 
-		glBufferData(GL_ARRAY_BUFFER, dataSize * t_size * attribSize, data, usage);
+		GL_CALL(glBufferData(GL_ARRAY_BUFFER, dataSize * t_size * attribSize, data, usage));
 
 		GLuint loc = glGetAttribLocation(programID, attribName.c_str());
-		glEnableVertexAttribArray(loc);
+		GL_CALL(glEnableVertexAttribArray(loc));
 		
-		glVertexAttribPointer(loc, attribSize, type, normalized, stride, (void*)offset);
+		GL_CALL(glVertexAttribPointer(loc, attribSize, type, normalized, stride, (void*)offset));
 	}
 };
 struct CVertexArrayObject : Component
@@ -529,8 +590,8 @@ public:
 	*/
 	void CreateVAO()
 	{
-		glGenVertexArrays(1, &glID);
-		glBindVertexArray(glID);
+		GL_CALL(glGenVertexArrays(1, &glID));
+		GL_CALL(glBindVertexArray(glID));
 		initialized = true;
 	}
 	/*
@@ -538,7 +599,7 @@ public:
 	*/
 	void Bind()
 	{
-		glBindVertexArray(glID);
+		GL_CALL(glBindVertexArray(glID));
 	}
 
 	/*
@@ -553,9 +614,9 @@ public:
 	{
 		if (count > 0)
 		{
-			glGenBuffers(1, &EBO);
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-			glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(unsigned int), indices, GL_STATIC_DRAW);
+			GL_CALL(glGenBuffers(1, &EBO));
+			GL_CALL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO));
+			GL_CALL(glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(unsigned int), indices, GL_STATIC_DRAW));
 
 			numIndices = count;
 		}
@@ -567,13 +628,13 @@ public:
 	*/
 	void Delete()
 	{
-		glDeleteVertexArrays(1, &glID);
+		GL_CALL(glDeleteVertexArrays(1, &glID));
 		for (unsigned int i = 0; i < VBOs.size(); i++)
 		{
-			glDeleteBuffers(1, &VBOs[i].glID);
+			GL_CALL(glDeleteBuffers(1, &VBOs[i].glID));
 		}
 		if (numIndices > 0)
-			glDeleteBuffers(1, &EBO);
+			GL_CALL(glDeleteBuffers(1, &EBO));
 		VBOs.clear();
 	}
 	
@@ -582,7 +643,7 @@ public:
 	*/
 	void DeleteVBO(unsigned int index)
 	{
-		glDeleteBuffers(1, &VBOs[index].glID);
+		GL_CALL(glDeleteBuffers(1, &VBOs[index].glID));
 		VBOs.erase(VBOs.begin() + index);
 	}
 	
@@ -591,7 +652,7 @@ public:
 	*/
 	void DeleteEBO()
 	{
-		glDeleteBuffers(1, &EBO);
+		GL_CALL(glDeleteBuffers(1, &EBO));
 		numIndices = 0;
 	}
 
@@ -613,11 +674,11 @@ public:
 		
 		if (numIndices == 0)
 		{
-			glDrawArrays(mode, 0, VBOs[0].dataSize);
+			GL_CALL(glDrawArrays(mode, 0, VBOs[0].dataSize));
 		}
 		else
 		{
-			glDrawElements(mode, numIndices, GL_UNSIGNED_INT, 0);
+			GL_CALL(glDrawElements(mode, numIndices, GL_UNSIGNED_INT, 0));
 		}
 	}
 	/*
@@ -781,10 +842,10 @@ public:
 
 	void CreateTexture()
 	{
-		glGenTextures(1, &glID);
-		glBindTexture(GL_TEXTURE_2D, glID);
+		GL_CALL(glGenTextures(1, &glID));
+		GL_CALL(glBindTexture(GL_TEXTURE_2D, glID));
 
-		glTexImage2D(
+		GL_CALL(glTexImage2D(
 			GL_TEXTURE_2D,
 			mipmapLevel >= 0 ? mipmapLevel : 0,
 			internalFormat,
@@ -793,40 +854,40 @@ public:
 			0,
 			format,
 			dataType,
-			&image[0]);
+			&image[0]));
 
 		if (mipmapLevel >= 0)
-			glGenerateMipmap(GL_TEXTURE_2D);
+			GL_CALL(glGenerateMipmap(GL_TEXTURE_2D));
 
-		glTexParameteri(
+		GL_CALL(glTexParameteri(
 			GL_TEXTURE_2D,
 			GL_TEXTURE_MIN_FILTER,
-			mipmapLevel >= 0 ? GL_NEAREST_MIPMAP_LINEAR : GL_LINEAR);
+			mipmapLevel >= 0 ? GL_NEAREST_MIPMAP_LINEAR : GL_LINEAR));
 
-		glTexParameteri(
+		GL_CALL(glTexParameteri(
 			GL_TEXTURE_2D,
 			GL_TEXTURE_MAG_FILTER,
-			mipmapLevel >= 0 ? GL_NEAREST_MIPMAP_LINEAR : GL_LINEAR);
+			mipmapLevel >= 0 ? GL_NEAREST_MIPMAP_LINEAR : GL_LINEAR));
 
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapS);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT);
+		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapS));
+		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT));
 
 	}
 	
 	void Delete()
 	{
-		glDeleteTextures(1, &glID);
+		GL_CALL(glDeleteTextures(1, &glID));
 	}
 
 	void Bind()
 	{
-		glActiveTexture(textUnit);
-		glBindTexture(GL_TEXTURE_2D, glID);
+		GL_CALL(glActiveTexture(textUnit));
+		GL_CALL(glBindTexture(GL_TEXTURE_2D, glID));
 	}
 
 	void Unbind()
 	{
-		glBindTexture(GL_TEXTURE_2D, 0);
+		GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
 	}
 
 	int GetTextureUnitNum()

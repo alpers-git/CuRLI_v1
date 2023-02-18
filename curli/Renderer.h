@@ -32,6 +32,8 @@ public:
 		//program = glCreateProgram();
 		//glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
 		program = std::make_unique<OpenGLProgram>();
+
+		glEnable(GL_DEBUG_OUTPUT);
 		static_cast<T*>(this)->Start();
 	}
 	
@@ -163,7 +165,7 @@ protected:
 					vao.CreateEBO((unsigned int*)mesh.GetFaceDataPtr(), mesh.GetNumFaces() * 3);
 					vao.SetRenderType(CVertexArrayObject::RenderType::PHONG);
 
-					if (mesh.GetNumTextureVertices() > 0)
+					if (mesh.GetNumTextureVertices() > 0 && mesh.GetTextureDataPtr() != nullptr)
 					{
 						VertexBufferObject texVBO(
 							mesh.GetTextureDataPtr(),
@@ -174,7 +176,7 @@ protected:
 							program->GetID());
 						vao.AddVBO(texVBO);
 						
-						vao.SetRenderType(CVertexArrayObject::RenderType::PHONG_TEXTURE);
+						//vao.SetRenderType(CVertexArrayObject::RenderType::PHONG_TEXTURE);
 					}
 				}
 
@@ -321,27 +323,7 @@ public:
 		program->CreatePipelineFromFiles("../assets/shaders/simple/shader.vert",
 			"../assets/shaders/simple/shader.frag");
 
-		
-		const auto view = scene->registry.view<CTriMesh>();
-		// use an extended callback
-		view.each([&](const auto entity, const auto& mesh)
-			{
-				scene->registry.emplace<CVertexArrayObject>(entity);
-			});
-		const auto viewVAO = scene->registry.view<CVertexArrayObject, CTriMesh>();
-		viewVAO.each([&](const auto entity, auto& vao, auto& mesh)
-			{
-				vao.CreateVAO();
-				VertexBufferObject vbo(
-					&mesh.GetMesh().V(0),
-					mesh.GetNumVertices(),
-					GL_FLOAT,
-					"pos",
-					3,
-					program->GetID());
-				vao.AddVBO(vbo);
-			});
-		
+		OnGeometryChange();
 
 		//Init camera
 		int windowWidth, windowHeight;
@@ -843,7 +825,6 @@ public:
 				transform.SetScale(glm::vec3(0.05f) *
 				(scene->camera.IsPerspective() ? 1.f : 1.f / glm::length(scene->camera.GetLookAtEye())));
 				transform.SetEulerRotation(glm::vec3(glm::radians(-90.f), 0, 0));
-				transform.SetPivot(mesh.GetBoundingBoxCenter());
 			});
 	}
 

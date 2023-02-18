@@ -23,7 +23,7 @@ void scheduleSychForTextures(entt::registry& registry, entt::entity e)
 		auto& mesh = registry.get<CTriMesh>(e);
 		if (mesh.GetNumTextureVertices() != mesh.GetNumVertices())
 		{
-			mesh.RemapTextureVertices();
+			//mesh.RemapVertices();
 			
 			registry.emplace_or_replace<CVertexArrayObject>(e);
 		}
@@ -42,8 +42,8 @@ Scene::Scene()
 	registry.on_construct<CTriMesh>().connect<&scheduleSynchForBuffers>();
 	registry.on_update<CTriMesh>().connect<&scheduleSynchForBuffers>();
 	
-	registry.on_construct<CTextures2D>().connect<&scheduleSychForTextures>();
-	registry.on_update<CTextures2D>().connect<&scheduleSychForTextures>();
+	/*registry.on_construct<CTextures2D>().connect<&scheduleSychForTextures>();
+	registry.on_update<CTextures2D>().connect<&scheduleSychForTextures>();*/
 }
 
 Scene::~Scene()
@@ -54,40 +54,98 @@ void CTransform::Update()
 {
 }
 
-void CTriMesh::RemapTextureVertices()
+void CTriMesh::InitializeFrom(cy::TriMesh& mesh)
 {
-	//Go over the faces and push texture vertices from face data into a temptexture array
-	textCoords.resize(GetNumVertices());
-	std::fill(textCoords.begin(), textCoords.end(), glm::vec2(-1.f));
-	float min=999.f, max=-999.f;
+	this->vertices.resize(mesh.NV());
+	for (size_t i = 0; i < mesh.NV(); i++)
+	{
+		this->vertices[i] = glm::vec3(mesh.V(i).x, mesh.V(i).y, mesh.V(i).z);
+	}
+	this->vertexNormals.resize(mesh.NVN());
+	for (size_t i = 0; i < mesh.NVN(); i++)
+	{
+		this->vertexNormals[i] = glm::vec3(mesh.VN(i).x, mesh.VN(i).y, mesh.VN(i).z);
+	}
+	/*this->textureCoords.resize(mesh.NVT());
+	for (size_t i = 0; i < mesh.NVT(); i++)
+	{
+		this->textureCoords[i] = glm::vec2(mesh.VT(i).x, mesh.VT(i).y);
+	}*/
+	this->faces.resize(mesh.NF());
+	for (size_t i = 0; i < mesh.NF(); i++)
+	{
+		this->faces[i] = glm::uvec3(mesh.F(i).v[0], mesh.F(i).v[1], mesh.F(i).v[2]);
+	}
+	this->textureCoords.resize(mesh.NV());
 	for (size_t i = 0; i < GetNumFaces(); i++)
 	{
-		auto tFace = GetFTexture(i);
-		auto face = GetFace(i);
+		auto tFace = mesh.FT(i);
+		auto face = mesh.F(i);
 		for (size_t j = 0; j < 3; j++)
 		{
-			if (textCoords[face[j]].x > -1.0f || textCoords[face[j]].y > -1.0f)
-				textCoords[face[j]] = (textCoords[face[j]] + GetVTexture(tFace[j])) * 0.5f;
-			else
-				textCoords[face[j]] = GetVTexture(tFace[j]);
-				//printf("whoops %f %f at %d\n", textCoords[face[j]].x, textCoords[face[j]].y, face[j]);
-			min = glm::min(glm::min(textCoords[face[j]].x, textCoords[face[j]].y), min);
-			max = glm::max(glm::max(textCoords[face[j]].x, textCoords[face[j]].y), max);
+			this->textureCoords[face.v[j]] = glm::vec2(mesh.VT(tFace.v[j]).x, mesh.VT(tFace.v[j]).y);
 		}
 	}
-	/*for (int i = 0; i < GetNumVertices(); i++)
-	{
-			textCoords[i].x = (textCoords[i].x - min) / (max - min);
-			textCoords[i].y = (textCoords[i].y - min) / (max - min);
-	}*/
-	//mesh.SetNumTexVerts(textCoords.size());
-	////set each mesh.VT(i) to textCoords[i]
-	//for (size_t i = 0; i < textCoords.size(); i++)
-	//{
-	//	mesh.VT(i).x = textCoords.at(i).x;
-	//	mesh.VT(i).y = textCoords.at(i).y;
-	//}
 	
+	//unsigned int minAttribCount = glm::min(mesh.NV(), glm::min(mesh.NVN(), mesh.NVT()));
+	//this->vertices.resize(minAttribCount);
+	//std::fill(this->vertices.begin(), this->vertices.end(), glm::vec3(NAN));
+	//this->vertexNormals.resize(minAttribCount);
+	//std::fill(this->vertexNormals.begin(), this->vertexNormals.end(), glm::vec3(NAN));
+	//this->textureCoords.resize(minAttribCount);
+	//std::fill(this->textureCoords.begin(), this->textureCoords.end(), glm::vec2(NAN));
+	//this->faces.resize(mesh.NF());
+	//for (size_t i = 0; i < mesh.NF(); i++)
+	//{
+	//	bool pushNewFace = false;
+	//	for (size_t j = 0; j < 3; j++)
+	//	{
+	//		pushNewFace =  pushNewFace ||
+	//		    !(glm::all(glm::isnan(this->vertices[mesh.F(i).v[j]])) &&
+	//			glm::all(glm::isnan(this->vertexNormals[mesh.FN(i).v[j]])) &&
+	//			glm::all(glm::isnan(this->textureCoords[mesh.FT(i).v[j]])));
+	//	}
+	//	glm::ivec3 face = glm::ivec3(mesh.F(i).v[0], mesh.F(i).v[1], mesh.F(i).v[2]);
+	//	glm::ivec3 tface = glm::ivec3(mesh.FT(i).v[0], mesh.FT(i).v[1], mesh.FT(i).v[2]);
+	//	glm::ivec3 nface = glm::ivec3(mesh.FN(i).v[0], mesh.FN(i).v[1], mesh.FN(i).v[2]);
+	//	if (!pushNewFace)//all of the vertex attribues of these faces are NaN... then we push them as is
+	//	{
+	//		this->faces[i] = face;
+	//	
+	//		for (size_t j = 0; j < 3; j++)
+	//		{
+	//			glm::vec3 vertex = glm::cy2GLM(mesh.V(face[j]));
+	//			this->vertices[face[j]] = vertex;
+	//			assert(mesh.NVN() > nface[j]);
+	//			glm::vec3 normal = glm::cy2GLM(mesh.VN(nface[j]));
+	//			this->vertexNormals[face[j]] = normal;
+	//			assert(mesh.NVT() > tface[j]);
+	//			{
+	//				glm::vec2 texCoord = glm::cy2GLM(mesh.VT(tface[j]));
+	//				this->textureCoords[face[j]] = texCoord;
+	//			}
+	//		}
+	//	}
+	//	else //since at least one vertex attribute was not NaN 
+	//	{	//we need to create a new face and duplicate non unique attributes
+	//		this->faces[i] = face;
+	//		for (size_t j = 0; j < 3; j++)
+	//		{
+	//			glm::vec3 vertex = glm::cy2GLM(mesh.V(mesh.F(i).v[j]));
+	//			this->vertices.push_back(vertex);
+	//			assert(mesh.NVN() > nface[j]);
+	//			{
+	//				glm::vec3 normal = glm::cy2GLM(mesh.VN(nface[j]));
+	//				this->vertexNormals.push_back(normal);
+	//			}
+	//			assert (mesh.NVT() > tface[j]);
+	//			{
+	//				glm::vec2 texCoord = glm::cy2GLM(mesh.VT(tface[j]));
+	//				this->textureCoords.push_back(texCoord);
+	//			}
+	//		}
+	//	}
+	//}
 }
 
 void CTriMesh::Update()
@@ -405,33 +463,35 @@ entt::entity Scene::CreateModelObject(const std::string& meshPath, glm::vec3 pos
 	auto entity = CreateSceneObject(name);
 	
 	auto mesh = registry.emplace<CTriMesh>(entity, meshPath);
-	registry.emplace<CTransform>(entity, position, rotation, scale);
+	auto& transform = registry.emplace<CTransform>(entity, position, rotation, scale);
 	auto& material = registry.emplace<CPhongMaterial>(entity);
 	registry.emplace<CVertexArrayObject>(entity);
 	
-	if (mesh.GetNumMaterials() > 0)
-	{
-		material.ambient = mesh.GetMatAmbientColor(0);
-		material.diffuse = mesh.GetMatDiffuseColor(0);
-		material.specular = mesh.GetMatSpecularColor(0);
-		
-		std::string path = meshPath.substr(0, meshPath.find_last_of("/\\") + 1);
-		
-		/*if (!mesh.GetMatAmbientTexture(0).empty())
-			registry.emplace<CTexture2D>(entity, path + mesh.GetMatAmbientTexture(0));*/
-		if (!mesh.GetMatDiffuseTexture(0).empty() || !mesh.GetMatSpecularTexture(0).empty())
-		{
-			auto& textures = registry.emplace<CTextures2D>(entity);
+	transform.SetPivot(mesh.GetBoundingBoxCenter());
+	
+	//if (mesh.GetNumMaterials() > 0)
+	//{
+	//	material.ambient = mesh.GetMatAmbientColor(0);
+	//	material.diffuse = mesh.GetMatDiffuseColor(0);
+	//	material.specular = mesh.GetMatSpecularColor(0);
+	//	
+	//	std::string path = meshPath.substr(0, meshPath.find_last_of("/\\") + 1);
+	//	
+	//	/*if (!mesh.GetMatAmbientTexture(0).empty())
+	//		registry.emplace<CTexture2D>(entity, path + mesh.GetMatAmbientTexture(0));*/
+	//	if (!mesh.GetMatDiffuseTexture(0).empty() || !mesh.GetMatSpecularTexture(0).empty())
+	//	{
+	//		auto& textures = registry.emplace<CTextures2D>(entity);
 
-			if (!mesh.GetMatDiffuseTexture(0).empty())
-				textures.AddTexture(path + mesh.GetMatDiffuseTexture(0), GL_TEXTURE0);
-			
-			if (!mesh.GetMatSpecularTexture(0).empty())
-				textures.AddTexture(path + mesh.GetMatSpecularTexture(0), GL_TEXTURE0 + 1);
-			
-		}
-			
-	}
+	//		if (!mesh.GetMatDiffuseTexture(0).empty())
+	//			textures.AddTexture(path + mesh.GetMatDiffuseTexture(0), GL_TEXTURE0);
+	//		
+	//		if (!mesh.GetMatSpecularTexture(0).empty())
+	//			textures.AddTexture(path + mesh.GetMatSpecularTexture(0), GL_TEXTURE0 + 1);
+	//		
+	//	}
+	//		
+	//}
 	
 
 	return entity;
