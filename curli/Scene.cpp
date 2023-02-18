@@ -37,9 +37,6 @@ void scheduleSychForTextures(entt::registry& registry, entt::entity e)
 
 Scene::Scene()
 {
-	//create sinks for trimesh and VAO components
-	/*registry.on_construct<CVertexArrayObject>().connect<&scheduleSynchForBuffers>();
-	registry.on_update<CVertexArrayObject>().connect<&scheduleSynchForBuffers>();*/
 	registry.on_construct<CTriMesh>().connect<&scheduleSynchForBuffers>();
 	registry.on_update<CTriMesh>().connect<&scheduleSynchForBuffers>();
 	
@@ -57,6 +54,7 @@ void CTransform::Update()
 
 void CTriMesh::InitializeFrom(cy::TriMesh& mesh)
 {
+	shading = ShadingMode::PHONG;
 	this->vertices.resize(mesh.NV());
 	for (size_t i = 0; i < mesh.NV(); i++)
 	{

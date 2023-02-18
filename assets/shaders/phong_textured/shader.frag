@@ -23,15 +23,17 @@ uniform struct Material {
      vec3 ks;
      float shininess;
 }material;
-uniform int render_type;//0 = phong-color, 1 = phong-texture, 2 = editor mode
+uniform int shading_mode;//0 = phong-color, 1 = editor mode
+uniform int has_texture[3] = {0,0,0};//[0] = diffuse, [1] = specular, [2] = normal
 
+uniform sampler2D ambient_tex;
 uniform sampler2D diffuse_tex;
 uniform sampler2D specular_tex;
 
 out vec4 color;
 
 void main() {
-     if(render_type == 0)
+     if(shading_mode == 0)
      {
           color = vec4(0,0,0,1);
           vec3 v_space_norm = normalize(v_space_norm);
@@ -43,34 +45,22 @@ void main() {
                float cos_theta = dot(l, v_space_norm);
                if(cos_theta >= 0)
                {
-                    vec3 diffuse = material.kd * max(cos_theta,0);
-                    vec3 specular= material.ks * pow(max(dot(h, v_space_norm),0), material.shininess);
+                    vec3 diffuse =  (has_texture[1]==1 ? (texture(diffuse_tex, tex_coord)).xyz :
+                                                       material.kd) * max(cos_theta,0);
+                    vec3 specular= (has_texture[2]==1 ? (texture(specular_tex, tex_coord)).xyz :
+                                                       material.ks) * pow(max(dot(h, v_space_norm),0), material.shininess);
                     color += vec4(light[i].intensity * normalize(light[i].color) * (specular + diffuse), 1);
                }
           }
 
-          color = clamp(color + vec4(material.ka,1),0,1);
+          color = clamp(color + vec4( (has_texture[0]==1 ? (texture(ambient_tex, tex_coord)).xyz :
+                                                             material.ka), 1),0,1);
      }
-     else if(render_type == 1)
+     else if(shading_mode == 1)
      {
-          color = vec4(0,0,0,1);
-          vec3 v_space_norm = normalize(v_space_norm);
-          for(int i = 0; i < light_count; i++)
-          {
-               vec3 l =  normalize(light[i].position - v_space_pos);//normalize(l); //light vector
-               vec3 h = normalize(l + vec3(0,0,1)); //half vector
-
-               float cos_theta = dot(l, v_space_norm);
-               if(cos_theta >= 0)
-               {
-                    vec3 diffuse = (texture(diffuse_tex, tex_coord)).xyz * max(cos_theta,0);
-                    vec3 specular= (texture(specular_tex, tex_coord)).xyz * pow(max(dot(h, v_space_norm),0), material.shininess);
-                    color += vec4(light[i].intensity * normalize(light[i].color) * (specular + diffuse), 1);
-               }
-          }
-          color = clamp(color + 0.001 * vec4(material.ka,1),0,1);
+          color = vec4(1,1,1,1);
      }
-     else if(render_type == 2)
+     else if(shading_mode == 2)
      {
           color = vec4(1,1,1,1);
      }

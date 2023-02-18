@@ -316,7 +316,6 @@ private:
 	GLuint EBO;
 	unsigned int numIndices = 0;
 	GLenum drawMode = GL_TRIANGLES;
-	//RenderType renderType = PHONG; //0 = phong-color, 1 = phong-texture, 2 = editor mode 
 };
 
 class OpenGLProgram

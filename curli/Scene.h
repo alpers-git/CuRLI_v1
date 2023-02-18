@@ -320,6 +320,11 @@ private:
 
 };
 
+enum class ShadingMode
+{
+	PHONG, EDITOR
+};
+
 struct CTriMesh : Component
 {
 public:
@@ -467,6 +472,9 @@ public:
 			GetNumFaces(),
 			path.c_str());
 	}
+	
+	inline ShadingMode GetShadingMode() { return shading; }
+	inline void SetShadingMode(ShadingMode mode) { shading = mode; }
 
 	void Update();
 	
@@ -478,6 +486,8 @@ public:
 		textureCoords.clear();
 		faces.clear();
 	}
+
+	
 	
 private:
 	std::vector<glm::vec3> vertices;
@@ -488,6 +498,7 @@ private:
 	glm::vec3 bBoxMin = glm::vec3(FLT_MAX);
 	glm::vec3 bBoxMax = glm::vec3(-FLT_MAX);
 	bool bBoxInitialized = false;
+	ShadingMode shading = ShadingMode::PHONG; //0 = phong-color, 1 = phong-texture, 2 = editor mode 
 };
 
 enum class LightType
