@@ -548,23 +548,30 @@ public:
 
 	void Update()
 	{	
-		auto view = scene->registry.view<CTransform, CPhongMaterial>();
-		view.each([&](const auto& entity, auto& transform, auto& material)
+		scene->registry.view<CTriMesh>()
+			.each([&](const auto& entity, auto& mesh)
 			{
+					program->vaos[entity2VAOIndex[entity]].visible = mesh.visible;
+					CPhongMaterial* material = scene->registry.try_get<CPhongMaterial>(entity);
+					CTransform* transform = scene->registry.try_get<CTransform>(entity);
 
-				const auto mv =  scene->camera.GetViewMatrix() * transform.GetModelMatrix();
-				const auto mvp = scene->camera.GetProjectionMatrix() * mv;
-				program->SetUniform("to_screen_space", mvp);
-				program->SetUniform("to_view_space", mv);
-				program->SetUniform("normals_to_view_space",
-					glm::transpose(glm::inverse(glm::mat3(mv))));
-				program->SetUniform("material.ka", material.ambient);
-				program->SetUniform("material.kd", material.diffuse);
-				program->SetUniform("material.ks", material.specular);
-				program->SetUniform("material.shininess", material.shininess);
-				//bind GLSL program
-				program->Use();
-				program->vaos[entity2VAOIndex[entity]].Draw();
+					const glm::mat4 mv = scene->camera.GetViewMatrix() * (transform ?
+						transform->GetModelMatrix() : glm::mat4(1.0f));
+					const glm::mat4 mvp = scene->camera.GetProjectionMatrix() * mv;
+
+					program->SetUniform("material.ka", material ? material->ambient : glm::vec3(0.0f));
+					program->SetUniform("material.kd", material ? material->diffuse : glm::vec3(0.0f));
+					program->SetUniform("material.ks", material ? material->specular : glm::vec3(0.0f));
+					program->SetUniform("material.shininess", material ? material->shininess : 0.0f);
+
+					program->SetUniform("to_screen_space", mvp);
+					program->SetUniform("to_view_space", mv);
+					program->SetUniform("normals_to_view_space",
+						glm::transpose(glm::inverse(glm::mat3(mv))));
+
+					//bind GLSL program
+					program->Use();
+					program->vaos[entity2VAOIndex[entity]].Draw();
 			});
 	}
 
@@ -839,6 +846,7 @@ public:
 		scene->registry.view<CTriMesh>()
 			.each([&](const auto& entity, auto& mesh)
 			{
+				program->vaos[entity2VAOIndex[entity]].visible = mesh.visible;
 				CPhongMaterial* material = scene->registry.try_get<CPhongMaterial>(entity);
 				CTransform* transform = scene->registry.try_get<CTransform>(entity);
 				
@@ -859,7 +867,7 @@ public:
 				program->SetUniform("has_texture[0]", 0);
 				program->SetUniform("has_texture[1]", 0);
 				program->SetUniform("has_texture[2]", 0);
-				CTextures2D* textures = scene->registry.try_get<CTextures2D>(entity);
+				/*CTextures2D* textures = scene->registry.try_get<CTextures2D>(entity); TODO
 				if (textures)
 				{
 					textures->Bind(0);
@@ -868,7 +876,7 @@ public:
 					program->SetUniform("diffuse_tex", textures->GetTextureUnitNum(1));
 					textures->Bind(2);
 					program->SetUniform("specular_tex", textures->GetTextureUnitNum(2));
-				}
+				}*/
 				program->SetUniform("shading_mode", ((int)mesh.GetShadingMode()));
 				
 				//bind GLSL program

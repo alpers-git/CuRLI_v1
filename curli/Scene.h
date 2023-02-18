@@ -488,7 +488,7 @@ public:
 	}
 
 	
-	
+	bool visible = true;
 private:
 	std::vector<glm::vec3> vertices;
 	std::vector<glm::vec3> vertexNormals;
@@ -498,7 +498,7 @@ private:
 	glm::vec3 bBoxMin = glm::vec3(FLT_MAX);
 	glm::vec3 bBoxMax = glm::vec3(-FLT_MAX);
 	bool bBoxInitialized = false;
-	ShadingMode shading = ShadingMode::PHONG; //0 = phong-color, 1 = phong-texture, 2 = editor mode 
+	ShadingMode shading = ShadingMode::PHONG; //0 = phong-color, 1 = phong-texture, 2 = editor mode
 };
 
 enum class LightType
@@ -708,7 +708,7 @@ private:
 
 	GLenum textUnit = GL_TEXTURE0;
 };
-struct CTextures2D : Component
+struct CTextures2D : Component// TODO: Move to OpenGLProgram.h, instead have a component that list texture data and what uniform it binds to...
 {
 public:
 	static constexpr CType type = CType::Texture;

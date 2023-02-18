@@ -442,35 +442,37 @@ entt::entity Scene::CreateModelObject(const std::string& meshPath, glm::vec3 pos
 	name = name.substr(0, name.find_last_of("."));
 	auto entity = CreateSceneObject(name);
 	
-	auto mesh = registry.emplace<CTriMesh>(entity, meshPath);
+	cy::TriMesh tmpMesh;
+	tmpMesh.LoadFromFileObj(meshPath.c_str());
+	auto mesh = registry.emplace<CTriMesh>(entity, tmpMesh);
 	auto& transform = registry.emplace<CTransform>(entity, position, rotation, scale);
+	transform.SetPivot(mesh.GetBoundingBoxCenter());
 	auto& material = registry.emplace<CPhongMaterial>(entity);
 	
-	transform.SetPivot(mesh.GetBoundingBoxCenter());
 	
-	//if (mesh.GetNumMaterials() > 0)
-	//{
-	//	material.ambient = mesh.GetMatAmbientColor(0);
-	//	material.diffuse = mesh.GetMatDiffuseColor(0);
-	//	material.specular = mesh.GetMatSpecularColor(0);
-	//	
-	//	std::string path = meshPath.substr(0, meshPath.find_last_of("/\\") + 1);
-	//	
-	//	/*if (!mesh.GetMatAmbientTexture(0).empty())
-	//		registry.emplace<CTexture2D>(entity, path + mesh.GetMatAmbientTexture(0));*/
-	//	if (!mesh.GetMatDiffuseTexture(0).empty() || !mesh.GetMatSpecularTexture(0).empty())
-	//	{
-	//		auto& textures = registry.emplace<CTextures2D>(entity);
+	if (tmpMesh.NM() > 0)
+	{
+		material.ambient = glm::make_vec3(tmpMesh.M(0).Ka);
+		material.diffuse = glm::make_vec3(tmpMesh.M(0).Kd);
+		material.specular = glm::make_vec3(tmpMesh.M(0).Ks);
+		
+		std::string path = meshPath.substr(0, meshPath.find_last_of("/\\") + 1);
+		
+		/*if (!mesh.GetMatAmbientTexture(0).empty())
+			registry.emplace<CTexture2D>(entity, path + mesh.GetMatAmbientTexture(0));*/
+		if (tmpMesh.M(0).map_Kd != NULL || tmpMesh.M(0).map_Ks != NULL)
+		{
+			auto& textures = registry.emplace<CTextures2D>(entity);
 
-	//		if (!mesh.GetMatDiffuseTexture(0).empty())
-	//			textures.AddTexture(path + mesh.GetMatDiffuseTexture(0), GL_TEXTURE0);
-	//		
-	//		if (!mesh.GetMatSpecularTexture(0).empty())
-	//			textures.AddTexture(path + mesh.GetMatSpecularTexture(0), GL_TEXTURE0 + 1);
-	//		
-	//	}
-	//		
-	//}
+			if (tmpMesh.M(0).map_Kd != NULL)
+				textures.AddTexture(path + std::string(tmpMesh.M(0).map_Kd), GL_TEXTURE0);
+			
+			if (tmpMesh.M(0).map_Ks != NULL)
+				textures.AddTexture(path + std::string(tmpMesh.M(0).map_Ks), GL_TEXTURE0 + 1);
+			
+		}
+			
+	}
 	
 
 	return entity;

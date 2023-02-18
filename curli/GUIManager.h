@@ -452,6 +452,7 @@ namespace gui
 									event.geometryChange.e = e;
 									GLFWHandler::GetInstance().QueueEvent(event);
 								}
+								ImGui::Checkbox("Visible", &(m.visible));
 								ImGui::Text("# Vertices:");
 								ImGui::SameLine();
 								ImGui::TextColored(ImColor(0.6f,0.7f,0.8f), "%d", m.GetNumVertices());
