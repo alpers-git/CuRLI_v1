@@ -324,7 +324,7 @@ public:
 	Texture2D(void* data, glm::uvec2 dims, GLenum textUnit, GLenum wrapS = GL_REPEAT,
 		GLenum wrapT = GL_REPEAT, GLenum dataType = GL_UNSIGNED_BYTE,
 		GLenum format = GL_RGBA, int mipmapLevel = -1)
-		:/*textUnit(textUnit),*/ dataType(dataType), format(format),
+		:textUnit(textUnit), dataType(dataType), format(format),
 		mipmapLevel(mipmapLevel), wrapS(wrapS), wrapT(wrapT)
 	{
 		GL_CALL(glGenTextures(1, &glID));
@@ -364,7 +364,7 @@ public:
 		GL_CALL(glDeleteTextures(1, &glID));
 	}
 
-	void Bind(GLenum textUnit)
+	void Bind()
 	{
 		GL_CALL(glActiveTexture(textUnit));
 		GL_CALL(glBindTexture(GL_TEXTURE_2D, glID));
@@ -392,7 +392,7 @@ private:
 	GLenum dataType = GL_UNSIGNED_BYTE;
 	GLenum internalFormat = GL_RGBA;
 
-	//GLenum textUnit = GL_TEXTURE0;
+	GLenum textUnit = GL_TEXTURE0;
 };
 
 class OpenGLProgram

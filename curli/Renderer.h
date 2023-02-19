@@ -269,6 +269,11 @@ protected:
 		
 		//create an array of 5 ints to store the texture ids
 		vec5 textureIDs;
+		textureIDs.v[0] = -1;
+		textureIDs.v[1] = -1;
+		textureIDs.v[2] = -1;
+		textureIDs.v[3] = -1;
+		textureIDs.v[4] = -1;
 		//iterate over all the image maps create texture objects for them
 		for (auto it = imgMaps->mapsBegin(); it != imgMaps->mapsEnd(); ++it)
 		{
@@ -277,6 +282,8 @@ protected:
 			//add the texture to the program
 			program->textures.push_back(texture);//Redundant
 			textureIDs.v[(int)it->second.GetBindingSlot()] = program->textures.size() - 1;
+			
+			it->second.glID = texture.GetGLID();
 		}
 		//add the texture ids to the entity2TextureIndex map
 		entity2TextureIndices[e] = textureIDs;
@@ -829,6 +836,12 @@ public:
 				{
 					OnGeometryChange(entity);
 				});
+		
+		scene->registry.view<CImageMaps>()
+			.each([&](const auto entity, auto& maps)
+				{
+					OnTextureChange(entity);
+				});
 
 		//Init camera
 		int windowWidth, windowHeight;
@@ -866,6 +879,8 @@ public:
 
 	void Update()
 	{	
+		//bind GLSL program
+		program->Use();
 		scene->registry.view<CTriMesh>()
 			.each([&](const auto& entity, auto& mesh)
 			{
@@ -887,9 +902,6 @@ public:
 				program->SetUniform("normals_to_view_space",
 					glm::transpose(glm::inverse(glm::mat3(mv))));
 				
-				/*program->SetUniform("has_texture[0]", 0);
-				program->SetUniform("has_texture[1]", 0);
-				program->SetUniform("has_texture[2]", 0);*/
 				CImageMaps* imgMaps = scene->registry.try_get<CImageMaps>(entity);
 				if (imgMaps)
 				{
@@ -898,19 +910,24 @@ public:
 					{
 						int texIndex = entity2TextureIndices[entity].v[(int)it->first];
 						//bind texture
-						program->textures[texIndex].Bind(GL_TEXTURE0 + (int)it->first);
-						//set uniform
-						const std::string uniformName = std::string("has_texture[") + std::to_string(((int)it->first)) + std::string("]");
-						program->SetUniform(uniformName.c_str(), 1);
-						const std::string uniformName2 = std::string("textures[") + std::to_string(((int)it->first)) + std::string("]");
-						program->SetUniform(uniformName2.c_str(), GL_TEXTURE0 + (int)it->first);
-						
+						if (texIndex >= 0)
+						{
+							program->textures[texIndex].Bind();
+							//set uniform
+							const std::string uniformName = std::string("has_texture[") + std::to_string(((int)it->first)) + std::string("]");
+							program->SetUniform(uniformName.c_str(), 1);
+							const std::string uniformName2 = std::string("tex_list[") + std::to_string(((int)it->first)) + std::string("]");
+							program->SetUniform(uniformName2.c_str(), ((int)it->first));
+						}
+						else
+						{
+							const std::string uniformName = std::string("has_texture[") + std::to_string(((int)it->first)) + std::string("]");
+							program->SetUniform(uniformName.c_str(), 0);
+						}
 					}
 				}
 				program->SetUniform("shading_mode", ((int)mesh.GetShadingMode()));
 				
-				//bind GLSL program
-				program->Use();
 				program->vaos[entity2VAOIndex[entity]].Draw();
 			});
 	}

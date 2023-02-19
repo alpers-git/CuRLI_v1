@@ -621,7 +621,10 @@ public:
 			printf("Texture constructor\n\tlodepng:load error %d - %s\n", error, lodepng_error_text(error));
 			return;
 		}
-		error = lodepng::decode(image, (dims.x), (dims.y), png);
+		unsigned int w, h;
+		error = lodepng::decode(image, w, h, png);
+		dims.x = w;
+		dims.y = h;
 
 		//if there's an error, display it
 		if (error)

@@ -490,40 +490,68 @@ namespace gui
 				//Draw CTextures tab
 				scene->registry.view<CImageMaps>()
 					.each([&](auto e, auto& t)
-						{
-							if (e == selectedSceneObject && ImGui::BeginTabItem("Textures2D"))
+						{	
+							if (e == selectedSceneObject && ImGui::BeginTabItem("Image Maps"))
 							{
-								if (ImGui::Button("Load Texture"))//TODO does not WORK
+								static ImageMap::BindingSlot textureBinding;
+								static const char* current_item = NULL;
+								if (ImGui::Button("Load Image as") && current_item !=NULL)
 								{
 									std::string path;
 									if (openFilePicker(path))
 									{
 										//Get extension
 										std::string extension = path.substr(path.find_last_of(".") + 1);
-										printf("Extension: %s\n", extension.c_str());
 										//Check if extension is supported
 										if (extension == "png" || extension == "jpg" || extension == "jpeg" || extension == "bmp")
 										{
-											t.AddImageMap(ImageMap::BindingSlot::T_DIFFUSE, path); //TODO:: add selector
+											t.AddImageMap(textureBinding, path); 
 										}
 										else
 										{
-											std::cout << "ERROR::TEXTURE::UNSUPPORTED_EXTENSION::" << extension << std::endl;
+											std::cout << "extension not supported:" << extension << std::endl;
 										}
 									}
 								}
+								ImGui::SameLine();
+								//Texturebinding picker combo box
+								const char* items[] = {
+									"Ambient", "Diffuse", "Specular", "Normal Map", "Bump Map" };
+								if (ImGui::BeginCombo("##combo", current_item))
+								{
+									for (int n = 0; n < IM_ARRAYSIZE(items); n++)
+									{
+										bool is_selected = (current_item == items[n]);
+										if (ImGui::Selectable(items[n], is_selected))
+										{
+											current_item = items[n];
+											textureBinding = (ImageMap::BindingSlot)n;
+										}
+										if (is_selected)
+											ImGui::SetItemDefaultFocus();
+									}
+									ImGui::EndCombo();
+								}
+								
 								ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 								int j = 0;
 								for (auto it = t.mapsBegin(); it != t.mapsEnd(); it++)
 								{
 									//get viewport size
+									ImGui::PushID(j);
 									ImGui::BeginGroup();
-									ImGui::Text("At TextureUnit", it->second.GetSlotName());
-									//ImGui::Image((void*)&it->second.GetImage()[0], 
-									//	ImVec2(viewportPanelSize.x / 2, viewportPanelSize.x / 2));
+									ImGui::Text("As %s", it->second.GetSlotName().c_str());
+									ImGui::Image((void*)(intptr_t)it->second.glID,
+										ImVec2(viewportPanelSize.x / 2, viewportPanelSize.x / 2));
 									if (ImGui::Button("Remove"))
+									{
 										t.RemoveMap(it->second.GetBindingSlot());
+										ImGui::EndGroup();
+										ImGui::PopID();
+										break;
+									}
 									ImGui::EndGroup();
+									ImGui::PopID();
 									if (j % 2 == 0)
 										ImGui::SameLine();
 									j++;
