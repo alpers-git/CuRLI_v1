@@ -55,7 +55,7 @@ void CTransform::Update()
 void CTriMesh::InitializeFrom(cy::TriMesh& mesh)
 {
 	shading = ShadingMode::PHONG;
-	this->vertices.resize(mesh.NV());
+	/*this->vertices.resize(mesh.NV());
 	for (size_t i = 0; i < mesh.NV(); i++)
 	{
 		this->vertices[i] = glm::vec3(mesh.V(i).x, mesh.V(i).y, mesh.V(i).z);
@@ -65,11 +65,6 @@ void CTriMesh::InitializeFrom(cy::TriMesh& mesh)
 	{
 		this->vertexNormals[i] = glm::vec3(mesh.VN(i).x, mesh.VN(i).y, mesh.VN(i).z);
 	}
-	/*this->textureCoords.resize(mesh.NVT());
-	for (size_t i = 0; i < mesh.NVT(); i++)
-	{
-		this->textureCoords[i] = glm::vec2(mesh.VT(i).x, mesh.VT(i).y);
-	}*/
 	this->faces.resize(mesh.NF());
 	for (size_t i = 0; i < mesh.NF(); i++)
 	{
@@ -84,67 +79,72 @@ void CTriMesh::InitializeFrom(cy::TriMesh& mesh)
 		{
 			this->textureCoords[face.v[j]] = glm::vec2(mesh.VT(tFace.v[j]).x, mesh.VT(tFace.v[j]).y);
 		}
-	}
+	}*/
 	
-	//unsigned int minAttribCount = glm::min(mesh.NV(), glm::min(mesh.NVN(), mesh.NVT()));
-	//this->vertices.resize(minAttribCount);
-	//std::fill(this->vertices.begin(), this->vertices.end(), glm::vec3(NAN));
-	//this->vertexNormals.resize(minAttribCount);
-	//std::fill(this->vertexNormals.begin(), this->vertexNormals.end(), glm::vec3(NAN));
-	//this->textureCoords.resize(minAttribCount);
-	//std::fill(this->textureCoords.begin(), this->textureCoords.end(), glm::vec2(NAN));
-	//this->faces.resize(mesh.NF());
-	//for (size_t i = 0; i < mesh.NF(); i++)
-	//{
-	//	bool pushNewFace = false;
-	//	for (size_t j = 0; j < 3; j++)
-	//	{
-	//		pushNewFace =  pushNewFace ||
-	//		    !(glm::all(glm::isnan(this->vertices[mesh.F(i).v[j]])) &&
-	//			glm::all(glm::isnan(this->vertexNormals[mesh.FN(i).v[j]])) &&
-	//			glm::all(glm::isnan(this->textureCoords[mesh.FT(i).v[j]])));
-	//	}
-	//	glm::ivec3 face = glm::ivec3(mesh.F(i).v[0], mesh.F(i).v[1], mesh.F(i).v[2]);
-	//	glm::ivec3 tface = glm::ivec3(mesh.FT(i).v[0], mesh.FT(i).v[1], mesh.FT(i).v[2]);
-	//	glm::ivec3 nface = glm::ivec3(mesh.FN(i).v[0], mesh.FN(i).v[1], mesh.FN(i).v[2]);
-	//	if (!pushNewFace)//all of the vertex attribues of these faces are NaN... then we push them as is
-	//	{
-	//		this->faces[i] = face;
-	//	
-	//		for (size_t j = 0; j < 3; j++)
-	//		{
-	//			glm::vec3 vertex = glm::cy2GLM(mesh.V(face[j]));
-	//			this->vertices[face[j]] = vertex;
-	//			assert(mesh.NVN() > nface[j]);
-	//			glm::vec3 normal = glm::cy2GLM(mesh.VN(nface[j]));
-	//			this->vertexNormals[face[j]] = normal;
-	//			assert(mesh.NVT() > tface[j]);
-	//			{
-	//				glm::vec2 texCoord = glm::cy2GLM(mesh.VT(tface[j]));
-	//				this->textureCoords[face[j]] = texCoord;
-	//			}
-	//		}
-	//	}
-	//	else //since at least one vertex attribute was not NaN 
-	//	{	//we need to create a new face and duplicate non unique attributes
-	//		this->faces[i] = face;
-	//		for (size_t j = 0; j < 3; j++)
-	//		{
-	//			glm::vec3 vertex = glm::cy2GLM(mesh.V(mesh.F(i).v[j]));
-	//			this->vertices.push_back(vertex);
-	//			assert(mesh.NVN() > nface[j]);
-	//			{
-	//				glm::vec3 normal = glm::cy2GLM(mesh.VN(nface[j]));
-	//				this->vertexNormals.push_back(normal);
-	//			}
-	//			assert (mesh.NVT() > tface[j]);
-	//			{
-	//				glm::vec2 texCoord = glm::cy2GLM(mesh.VT(tface[j]));
-	//				this->textureCoords.push_back(texCoord);
-	//			}
-	//		}
-	//	}
-	//}
+	unsigned int minAttribCount = glm::min(mesh.NV(), glm::min(mesh.NVN(), mesh.NVT()));
+	this->vertices.resize(minAttribCount);
+	std::fill(this->vertices.begin(), this->vertices.end(), glm::vec3(NAN));
+	this->vertexNormals.resize(minAttribCount);
+	std::fill(this->vertexNormals.begin(), this->vertexNormals.end(), glm::vec3(NAN));
+	this->textureCoords.resize(minAttribCount);
+	std::fill(this->textureCoords.begin(), this->textureCoords.end(), glm::vec2(NAN));
+	this->faces.resize(mesh.NF());
+	for (size_t i = 0; i < mesh.NF(); i++)
+	{
+		const bool repeatedVerts = !glm::all(glm::isnan(this->vertices[mesh.F(i).v[0]])) &&
+			!glm::all(glm::isnan(this->vertices[mesh.F(i).v[1]])) &&
+			!glm::all(glm::isnan(this->vertices[mesh.F(i).v[2]]));
+		const bool repeatedNormals = !glm::all(glm::isnan(this->vertexNormals[mesh.FN(i).v[0]])) &&
+			!glm::all(glm::isnan(this->vertexNormals[mesh.FN(i).v[1]])) &&
+			!glm::all(glm::isnan(this->vertexNormals[mesh.FN(i).v[2]]));
+		const bool repeatedTxCoords = !glm::all(glm::isnan(this->textureCoords[mesh.FT(i).v[0]])) &&
+			!glm::all(glm::isnan(this->textureCoords[mesh.FT(i).v[1]])) &&
+			!glm::all(glm::isnan(this->textureCoords[mesh.FT(i).v[2]]));
+		bool pushNewFace = repeatedVerts || repeatedNormals || repeatedTxCoords;
+			
+		glm::ivec3 face = glm::ivec3(mesh.F(i).v[0], mesh.F(i).v[1], mesh.F(i).v[2]);
+		glm::ivec3 tface = glm::ivec3(mesh.FT(i).v[0], mesh.FT(i).v[1], mesh.FT(i).v[2]);
+		glm::ivec3 nface = glm::ivec3(mesh.FN(i).v[0], mesh.FN(i).v[1], mesh.FN(i).v[2]);
+		if (!pushNewFace)//all of the vertex attribues of these faces are NaN... then we push them as is
+		{
+			this->faces[i] = face;
+		
+			for (size_t j = 0; j < 3; j++)
+			{
+				glm::vec3 vertex = glm::cy2GLM(mesh.V(face[j]));
+				this->vertices[face[j]] = vertex;
+				assert(mesh.NVN() > nface[j]);
+				glm::vec3 normal = glm::cy2GLM(mesh.VN(nface[j]));
+				this->vertexNormals[face[j]] = normal;
+				assert(mesh.NVT() > tface[j]);
+				{
+					glm::vec2 texCoord = glm::cy2GLM(mesh.VT(tface[j]));
+					this->textureCoords[face[j]] = texCoord;
+				}
+			}
+		}
+		else //since at least one vertex attribute was not NaN 
+		{	//we need to create a new face and duplicate non unique attributes
+			this->faces.push_back(glm::uvec3(this->vertices.size(), 
+				this->vertices.size()+1, 
+				this->vertices.size()+2));
+			for (size_t j = 0; j < 3; j++)
+			{
+				glm::vec3 vertex = glm::cy2GLM(mesh.V(mesh.F(i).v[j]));
+				this->vertices.push_back(vertex);
+				assert(mesh.NVN() > nface[j]);
+				{
+					glm::vec3 normal = glm::cy2GLM(mesh.VN(nface[j]));
+					this->vertexNormals.push_back(normal);
+				}
+				assert (mesh.NVT() > tface[j]);
+				{
+					glm::vec2 texCoord = glm::cy2GLM(mesh.VT(tface[j]));
+					this->textureCoords.push_back(texCoord);
+				}
+			}
+		}
+	}
 }
 
 void CTriMesh::Update()
