@@ -243,7 +243,7 @@ void CPhongMaterial::Update()
 {
 }
 
-void CTextures2D::Update()
+void CImageMaps::Update()
 {
 }
 
@@ -336,6 +336,16 @@ void Scene::Update()
 	registry.view<CBoundingBox>().each([&](const entt::entity& entity, CBoundingBox& bb) 
 		{
 			bb.dirty = false;
+		});
+
+	registry.view<CImageMaps>().each([&](const entt::entity& entity, CImageMaps& maps)
+		{
+			Event e;
+			e.type = Event::Type::TextureChange;
+			e.textureChange.e = entity;
+			
+			GLFWHandler::GetInstance().QueueEvent(e);
+			maps.dirty = false;
 		});
 	
 }
@@ -462,13 +472,13 @@ entt::entity Scene::CreateModelObject(const std::string& meshPath, glm::vec3 pos
 			registry.emplace<CTexture2D>(entity, path + mesh.GetMatAmbientTexture(0));*/
 		if (tmpMesh.M(0).map_Kd != NULL || tmpMesh.M(0).map_Ks != NULL)
 		{
-			auto& textures = registry.emplace<CTextures2D>(entity);
+			/*auto& textures = registry.emplace<CTextures2D>(entity);
 
 			if (tmpMesh.M(0).map_Kd != NULL)
 				textures.AddTexture(path + std::string(tmpMesh.M(0).map_Kd), GL_TEXTURE0);
 			
 			if (tmpMesh.M(0).map_Ks != NULL)
-				textures.AddTexture(path + std::string(tmpMesh.M(0).map_Ks), GL_TEXTURE0 + 1);
+				textures.AddTexture(path + std::string(tmpMesh.M(0).map_Ks), GL_TEXTURE0 + 1);*/
 			
 		}
 			
@@ -506,5 +516,46 @@ void CBoundingBox::Rebound(CRigidBody& rigidBody)
 		rigidBody.position += reboundNormal * 0.01f;
 		rigidBody.velocity = glm::reflect(rigidBody.velocity, reboundNormal);
 		rigidBody.acceleration = glm::reflect(rigidBody.acceleration, reboundNormal);
+	}
+}
+
+void CImageMaps::AddImageMap(ImageMap::BindingSlot slot, std::string path)
+{
+	imgMaps.insert({ slot, ImageMap(path, slot) });
+	
+	//TODO::Schedule texture synch with renderer
+	dirty = true;
+}
+
+void CImageMaps::RemoveMap(ImageMap::BindingSlot slot)
+{
+	imgMaps.erase(slot);
+	
+	//TODO::Schedule texture synch with renderer
+	dirty = false;
+}
+
+std::string ImageMap::GetSlotName()
+{
+	switch (bindingSlot)
+	{
+	case ImageMap::BindingSlot::T_AMBIENT:
+		return "Ambient texture";
+		break;
+	case ImageMap::BindingSlot::T_DIFFUSE:
+		return "Diffuse texture";
+		break;
+	case ImageMap::BindingSlot::T_SPECULAR:
+		return "Specular texture";
+		break;
+	case ImageMap::BindingSlot::NORMAL:
+		return "NormalMap";
+		break;
+	case ImageMap::BindingSlot::BUMP:
+		return "BumpMap";
+		break;
+	default:
+		return "";
+		break;
 	}
 }

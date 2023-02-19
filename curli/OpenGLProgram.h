@@ -318,10 +318,88 @@ private:
 	GLenum drawMode = GL_TRIANGLES;
 };
 
+struct Texture2D
+{
+public:
+	Texture2D(void* data, glm::uvec2 dims, GLenum textUnit, GLenum wrapS = GL_REPEAT,
+		GLenum wrapT = GL_REPEAT, GLenum dataType = GL_UNSIGNED_BYTE,
+		GLenum format = GL_RGBA, int mipmapLevel = -1)
+		:/*textUnit(textUnit),*/ dataType(dataType), format(format),
+		mipmapLevel(mipmapLevel), wrapS(wrapS), wrapT(wrapT)
+	{
+		GL_CALL(glGenTextures(1, &glID));
+		GL_CALL(glBindTexture(GL_TEXTURE_2D, glID));
+
+		GL_CALL(glTexImage2D(
+			GL_TEXTURE_2D,
+			mipmapLevel >= 0 ? mipmapLevel : 0,
+			internalFormat,
+			dims.x,
+			dims.y,
+			0,
+			format,
+			dataType,
+			data));
+
+		if (mipmapLevel >= 0)
+			GL_CALL(glGenerateMipmap(GL_TEXTURE_2D));
+
+		GL_CALL(glTexParameteri(
+			GL_TEXTURE_2D,
+			GL_TEXTURE_MIN_FILTER,
+			mipmapLevel >= 0 ? GL_NEAREST_MIPMAP_LINEAR : GL_LINEAR));
+
+		GL_CALL(glTexParameteri(
+			GL_TEXTURE_2D,
+			GL_TEXTURE_MAG_FILTER,
+			mipmapLevel >= 0 ? GL_NEAREST_MIPMAP_LINEAR : GL_LINEAR));
+
+		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapS));
+		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT));
+	}
+	GLuint GetGLID() { return glID; }
+
+	void Delete()
+	{
+		GL_CALL(glDeleteTextures(1, &glID));
+	}
+
+	void Bind(GLenum textUnit)
+	{
+		GL_CALL(glActiveTexture(textUnit));
+		GL_CALL(glBindTexture(GL_TEXTURE_2D, glID));
+	}
+
+	void Unbind()
+	{
+		GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
+	}
+
+	/*int GetTextureUnitNum()
+	{
+		return textUnit - GL_TEXTURE0;
+	}
+	GLenum GetTextureUnit()
+	{
+		return textUnit;
+	}*/
+
+private:
+	GLuint glID;
+	GLenum wrapS, wrapT;
+	GLenum format = GL_RGBA;
+	int mipmapLevel = 0;
+	GLenum dataType = GL_UNSIGNED_BYTE;
+	GLenum internalFormat = GL_RGBA;
+
+	//GLenum textUnit = GL_TEXTURE0;
+};
+
 class OpenGLProgram
 {
 public:
 	std::vector<VertexArrayObject> vaos;
+	std::vector<Texture2D> textures;
 	
 	OpenGLProgram()
 	{

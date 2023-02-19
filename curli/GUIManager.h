@@ -488,7 +488,7 @@ namespace gui
 						});
 				
 				//Draw CTextures tab
-				scene->registry.view<CTextures2D>()
+				scene->registry.view<CImageMaps>()
 					.each([&](auto e, auto& t)
 						{
 							if (e == selectedSceneObject && ImGui::BeginTabItem("Textures2D"))
@@ -504,7 +504,7 @@ namespace gui
 										//Check if extension is supported
 										if (extension == "png" || extension == "jpg" || extension == "jpeg" || extension == "bmp")
 										{
-											t.AddTexture(path, t.GetNumTextures());
+											t.AddImageMap(ImageMap::BindingSlot::T_DIFFUSE, path); //TODO:: add selector
 										}
 										else
 										{
@@ -513,17 +513,20 @@ namespace gui
 									}
 								}
 								ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
-								for (int j = 0; j < t.GetNumTextures(); j++)
+								int j = 0;
+								for (auto it = t.mapsBegin(); it != t.mapsEnd(); it++)
 								{
 									//get viewport size
 									ImGui::BeginGroup();
-									ImGui::Text("At TextureUnit %d", t.GetTextureUnitNum(j));
-									ImGui::Image((void*)(intptr_t)t.GetGLID(j), ImVec2(viewportPanelSize.x/2, viewportPanelSize.x / 2));
+									ImGui::Text("At TextureUnit", it->second.GetSlotName());
+									//ImGui::Image((void*)&it->second.GetImage()[0], 
+									//	ImVec2(viewportPanelSize.x / 2, viewportPanelSize.x / 2));
 									if (ImGui::Button("Remove"))
-										t.DeleteTexture(j);
+										t.RemoveMap(it->second.GetBindingSlot());
 									ImGui::EndGroup();
 									if (j % 2 == 0)
 										ImGui::SameLine();
+									j++;
 								}
 								ImGui::EndTabItem();
 							}

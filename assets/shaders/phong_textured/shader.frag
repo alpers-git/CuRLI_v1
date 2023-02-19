@@ -26,9 +26,7 @@ uniform struct Material {
 uniform int shading_mode;//0 = phong-color, 1 = editor mode
 uniform int has_texture[3] = {0,0,0};//[0] = diffuse, [1] = specular, [2] = normal
 
-uniform sampler2D ambient_tex;
-uniform sampler2D diffuse_tex;
-uniform sampler2D specular_tex;
+uniform sampler2D textures[3];//[0] = diffuse, [1] = specular, [2] = normal TODO
 
 out vec4 color;
 
@@ -45,15 +43,15 @@ void main() {
                float cos_theta = dot(l, v_space_norm);
                if(cos_theta >= 0)
                {
-                    vec3 diffuse =  (has_texture[1]==1 ? (texture(diffuse_tex, tex_coord)).xyz :
+                    vec3 diffuse =  (has_texture[1]==1 ? (texture(textures[1], tex_coord)).xyz :
                                                        material.kd) * max(cos_theta,0);
-                    vec3 specular= (has_texture[2]==1 ? (texture(specular_tex, tex_coord)).xyz :
+                    vec3 specular= (has_texture[2]==1 ? (texture(textures[2], tex_coord)).xyz :
                                                        material.ks) * pow(max(dot(h, v_space_norm),0), material.shininess);
                     color += vec4(light[i].intensity * normalize(light[i].color) * (specular + diffuse), 1);
                }
           }
 
-          color = clamp(color + vec4( (has_texture[0]==1 ? (texture(ambient_tex, tex_coord)).xyz :
+          color = clamp(color + vec4( (has_texture[0]==1 ? (texture(textures[0], tex_coord)).xyz :
                                                              material.ka), 1),0,1);
      }
      else if(shading_mode == 1)

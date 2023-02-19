@@ -68,7 +68,13 @@ protected:
 	//unsigned int VBO, VAO, EBO;
 	std::unique_ptr<OpenGLProgram> program;
 	std::shared_ptr<Scene> scene;
+
+	struct vec5
+	{
+		int v[5] = { -1,-1,-1,-1,-1 };
+	};
 	std::unordered_map<entt::entity, unsigned int> entity2VAOIndex;
+	std::unordered_map<entt::entity,vec5> entity2TextureIndices;
 
 	/*
 	* Parses arguments called when application starts
@@ -250,13 +256,30 @@ protected:
 	/*
 	* Handles texture updates
 	*/
-	void OnTextureChange()
+	void OnTextureChange(entt::entity e)
 	{
-		scene->registry.view<CTextures2D>()
-			.each([&](const auto entity, auto& texture)
-				{
-					texture.CreateTextures();
-				});
+		if (entity2TextureIndices.find(e) != entity2TextureIndices.end())
+		{
+			for (int i = 0; i < 5; ++i)
+				if (entity2TextureIndices[e].v[i] != -1)
+					program->textures[entity2TextureIndices[e].v[i]].Delete();
+			entity2TextureIndices.erase(e);
+		}
+		auto* imgMaps = scene->registry.try_get<CImageMaps>(e);
+		
+		//create an array of 5 ints to store the texture ids
+		vec5 textureIDs;
+		//iterate over all the image maps create texture objects for them
+		for (auto it = imgMaps->mapsBegin(); it != imgMaps->mapsEnd(); ++it)
+		{
+			Texture2D texture ((void*)&it->second.GetImage()[0], it->second.GetDims(),
+				GL_TEXTURE0 + (int)it->second.GetBindingSlot());
+			//add the texture to the program
+			program->textures.push_back(texture);//Redundant
+			textureIDs.v[(int)it->second.GetBindingSlot()] = program->textures.size() - 1;
+		}
+		//add the texture ids to the entity2TextureIndex map
+		entity2TextureIndices[e] = textureIDs;
 	}
 };
 
@@ -864,19 +887,26 @@ public:
 				program->SetUniform("normals_to_view_space",
 					glm::transpose(glm::inverse(glm::mat3(mv))));
 				
-				program->SetUniform("has_texture[0]", 0);
+				/*program->SetUniform("has_texture[0]", 0);
 				program->SetUniform("has_texture[1]", 0);
-				program->SetUniform("has_texture[2]", 0);
-				/*CTextures2D* textures = scene->registry.try_get<CTextures2D>(entity); TODO
-				if (textures)
+				program->SetUniform("has_texture[2]", 0);*/
+				CImageMaps* imgMaps = scene->registry.try_get<CImageMaps>(entity);
+				if (imgMaps)
 				{
-					textures->Bind(0);
-					program->SetUniform("ambient_tex", textures->GetTextureUnitNum(0));
-					textures->Bind(1);
-					program->SetUniform("diffuse_tex", textures->GetTextureUnitNum(1));
-					textures->Bind(2);
-					program->SetUniform("specular_tex", textures->GetTextureUnitNum(2));
-				}*/
+					//iterate over all imagemaps
+					for (auto it = imgMaps->mapsBegin(); it != imgMaps->mapsEnd(); ++it)
+					{
+						int texIndex = entity2TextureIndices[entity].v[(int)it->first];
+						//bind texture
+						program->textures[texIndex].Bind(GL_TEXTURE0 + (int)it->first);
+						//set uniform
+						const std::string uniformName = std::string("has_texture[") + std::to_string(((int)it->first)) + std::string("]");
+						program->SetUniform(uniformName.c_str(), 1);
+						const std::string uniformName2 = std::string("textures[") + std::to_string(((int)it->first)) + std::string("]");
+						program->SetUniform(uniformName2.c_str(), GL_TEXTURE0 + (int)it->first);
+						
+					}
+				}
 				program->SetUniform("shading_mode", ((int)mesh.GetShadingMode()));
 				
 				//bind GLSL program

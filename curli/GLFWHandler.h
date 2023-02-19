@@ -78,7 +78,8 @@ struct Event
 		} geometryChange;
 		struct
 		{
-			int index;//todo
+			entt::entity e;//todo
+			//ImageMap::BindingSlot slot;
 		} textureChange;
 	};
 };
@@ -180,7 +181,7 @@ public:
 				renderer.OnGeometryChange(eventQueue.front().geometryChange.e);
 				break;
 			case Event::Type::TextureChange:
-				renderer.OnTextureChange();//TODO
+				renderer.OnTextureChange(eventQueue.front().textureChange.e);//TODO
 				break;
 			/*case Event::Type::Drop:
 				renderer.OnDrop(eventQueue.front().drop.count, eventQueue.front().drop.paths);

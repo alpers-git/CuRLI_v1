@@ -211,7 +211,7 @@ private:
 
 enum class CType{
 	Transform, TriMesh, 
-	PhongMaterial, Texture,
+	PhongMaterial, ImageMap,
 	Light,
 	BoundingBox,VelocityField2D,
 	ForceField2D, RigidBody,
@@ -604,18 +604,16 @@ public:
 	void Update();
 };
 
-
-struct Texture2D
+struct ImageMap
 {
+	enum class BindingSlot{
+		T_AMBIENT, T_DIFFUSE, T_SPECULAR, NORMAL, BUMP
+	};
 public:
-	Texture2D(std::string path, GLenum textUnit, GLenum wrapS = GL_REPEAT,
-		GLenum wrapT = GL_REPEAT, GLenum dataType = GL_UNSIGNED_BYTE,
-		GLenum format = GL_RGBA, int mipmapLevel = -1)
-		:textUnit(textUnit), dataType(dataType), format(format),
-		mipmapLevel(mipmapLevel), wrapS(wrapS), wrapT(wrapT)
+	ImageMap(std::string path, BindingSlot slot)
+		:path(path), bindingSlot(slot)
 	{
 		std::vector<unsigned char> png;
-
 		//load and decode
 		unsigned error = lodepng::load_file(png, path);
 		if (error)
@@ -623,7 +621,7 @@ public:
 			printf("Texture constructor\n\tlodepng:load error %d - %s\n", error, lodepng_error_text(error));
 			return;
 		}
-		error = lodepng::decode(image, width, height, png);
+		error = lodepng::decode(image, (dims.x), (dims.y), png);
 
 		//if there's an error, display it
 		if (error)
@@ -632,179 +630,39 @@ public:
 			return;
 		}
 	}
-	GLuint GetGLID() { return glID; }
-	glm::ivec2 GetDimensions() { return glm::ivec2(width, height); }
+	//getters
+	std::string GetPath() { return path; }
+	std::vector<unsigned char> GetImage() { return image; }
+	glm::uvec2 GetDims() { return dims; }
+	BindingSlot GetBindingSlot() { return bindingSlot; }
+	std::string GetSlotName();
 
-	void CreateTexture()
-	{
-		GL_CALL(glGenTextures(1, &glID));
-		GL_CALL(glBindTexture(GL_TEXTURE_2D, glID));
-
-		GL_CALL(glTexImage2D(
-			GL_TEXTURE_2D,
-			mipmapLevel >= 0 ? mipmapLevel : 0,
-			internalFormat,
-			width,
-			height,
-			0,
-			format,
-			dataType,
-			&image[0]));
-
-		if (mipmapLevel >= 0)
-			GL_CALL(glGenerateMipmap(GL_TEXTURE_2D));
-
-		GL_CALL(glTexParameteri(
-			GL_TEXTURE_2D,
-			GL_TEXTURE_MIN_FILTER,
-			mipmapLevel >= 0 ? GL_NEAREST_MIPMAP_LINEAR : GL_LINEAR));
-
-		GL_CALL(glTexParameteri(
-			GL_TEXTURE_2D,
-			GL_TEXTURE_MAG_FILTER,
-			mipmapLevel >= 0 ? GL_NEAREST_MIPMAP_LINEAR : GL_LINEAR));
-
-		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapS));
-		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT));
-
-	}
-	
-	void Delete()
-	{
-		GL_CALL(glDeleteTextures(1, &glID));
-	}
-
-	void Bind()
-	{
-		GL_CALL(glActiveTexture(textUnit));
-		GL_CALL(glBindTexture(GL_TEXTURE_2D, glID));
-	}
-
-	void Unbind()
-	{
-		GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
-	}
-
-	int GetTextureUnitNum()
-	{
-		return textUnit - GL_TEXTURE0;
-	}
-	GLenum GetTextureUnit()
-	{
-		return textUnit;
-	}
-	
+	GLuint glID; //Maybe find a better way...
 private:
+	std::string path;
 	std::vector<unsigned char> image;
-
-	GLuint glID;
-	unsigned width, height;
-	glm::ivec2 size;
-	GLenum wrapS, wrapT;
-	GLenum format = GL_RGBA;
-	int mipmapLevel = 0;
-	GLenum dataType = GL_UNSIGNED_BYTE;
-	GLenum internalFormat = GL_RGBA;
-
-	GLenum textUnit = GL_TEXTURE0;
+	glm::uvec2 dims;
+	BindingSlot bindingSlot;
 };
-struct CTextures2D : Component// TODO: Move to OpenGLProgram.h, instead have a component that list texture data and what uniform it binds to...
+struct CImageMaps : Component// TODO: Move to OpenGLProgram.h, instead have a component that list texture data and what uniform it binds to...
 {
 public:
-	static constexpr CType type = CType::Texture;
+	static constexpr CType type = CType::ImageMap;
 	
-	CTextures2D()
+	CImageMaps()
 	{}
 	
+	void AddImageMap(ImageMap::BindingSlot slot, std::string path);
+	void RemoveMap(ImageMap::BindingSlot slot);
 	void Update();
-	void AddTexture(std::string path, GLenum textUnit, GLenum wrapS = GL_REPEAT,
-		GLenum wrapT = GL_REPEAT, GLenum dataType = GL_UNSIGNED_BYTE,
-		GLenum format = GL_RGBA, int mipmapLevel = -1)
-	{
-		textures.push_back(Texture2D(path, textUnit, wrapS, wrapT, dataType, format, mipmapLevel));
-	}
-	unsigned int GetNumTextures()
-	{
-		return textures.size();
-	}
-	GLuint GetGLID(unsigned int index)
-	{
-		if (index >= 0 && index < textures.size())
-			return textures[index].GetGLID();
-		else
-			printf("CTextures2D::GetGLID\n\tindex out of range\n");
-		return 0;
-	}
-	void CreateTextures()
-	{
-		for (auto& t : textures)
-			t.CreateTexture();
-	}
 
-	void DeleteTextures()
-	{
-		for (auto& t : textures)
-			t.Delete();
-	}
-	
-	void DeleteTexture(unsigned int index)
-	{
-		if (index >= 0 && index < textures.size())
-		{
-			textures[index].Delete();
-			textures.erase(textures.begin() + index);
-		}
-		else
-			printf("CTextures2D::DeleteTexture\n\tindex out of range\n");
-	}
-	
-	void Bind(unsigned int index)
-	{
-		if (index >= 0 && index < textures.size())
-			textures[index].Bind();
-		else
-			printf("CTextures2D::Bind\n\tindex out of range\n");
-	}
-	void Unbind(unsigned int index)
-	{
-		if (index >= 0 && index < textures.size())
-			textures[index].Unbind();
-		else
-			printf("CTextures2D::Unbind\n\tindex out of range\n");
-	}
-	glm::ivec2 GetDimensions(unsigned int index)
-	{
-		if (index >= 0 && index < textures.size())
-			return textures[index].GetDimensions();
-		else
-		{
-			printf("CTextures2D::GetDimensions\n\tindex out of range\n");
-			return glm::ivec2(0);
-		}
-	}
-	int GetTextureUnitNum(unsigned int index)
-	{
-		if (index >= 0 && index < textures.size())
-			return textures[index].GetTextureUnitNum();
-		else
-		{
-			printf("CTextures2D::GetTextureUnitNum\n\tindex out of range\n");
-			return -1;
-		}
-	}
-	GLenum GetTextureUnit(unsigned int index)
-	{
-		if (index >= 0 && index < textures.size())
-			return textures[index].GetTextureUnit();
-		else
-		{
-			printf("CTextures2D::GetTextureUnit\n\tindex out of range\n");
-			return -1;
-		}
-	}
-	
+	unsigned int inline GetNumMaps() { return imgMaps.size(); }
+	std::unordered_map<ImageMap::BindingSlot, ImageMap>::iterator mapsBegin() { return imgMaps.begin(); }
+	std::unordered_map<ImageMap::BindingSlot, ImageMap>::iterator mapsEnd() { return imgMaps.end(); }
+
+	bool dirty = false;
 private:
-	std::vector<Texture2D> textures;
+	std::unordered_map<ImageMap::BindingSlot,ImageMap> imgMaps;
 };
 
 enum class FieldPlane
