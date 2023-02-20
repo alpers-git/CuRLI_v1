@@ -79,6 +79,7 @@ struct Event
 		struct
 		{
 			entt::entity e;//todo
+			bool toBeRemoved;
 			//ImageMap::BindingSlot slot;
 		} textureChange;
 	};
@@ -181,7 +182,7 @@ public:
 				renderer.OnGeometryChange(eventQueue.front().geometryChange.e);
 				break;
 			case Event::Type::TextureChange:
-				renderer.OnTextureChange(eventQueue.front().textureChange.e);//TODO
+				renderer.OnTextureChange(eventQueue.front().textureChange.e, eventQueue.front().textureChange.toBeRemoved);
 				break;
 			/*case Event::Type::Drop:
 				renderer.OnDrop(eventQueue.front().drop.count, eventQueue.front().drop.paths);

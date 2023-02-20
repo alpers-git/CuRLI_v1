@@ -16,29 +16,30 @@ void scheduleSynchForBuffers(entt::registry& registry, entt::entity e)
 	
 }
 
-void scheduleSychForTextures(entt::registry& registry, entt::entity e)
+void scheduleSychForAddedTexture(entt::registry& registry, entt::entity e)
 {
-	//check if entity has a trimesh
-	//if (registry.any_of<CTriMesh>(e))
-	//{
-	//	auto& mesh = registry.get<CTriMesh>(e);
-	//	if (mesh.GetNumTextureVertices() != mesh.GetNumVertices())
-	//	{
-	//		//mesh.RemapVertices();
-	//		
-	//		registry.emplace_or_replace<CVertexArrayObject>(e);
-	//	}
-	//	
-	//	Event event;
-	//	event.type = Event::Type::TextureChange;
-	//	GLFWHandler::GetInstance().QueueEvent(event);
-	//}
+	Event event;
+	event.type = Event::Type::TextureChange;
+	event.textureChange.e = e;
+	event.textureChange.toBeRemoved = false;
+	GLFWHandler::GetInstance().QueueEvent(event);
+}
+
+void scheduleSychForRemovedTexture(entt::registry& registry, entt::entity e)
+{
+	Event event;
+	event.type = Event::Type::TextureChange;
+	event.textureChange.e = e;
+	event.textureChange.toBeRemoved = true;
+	GLFWHandler::GetInstance().QueueEvent(event);
 }
 
 Scene::Scene()
 {
 	registry.on_construct<CTriMesh>().connect<&scheduleSynchForBuffers>();
 	registry.on_update<CTriMesh>().connect<&scheduleSynchForBuffers>();
+
+	registry.on_destroy<CImageMaps>().connect<&scheduleSychForRemovedTexture>();
 	
 	/*registry.on_construct<CTextures2D>().connect<&scheduleSychForTextures>();
 	registry.on_update<CTextures2D>().connect<&scheduleSychForTextures>();*/
@@ -55,32 +56,6 @@ void CTransform::Update()
 void CTriMesh::InitializeFrom(cy::TriMesh& mesh)
 {
 	shading = ShadingMode::PHONG;
-	/*this->vertices.resize(mesh.NV());
-	for (size_t i = 0; i < mesh.NV(); i++)
-	{
-		this->vertices[i] = glm::vec3(mesh.V(i).x, mesh.V(i).y, mesh.V(i).z);
-	}
-	this->vertexNormals.resize(mesh.NVN());
-	for (size_t i = 0; i < mesh.NVN(); i++)
-	{
-		this->vertexNormals[i] = glm::vec3(mesh.VN(i).x, mesh.VN(i).y, mesh.VN(i).z);
-	}
-	this->faces.resize(mesh.NF());
-	for (size_t i = 0; i < mesh.NF(); i++)
-	{
-		this->faces[i] = glm::uvec3(mesh.F(i).v[0], mesh.F(i).v[1], mesh.F(i).v[2]);
-	}
-	this->textureCoords.resize(mesh.NV());
-	for (size_t i = 0; i < GetNumFaces(); i++)
-	{
-		auto tFace = mesh.FT(i);
-		auto face = mesh.F(i);
-		for (size_t j = 0; j < 3; j++)
-		{
-			this->textureCoords[face.v[j]] = glm::vec2(mesh.VT(tFace.v[j]).x, mesh.VT(tFace.v[j]).y);
-		}
-	}*/
-	
 	unsigned int minAttribCount = glm::min(mesh.NV(), glm::min(mesh.NVN(), mesh.NVT()));
 	this->vertices.resize(minAttribCount);
 	std::fill(this->vertices.begin(), this->vertices.end(), glm::vec3(NAN));
@@ -345,6 +320,7 @@ void Scene::Update()
 				Event e;
 				e.type = Event::Type::TextureChange;
 				e.textureChange.e = entity;
+				e.textureChange.toBeRemoved = false;
 			
 				GLFWHandler::GetInstance().QueueEvent(e);	
 			}

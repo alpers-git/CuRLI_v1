@@ -256,7 +256,7 @@ protected:
 	/*
 	* Handles texture updates
 	*/
-	void OnTextureChange(entt::entity e)
+	void OnTextureChange(entt::entity e, bool toBeRemoved)
 	{
 		if (entity2TextureIndices.find(e) != entity2TextureIndices.end())
 		{
@@ -265,6 +265,8 @@ protected:
 					program->textures[entity2TextureIndices[e].v[i]].Delete();
 			entity2TextureIndices.erase(e);
 		}
+		if (toBeRemoved)
+			return;
 		auto* imgMaps = scene->registry.try_get<CImageMaps>(e);
 		
 		//create an array of 5 ints to store the texture ids
@@ -840,7 +842,7 @@ public:
 		scene->registry.view<CImageMaps>()
 			.each([&](const auto entity, auto& maps)
 				{
-					OnTextureChange(entity);
+					OnTextureChange(entity, false);
 				});
 
 		//Init camera

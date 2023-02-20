@@ -164,7 +164,7 @@ namespace gui
 			{
 				const char* components[] = {
 						"Transform", "TriMesh",
-						"PhongMaterial", "Texture", "Light", "BoundingBox",
+						"PhongMaterial", "Image Map", "Light", "BoundingBox",
 						"VelocityField2D", "ForceField2D",
 						"RigidBody" };
 				if (ImGui::BeginListBox("Add Component", 
@@ -184,6 +184,9 @@ namespace gui
 								break;
 							case CType::PhongMaterial:
 								scene->registry.emplace_or_replace<CPhongMaterial>(selectedSceneObject);
+								break;
+							case CType::ImageMap:
+								scene->registry.emplace_or_replace<CImageMaps>(selectedSceneObject);
 								break;
 							case CType::Light:
 								scene->registry.emplace_or_replace<CLight>(selectedSceneObject, LightType::POINT, 
@@ -241,6 +244,9 @@ namespace gui
 								break;
 							case CType::PhongMaterial:
 								scene->registry.erase<CPhongMaterial>(selectedSceneObject);
+								break;
+							case CType::ImageMap:
+								scene->registry.erase<CImageMaps>(selectedSceneObject);
 								break;
 							case CType::Light:
 								scene->registry.erase<CLight>(selectedSceneObject);
