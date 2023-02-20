@@ -1078,8 +1078,8 @@ public:
 		scene->registry.view<CTransform, CTriMesh>()
 			.each([&](auto& transform, auto& mesh)
 			{
-				transform.SetScale(glm::vec3(1.f) *
-				(scene->camera.IsPerspective() ? 1.f : 1.f / glm::length(scene->camera.GetLookAtEye())));
+				/*transform.SetScale(glm::vec3(1.f) *
+				(scene->camera.IsPerspective() ? 1.f : 1.f / glm::length(scene->camera.GetLookAtEye())));*/
 				transform.SetEulerRotation(glm::vec3(glm::radians(-90.f), 0, 0));
 			});
 	}

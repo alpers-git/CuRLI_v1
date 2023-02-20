@@ -122,9 +122,38 @@ Some Screenshots:
   - Under `Edit > Attach component`
 - User can also create empty entities to attach objects to it using `Edit>Create Entity`
 
-Note: These UVs are damn bad... the seam is too visible and badly generated.
 
 Some Screenshots:
 
 <img src="./images/pr4_1.png" width=80%>
 <img src="./images/pr4_2.png" width=80%>
+
+#### Project 5 - Render Buffers
+###### Project 5 requirements:
+- [X] Loads and parses `.obj` files as command-line arguments.
+   - Usage `-model --path ../path/to/your.obj`
+   - For this specific example to work call the program with a plane.obj file provided inside assets. I have set up a scene for easy grading
+- [X] The objects are rendered with the textures coupled with their `.obj` and `.mtl` files.
+- [X] The provided scene can be rendered without the teapot on the actual viewport (but on the texture) by adjusting visibilty settings on Mesh component using the GUI. 
+- [X] Display the rendered texture by mapping it on a square-shaped plane.
+- [x] Camera controls work the same as with the previous assignments.
+- [x] If the ALT key is pressed, the left and right mouse buttons (and drag) controls the same view parameters for rendering texture on the plane.
+- [X] Background of the image plane is set to phong diffuse color of the plane to separate it from the background color. 
+- [X] The rendered texture uses bilinear filtering for magnification and mip-mapping with anisotropic filtering for minification.
+
+###### Additional Features:
+- Seperated OpenGL concepts like `VertexArrayObject` and `Textures` are seperated from scene/entity component system.
+  - This seperation allows better and cleaner implementation.
+  - For textures I have implemented a `CImageMaps` component which maintains a `std::vector` of `ImageMap`. `ImageMap` data and properties are converted to `OpenGLProgram` Textures and bound acordingly.
+  - For Rendered textures I maintain a wrapper struct for `Texture2D` struct which creates frame and depth buffers on request. This struct comes with a `Render(...)` function. This function takes another `std::function` as parameter and calls it after binding the relevant buffers and the viewport. Calling `RenderedTexture2D`'s Render function at Renderer's `Preupdate` function I can pass the `Update` function pointer as a parameter and render the scene as it would to that texture.
+  - The component `CImageMaps` handles rendered textures by creating a `Camera` object along them instead of decoding a image file and storing it.
+- Implemented a GUI for textures where bound textures and their respective slots are displayed.
+  - For rendered textures this view is live and can be used to adjust camera pressing `alt`.
+- Reimplemented `TriMesh` class not to rely on `cy::TriMesh`. Now cy::TriMesh is only used for importing `.obj` files.
+  - For better shading I implemented re-indexing and duplicating certain vertex attributes as OBJ format uses multiple faced indexing. 
+
+
+Some Screenshots:
+
+<img src="./images/pr5_1.png" width=80%>
+<img src="./images/pr5_2.png" width=80%>

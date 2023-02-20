@@ -17,7 +17,14 @@ public:
 		renderer->ParseArguments(argc, argv);
 		
 		scene->CreatePointLight(glm::vec3(0, 0, 20), 1, glm::vec3(0.85, 0.8, 0.95));//TODO
-		
+		auto* tr = scene->registry.try_get<CTransform>(scene->GetSceneObject("plane"));
+		auto& tex = scene->registry.emplace<CImageMaps>(scene->GetSceneObject("plane"));
+		tex.AddImageMap(ImageMap::BindingSlot::T_DIFFUSE, Camera(), {500,500});
+		if (tr)
+		{
+			tr->SetPosition(glm::vec3(0, -10, 0));
+			tr->SetScale(glm::vec3(50, 50, 1));
+		}
 	}
 	~Application() {}
 
