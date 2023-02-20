@@ -24,7 +24,7 @@ uniform struct Material {
      float shininess;
 }material;
 uniform int shading_mode;//0 = phong-color, 1 = editor mode
-uniform int has_texture[3] = {0,0,0};//[0] = diffuse, [1] = specular, [2] = normal
+uniform int has_texture[5] = {0,0,0,0,0};//[0] = diffuse, [1] = specular, [2] = normal
 uniform sampler2D tex_list[5];
 
 

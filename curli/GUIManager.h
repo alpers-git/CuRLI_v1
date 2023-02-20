@@ -79,7 +79,7 @@ namespace gui
 		void Draw() {
 			DrawTopMenu();
 			DrawSceneObjectsList();
-			DrawCameraController();
+			DrawCameraController(scene->camera);
 		}
 
 	private:
@@ -501,7 +501,25 @@ namespace gui
 							{
 								static ImageMap::BindingSlot textureBinding;
 								static const char* current_item = NULL;
-								if (ImGui::Button("Load Image as") && current_item !=NULL)
+								//Texturebinding picker combo box
+								const char* items[] = {
+									"Ambient", "Diffuse", "Specular", "Normal Map", "Bump Map" };
+								if (ImGui::BeginCombo("##combo", current_item))
+								{
+									for (int n = 0; n < IM_ARRAYSIZE(items); n++)
+									{
+										bool is_selected = (current_item == items[n]);
+										if (ImGui::Selectable(items[n], is_selected))
+										{
+											current_item = items[n];
+											textureBinding = (ImageMap::BindingSlot)n;
+										}
+										if (is_selected)
+											ImGui::SetItemDefaultFocus();
+									}
+									ImGui::EndCombo();
+								}
+								if (ImGui::SmallButton("from Img. file") && current_item !=NULL)
 								{
 									std::string path;
 									if (openFilePicker(path))
@@ -520,23 +538,13 @@ namespace gui
 									}
 								}
 								ImGui::SameLine();
-								//Texturebinding picker combo box
-								const char* items[] = {
-									"Ambient", "Diffuse", "Specular", "Normal Map", "Bump Map" };
-								if (ImGui::BeginCombo("##combo", current_item))
+								if (ImGui::SmallButton("from rendered img") && current_item != NULL)
 								{
-									for (int n = 0; n < IM_ARRAYSIZE(items); n++)
-									{
-										bool is_selected = (current_item == items[n]);
-										if (ImGui::Selectable(items[n], is_selected))
-										{
-											current_item = items[n];
-											textureBinding = (ImageMap::BindingSlot)n;
-										}
-										if (is_selected)
-											ImGui::SetItemDefaultFocus();
-									}
-									ImGui::EndCombo();
+									auto* mesh = scene->registry.try_get<CTriMesh>(e);
+									if (mesh);
+									//TODO: find a way to extract dims from mesh
+
+									t.AddImageMap(textureBinding, Camera(), glm::uvec2(500,500));
 								}
 								
 								ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
@@ -556,6 +564,15 @@ namespace gui
 										ImGui::PopID();
 										break;
 									}
+									if (it->second.IsRenderedImage())
+									{
+										ImGui::Spacing();
+										ImGui::Text("Rendered from camera");
+										ImGui::PushID("renderedCamera");
+										DrawCameraController(it->second.GetRenderedImageCamera());
+										ImGui::PopID();
+									}
+									ImGui::Separator();
 									ImGui::EndGroup();
 									ImGui::PopID();
 									if (j % 2 == 0)
@@ -569,11 +586,11 @@ namespace gui
 				ImGui::EndTabBar();
 			}
 		}
-		void DrawCameraController()
+		void DrawCameraController(Camera& camera)
 		{
 			if (ImGui::CollapsingHeader("Camera"))
 			{
-				auto& camera = scene->camera;
+				//auto& camera = scene->camera;
 				static bool orbit = false;
 				ImGui::ToggleButton("type", &orbit);
 				ImGui::SameLine();

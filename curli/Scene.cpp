@@ -66,16 +66,28 @@ void CTriMesh::InitializeFrom(cy::TriMesh& mesh)
 	this->faces.resize(mesh.NF());
 	for (size_t i = 0; i < mesh.NF(); i++)
 	{
-		const bool repeatedVerts = !glm::all(glm::isnan(this->vertices[mesh.F(i).v[0]])) &&
-			!glm::all(glm::isnan(this->vertices[mesh.F(i).v[1]])) &&
-			!glm::all(glm::isnan(this->vertices[mesh.F(i).v[2]]));
-		const bool repeatedNormals = !glm::all(glm::isnan(this->vertexNormals[mesh.FN(i).v[0]])) &&
-			!glm::all(glm::isnan(this->vertexNormals[mesh.FN(i).v[1]])) &&
-			!glm::all(glm::isnan(this->vertexNormals[mesh.FN(i).v[2]]));
-		const bool repeatedTxCoords = !glm::all(glm::isnan(this->textureCoords[mesh.FT(i).v[0]])) &&
-			!glm::all(glm::isnan(this->textureCoords[mesh.FT(i).v[1]])) &&
-			!glm::all(glm::isnan(this->textureCoords[mesh.FT(i).v[2]]));
-		bool pushNewFace = repeatedVerts || repeatedNormals || repeatedTxCoords;
+		bool pushNewFace = this->vertices.size() < mesh.F(i).v[0] || 
+			this->vertices.size() < mesh.F(i).v[1] || 
+			this->vertices.size() < mesh.F(i).v[2] ||
+			this->vertexNormals.size() < mesh.FN(i).v[0] ||
+			this->vertexNormals.size() < mesh.FN(i).v[1] ||
+			this->vertexNormals.size() < mesh.FN(i).v[2] ||
+			this->textureCoords.size() < mesh.FT(i).v[0] ||
+			this->textureCoords.size() < mesh.FT(i).v[1] ||
+			this->textureCoords.size() < mesh.FT(i).v[2];
+		if (!pushNewFace)
+		{
+			const bool repeatedVerts = !glm::all(glm::isnan(this->vertices[mesh.F(i).v[0]])) &&
+				!glm::all(glm::isnan(this->vertices[mesh.F(i).v[1]])) &&
+				!glm::all(glm::isnan(this->vertices[mesh.F(i).v[2]]));
+			const bool repeatedNormals = !glm::all(glm::isnan(this->vertexNormals[mesh.FN(i).v[0]])) &&
+				!glm::all(glm::isnan(this->vertexNormals[mesh.FN(i).v[1]])) &&
+				!glm::all(glm::isnan(this->vertexNormals[mesh.FN(i).v[2]]));
+			const bool repeatedTxCoords = !glm::all(glm::isnan(this->textureCoords[mesh.FT(i).v[0]])) &&
+				!glm::all(glm::isnan(this->textureCoords[mesh.FT(i).v[1]])) &&
+				!glm::all(glm::isnan(this->textureCoords[mesh.FT(i).v[2]]));
+			pushNewFace = repeatedVerts || repeatedNormals || repeatedTxCoords;
+		}
 			
 		glm::ivec3 face = glm::ivec3(mesh.F(i).v[0], mesh.F(i).v[1], mesh.F(i).v[2]);
 		glm::ivec3 tface = glm::ivec3(mesh.FT(i).v[0], mesh.FT(i).v[1], mesh.FT(i).v[2]);
@@ -324,7 +336,6 @@ void Scene::Update()
 			
 				GLFWHandler::GetInstance().QueueEvent(e);	
 			}
-			maps.dirty = false;
 		});
 	
 }
@@ -502,6 +513,14 @@ void CImageMaps::AddImageMap(ImageMap::BindingSlot slot, std::string path)
 {
 	imgMaps.insert({ slot, ImageMap(path, slot) });
 	
+	//TODO::Schedule texture synch with renderer
+	dirty = true;
+}
+
+void CImageMaps::AddImageMap(ImageMap::BindingSlot slot, Camera camera, glm::uvec2 dims)
+{
+	imgMaps.insert({ slot, ImageMap(camera, dims, slot) });
+
 	//TODO::Schedule texture synch with renderer
 	dirty = true;
 }

@@ -343,8 +343,6 @@ public:
 	{
 	}
 	
-	//cy::TriMesh& GetMesh() { return mesh; }
-	
 	unsigned int GetNumVertices() { return vertices.size(); }
 	unsigned int GetNumFaces() { return faces.size(); }
 	unsigned int GetNumNormals() { return vertexNormals.size(); }
@@ -355,47 +353,6 @@ public:
 	glm::vec2 GetVTexture(unsigned int index) { return textureCoords.at(index); }
 	glm::uvec3 GetFace(unsigned int index) { return faces.at(index); }
 	
-	
-	//unsigned int GetNumMaterials() { return mesh.NM(); }
-	
-	/*glm::vec3 GetMatAmbientColor(unsigned int index) { return glm::make_vec3(mesh.M(index).Ka); }
-	glm::vec3 GetMatDiffuseColor(unsigned int index) { return glm::make_vec3(mesh.M(index).Kd); }
-	glm::vec3 GetMatSpecularColor(unsigned int index) { return glm::make_vec3(mesh.M(index).Ks); }*/
-	
-	/*std::string GetMatAmbientTexture(unsigned int index) 
-	{ 
-		if (GetNumMaterials() > index && mesh.M(index).map_Ka.data == nullptr)
-			return std::string();
-		else
-			return mesh.M(index).map_Ka; 
-	}
-	std::string GetMatDiffuseTexture(unsigned int index) 
-	{
-		if (GetNumMaterials() > index && mesh.M(index).map_Kd.data == nullptr)
-			return std::string();
-		else
-			return mesh.M(index).map_Kd;
-	}
-	std::string GetMatSpecularTexture(unsigned int index)
-	{
-		if (GetNumMaterials() > index && mesh.M(index).map_Ks.data == nullptr)
-			return std::string();
-		else
-			return mesh.M(index).map_Ks;
-	}*/
-	
-	/*glm::ivec3 GetFNormal(unsigned int index) { 
-		const auto tmp = mesh.FN(index);
-		return glm::ivec3(tmp.v[0], tmp.v[1], tmp.v[2]);
-	}
-	glm::ivec3 GetFace(unsigned int index) { 
-		const auto tmp = mesh.F(index);
-		return glm::ivec3(tmp.v[0], tmp.v[1], tmp.v[2]);
-	}
-	glm::ivec3 GetFTexture(unsigned int index) {
-		const auto tmp = mesh.FT(index);
-		return glm::ivec3(tmp.v[0], tmp.v[1], tmp.v[2]);
-	}*/
 
 	void* GetVertexDataPtr() { return &vertices.front(); }
 	void* GetNormalDataPtr() { return &vertexNormals.front(); }
@@ -633,12 +590,37 @@ public:
 			return;
 		}
 	}
+
+	ImageMap(Camera camera, glm::uvec2 dims, BindingSlot slot)
+		:renderedImageCamera(camera), dims(dims), bindingSlot(slot)
+	{
+		renderedImg = true;
+		camera.SetAspectRatio((float)dims.x / (float)dims.y);
+		image.clear();
+	}
+	
+	bool SetCamera(Camera camera)
+	{
+		if (renderedImg)
+		{
+			renderedImageCamera = camera;
+			return true;
+		}
+		return false;
+	}
+	
 	//getters
 	std::string GetPath() { return path; }
 	std::vector<unsigned char> GetImage() { return image; }
 	glm::uvec2 GetDims() { return dims; }
 	BindingSlot GetBindingSlot() { return bindingSlot; }
 	std::string GetSlotName();
+	Camera& GetRenderedImageCamera() { return renderedImageCamera; }
+	bool IsRenderedImage() { return renderedImg; }
+	unsigned int GetProgramRenderedTexIndexIndex() { return programRenderedTexIndex; }
+
+	//setters
+	void SetProgramRenderedTexIndexIndex(unsigned int index) { programRenderedTexIndex = index; }
 
 	GLuint glID; //Maybe find a better way...
 private:
@@ -646,8 +628,12 @@ private:
 	std::vector<unsigned char> image;
 	glm::uvec2 dims;
 	BindingSlot bindingSlot;
+	
+	Camera renderedImageCamera;
+	bool renderedImg = false;
+	unsigned int programRenderedTexIndex = 0;
 };
-struct CImageMaps : Component// TODO: Move to OpenGLProgram.h, instead have a component that list texture data and what uniform it binds to...
+struct CImageMaps : Component
 {
 public:
 	static constexpr CType type = CType::ImageMap;
@@ -656,6 +642,7 @@ public:
 	{}
 	
 	void AddImageMap(ImageMap::BindingSlot slot, std::string path);
+	void AddImageMap(ImageMap::BindingSlot slot, Camera camera, glm::uvec2 dims);
 	void RemoveMap(ImageMap::BindingSlot slot);
 	void Update();
 

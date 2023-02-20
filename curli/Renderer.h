@@ -192,66 +192,6 @@ protected:
 				mesh->GetNumFaces()*3);
 		}
 		program->vaos.back().SetDrawMode(GL_TRIANGLES);
-		//scene->registry.view<CVertexArrayObject, CBoundingBox>()
-		//	.each([&](const auto entity, auto& vao, auto& bb)
-		//	{
-		//		if (!vao.IsInitialized())
-		//			vao.CreateVAO();
-		//		if (vao.GetNumVBOs() == 0)//TODO
-		//		{
-		//			vao.CreateVAO();
-		//			glm::vec3 vertexData[24]
-		//			{
-		//				bb.GetMin(),
-		//				{bb.GetMax().x, bb.GetMin().y, bb.GetMin().z},
-
-		//				{bb.GetMax().x, bb.GetMin().y, bb.GetMin().z},
-		//				{bb.GetMax().x, bb.GetMax().y, bb.GetMin().z},
-
-		//				{bb.GetMax().x, bb.GetMax().y, bb.GetMin().z},
-		//				{bb.GetMin().x, bb.GetMax().y, bb.GetMin().z},
-
-		//				{bb.GetMin().x, bb.GetMax().y, bb.GetMin().z},
-		//				bb.GetMin(),
-
-		//				{bb.GetMin().x, bb.GetMax().y, bb.GetMin().z},
-		//				{bb.GetMin().x, bb.GetMax().y, bb.GetMax().z},
-
-		//				{bb.GetMin().x, bb.GetMax().y, bb.GetMax().z},
-		//				{bb.GetMin().x, bb.GetMin().y, bb.GetMax().z},
-
-		//				{bb.GetMin().x, bb.GetMin().y, bb.GetMax().z},
-		//				bb.GetMin(),
-
-		//				{bb.GetMin().x, bb.GetMin().y, bb.GetMax().z},
-		//				{bb.GetMax().x, bb.GetMin().y, bb.GetMax().z},
-
-		//				{bb.GetMax().x, bb.GetMin().y, bb.GetMax().z},
-		//				{bb.GetMax().x, bb.GetMin().y, bb.GetMin().z},
-
-		//				{bb.GetMax().x, bb.GetMin().y, bb.GetMax().z},
-		//				bb.GetMax(),
-
-		//				bb.GetMax(),
-		//				{bb.GetMax().x, bb.GetMax().y, bb.GetMin().z},
-
-		//				bb.GetMax(),
-		//				{bb.GetMin().x, bb.GetMax().y, bb.GetMax().z}
-		//			};
-
-		//			VertexBufferObject vertexVBO(
-		//				(void*)vertexData,
-		//				24,
-		//				GL_FLOAT,
-		//				"pos",
-		//				3,
-		//				program->GetID());
-		//			vao.AddVBO(vertexVBO);
-		//			vao.SetDrawMode(GL_LINES);
-		//			vao.SetRenderType(CVertexArrayObject::RenderType::EDITOR);
-		//		}
-
-		//	});
 	};
 	/*
 	* Handles texture updates
@@ -265,8 +205,11 @@ protected:
 					program->textures[entity2TextureIndices[e].v[i]].Delete();
 			entity2TextureIndices.erase(e);
 		}
+		
 		if (toBeRemoved)
 			return;
+		
+		
 		auto* imgMaps = scene->registry.try_get<CImageMaps>(e);
 		
 		//create an array of 5 ints to store the texture ids
@@ -279,16 +222,34 @@ protected:
 		//iterate over all the image maps create texture objects for them
 		for (auto it = imgMaps->mapsBegin(); it != imgMaps->mapsEnd(); ++it)
 		{
-			Texture2D texture ((void*)&it->second.GetImage()[0], it->second.GetDims(),
-				GL_TEXTURE0 + (int)it->second.GetBindingSlot());
-			//add the texture to the program
-			program->textures.push_back(texture);//Redundant
+			if (it->second.IsRenderedImage())
+			{
+				RenderedTexture2D renderedTexture(it->second.GetDims(), 
+					GL_TEXTURE0 + (int)it->second.GetBindingSlot(), true, 
+					GL_REPEAT, GL_REPEAT, GL_UNSIGNED_BYTE, GL_RGB, 0);
+				renderedTexture.GetTexture().SetParami(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+				renderedTexture.GetTexture().SetParami(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+				renderedTexture.GetTexture().SetParamf(GL_TEXTURE_MAX_ANISOTROPY, 4.0f);
+				//add the texture to the program
+				program->textures.push_back(renderedTexture.GetTexture());
+				program->renderedTextures.push_back(renderedTexture);
+				it->second.glID = renderedTexture.GetTexture().GetGLID();
+				//Needed for mapping between textures and CImageMaps
+				it->second.SetProgramRenderedTexIndexIndex(program->renderedTextures.size() - 1);
+			}
+			else
+			{
+				Texture2D texture ((void*)&it->second.GetImage()[0], it->second.GetDims(),
+					GL_TEXTURE0 + (int)it->second.GetBindingSlot());
+				//add the texture to the program
+				program->textures.push_back(texture);
+				it->second.glID = texture.GetGLID();
+			}
 			textureIDs.v[(int)it->second.GetBindingSlot()] = program->textures.size() - 1;
-			
-			it->second.glID = texture.GetGLID();
 		}
 		//add the texture ids to the entity2TextureIndex map
 		entity2TextureIndices[e] = textureIDs;
+		imgMaps->dirty = false;
 	}
 };
 
@@ -1072,6 +1033,351 @@ private:
 	glm::vec2 prevMousePos;
 
 	bool ctrlDown = false;
+};
+
+class MultiTargetRenderer : public Renderer<MultiTargetRenderer>
+{
+public:
+	MultiTargetRenderer(std::shared_ptr<Scene> scene) :Renderer(scene) {}
+	~MultiTargetRenderer() {}
+
+	//override ParseArguments
+	void ParseArguments(int argc, char const* argv[])
+	{}
+
+	void Start()
+	{
+		printf("Initializing Renderer\n");
+		program->SetGLClearFlags(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+
+		program->CreatePipelineFromFiles("../assets/shaders/phong_textured/shader.vert",
+			"../assets/shaders/phong_textured/shader.frag");
+		program->SetClearColor({ 0.01f,0.f,0.05f,1.f });
+		
+		scene->registry.view<CTriMesh>()
+			.each([&](const auto entity, auto& mesh)
+				{
+					OnGeometryChange(entity);
+				});
+		
+		scene->registry.view<CImageMaps>()
+			.each([&](const auto entity, auto& maps)
+				{
+					OnTextureChange(entity, false);
+				});
+
+		//Init camera
+		int windowWidth, windowHeight;
+		glfwGetWindowSize(GLFWHandler::GetInstance().GetWindowPointer(), &windowWidth, &windowHeight);
+		scene->camera = Camera(glm::vec3(0.f, 0.f, 0.0f), glm::vec3(0.0f, 0, 0), 1.f,
+			45.f, 0.01f, 100000.f, (float)windowWidth / (float)windowHeight, true);
+
+		ResetCamera();
+		
+		scene->registry.view<CTransform, CTriMesh>()
+			.each([&](auto& transform, auto& mesh)
+			{
+				transform.SetScale(glm::vec3(1.f) *
+				(scene->camera.IsPerspective() ? 1.f : 1.f / glm::length(scene->camera.GetLookAtEye())));
+				transform.SetEulerRotation(glm::vec3(glm::radians(-90.f), 0, 0));
+			});
+	}
+
+	void PreUpdate()
+	{	
+		//render renderedTextures
+		scene->registry.view<CImageMaps>()
+			.each([&](const auto& entity, auto& maps)
+			{
+				//=======StackPush=======
+				//Set the object's visibility to false
+				auto* mesh = scene->registry.try_get<CTriMesh>(entity);
+				Camera tmp = scene->camera;
+				glm::vec4 clearColor = program->GetClearColor();
+				if(mesh)
+					mesh->visible = false;
+
+				//iterate over each imagemap of maps
+				if (!maps.dirty)
+				{
+					for (auto it = maps.mapsBegin(); it != maps.mapsEnd(); ++it)
+					{
+						if (it->second.IsRenderedImage())
+						{
+							auto* material = scene->registry.try_get<CPhongMaterial>(entity);
+							if(material)
+								program->SetClearColor(glm::vec4(material->diffuse,1));
+							scene->camera = it->second.GetRenderedImageCamera();
+							program->renderedTextures[it->second.GetProgramRenderedTexIndexIndex()].
+								Render(std::bind(&MultiTargetRenderer::Update, this));
+						}
+					}
+				}
+
+				//=======StackPop=======
+				program->SetClearColor(clearColor);
+				scene->camera = tmp;
+				if(mesh)
+					mesh->visible = true;
+
+			});
+	}
+
+	void Update()
+	{	
+		//bind GLSL program
+		program->Use();
+
+		int i = 0;
+		scene->registry.view<CLight>()
+			.each([&](auto& light)
+			{
+				std::string shaderName("light[" + std::to_string(i) + "].position");
+				program->SetUniform(shaderName.c_str(), glm::vec3(scene->camera.GetViewMatrix() * glm::vec4(light.position, 1)));
+				shaderName = std::string("light[" + std::to_string(i) + "].intensity");
+				program->SetUniform(shaderName.c_str(), light.intensity);
+				shaderName = std::string("light[" + std::to_string(i) + "].color");
+				program->SetUniform(shaderName.c_str(), light.color);
+				i++;
+			});
+		program->SetUniform("light_count", i);
+
+		scene->registry.view<CTriMesh>()
+			.each([&](const auto& entity, auto& mesh)
+			{
+				program->vaos[entity2VAOIndex[entity]].visible = mesh.visible;
+				CPhongMaterial* material = scene->registry.try_get<CPhongMaterial>(entity);
+				CTransform* transform = scene->registry.try_get<CTransform>(entity);
+				
+				const glm::mat4 mv =  scene->camera.GetViewMatrix() * (transform ? 
+					transform->GetModelMatrix() : glm::mat4(1.0f));
+				const glm::mat4 mvp = scene->camera.GetProjectionMatrix() * mv;
+					
+				program->SetUniform("material.ka", material ? material->ambient : glm::vec3(0.0f));
+				program->SetUniform("material.kd", material ? material->diffuse : glm::vec3(0.0f));
+				program->SetUniform("material.ks", material ? material->specular : glm::vec3(0.0f));
+				program->SetUniform("material.shininess", material ? material->shininess : 0.0f);
+				
+				program->SetUniform("to_screen_space", mvp);
+				program->SetUniform("to_view_space", mv);
+				program->SetUniform("normals_to_view_space",
+					glm::transpose(glm::inverse(glm::mat3(mv))));
+				
+				CImageMaps* imgMaps = scene->registry.try_get<CImageMaps>(entity);
+				if (imgMaps && !imgMaps->dirty)
+				{
+					//iterate over all imagemaps
+					for (auto it = imgMaps->mapsBegin(); it != imgMaps->mapsEnd(); ++it)
+					{
+						int texIndex = entity2TextureIndices[entity].v[(int)it->first];
+						//bind texture
+						if (texIndex >= 0)
+						{
+							program->textures[texIndex].Bind();
+							//set uniform
+							const std::string uniformName = std::string("has_texture[") + std::to_string(((int)it->first)) + std::string("]");
+							program->SetUniform(uniformName.c_str(), 1);
+							const std::string uniformName2 = std::string("tex_list[") + std::to_string(((int)it->first)) + std::string("]");
+							program->SetUniform(uniformName2.c_str(), ((int)it->first));
+						}
+					}
+				}
+				program->SetUniform("shading_mode", ((int)mesh.GetShadingMode()));
+				
+				program->vaos[entity2VAOIndex[entity]].Draw();
+				for (int i = 0; i < 5; i++)
+				{
+					const std::string uniformName = std::string("has_texture[") + std::to_string(i) + std::string("]");
+					program->SetUniform(uniformName.c_str(), 0);
+				}
+				for (auto tex : program->textures)
+				{
+					tex.Unbind();
+				}
+			});
+	}
+
+	void End()
+	{
+		printf("Shutting down Renderer");
+	}
+
+	void UpdateGUI()
+	{}
+	
+	/*
+	* Recompile the shaders
+	*/
+	inline void RecompileShaders()
+	{
+		if (program->CompileShaders())
+		{
+			printf("Shaders compiled successfully\n");
+			program->AttachVertexShader();
+			program->AttachFragmentShader();
+		}
+		else
+			printf("Shaders compilation failed\n");
+	}
+	/*
+	* Reloads and recompiles shaders
+	*/
+	inline void ReloadShaders()
+	{
+		program->SetVertexShaderSourceFromFile("../assets/shaders/phong_textured/shader.vert");
+		program->SetFragmentShaderSourceFromFile("../assets/shaders/phong_textured/shader.frag");
+		RecompileShaders();
+	}
+
+	/*
+	* Points camera to mesh center
+	*/
+	inline void ResetCamera()
+	{
+		scene->camera.SetOrbitDistance(25.f);
+		scene->camera.SetCenter({ 0,0,0 });
+		scene->camera.SetOrbitAngles({ 90,0,0 });
+	}
+
+	void OnWindowResize(int w, int h)
+	{
+		scene->camera.SetAspectRatio((float)w / (float)h);
+	}
+
+	void OnKeyboard(int key, int scancode, int action, int mods)
+	{
+		// if GLFW_ESC is pressed exit the application
+		if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+			glfwSetWindowShouldClose(GLFWHandler::GetInstance().GetWindowPointer(), true);
+		if (key == GLFW_KEY_F6 && action == GLFW_PRESS)
+			RecompileShaders();
+		if (key == GLFW_KEY_F5 && action == GLFW_PRESS)
+			ReloadShaders();
+		if (key == GLFW_KEY_F1 && action == GLFW_PRESS)
+			ResetCamera();
+		if (key == GLFW_KEY_P && action == GLFW_PRESS)
+			scene->camera.SetPerspective(!scene->camera.IsPerspective());
+		if (key == GLFW_KEY_LEFT_CONTROL && action == GLFW_PRESS)
+			ctrlDown = true;
+		else if (key == GLFW_KEY_LEFT_CONTROL && action == GLFW_RELEASE)
+			ctrlDown = false;
+		if (key == GLFW_KEY_LEFT_ALT && action == GLFW_PRESS)
+			altDown = true;
+		else if (key == GLFW_KEY_LEFT_ALT && action == GLFW_RELEASE)
+			altDown = false;
+	}
+
+	//orbit camera
+	void OnMouseButton(int button, int action, int mods)
+	{
+		if (button == GLFW_MOUSE_BUTTON_LEFT && (action == GLFW_PRESS || action == GLFW_REPEAT))
+			m1Down = true;
+		else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
+			m1Down = false;
+		if (button == GLFW_MOUSE_BUTTON_RIGHT && (action == GLFW_PRESS || action == GLFW_REPEAT))
+			m2Down = true;
+		else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE)
+			m2Down = false;
+	}
+	//orbit camera
+	void OnMouseMove(double x, double y)
+	{
+		bool updateMousePos = true;
+		glm::vec2 deltaPos(prevMousePos.x - x, prevMousePos.y - y);
+		if(m1Down && altDown)//Apllies to all textures with cameras NO EXCEPTIONS... REMOVE IF YOU ARE DOING SOMETHING ELABORATE
+		{
+			scene->registry.view<CImageMaps>()
+				.each([&](auto& maps)
+					{
+						if (!maps.dirty)
+						{
+							for (auto it = maps.mapsBegin(); it != maps.mapsEnd(); ++it)
+							{
+								if (it->second.IsRenderedImage())
+								{
+									it->second.GetRenderedImageCamera().SetOrbitAngles(
+										it->second.GetRenderedImageCamera().GetOrbitAngles()
+										- glm::vec3(deltaPos.y * 0.5f, -deltaPos.x * 0.4f, 0.f));
+								}
+							}
+						}
+					});
+		}
+		else if (m1Down && ctrlDown)
+		{
+			//UGLY CODE HERE
+			//fetch the first light
+			auto view2 = scene->registry.view<CLight>();
+			int i = 0;
+			view2.each([&](auto& light)
+				{
+					if (i == 0)
+					{
+						//get the angles around 0,0,0 based on position
+						glm::vec3 angles = glm::vec3(
+							asin((light.position.y) / glm::length(light.position)),
+							atan2f((-light.position.z), (light.position.x)) + 1.57f,
+							0.f);
+						//calculate new spherical coordinates using angles - mouse delta 
+						angles = angles + glm::vec3(deltaPos.y * .005f, -deltaPos.x * .004f, 0.f);
+						if (angles.x > 89.5f)
+							angles.x = 89.5f;
+						if (angles.x < -89.5f)
+							angles.x = -89.5f;
+						const float theta = angles.x;
+						const float phi = angles.y;
+						glm::vec3 unitSpherePos = {
+							cos(theta) * sin(phi),
+							sin(theta),
+							cos(theta) * cos(phi)
+						};
+						//Preserve the distance to center and set the new position
+						light.position = unitSpherePos * glm::length(light.position);
+					}
+					i++;
+				});
+
+		}
+		else if (m1Down)
+			scene->camera.SetOrbitAngles(scene->camera.GetOrbitAngles()
+				- glm::vec3(deltaPos.y * 0.5f, -deltaPos.x * 0.4f, 0.f));
+		
+		if (altDown && m2Down)
+		{
+			scene->registry.view<CImageMaps>()
+				.each([&](auto& maps)
+					{
+						if (!maps.dirty)
+						{
+							for (auto it = maps.mapsBegin(); it != maps.mapsEnd(); ++it)
+							{
+								if (it->second.IsRenderedImage())
+								{
+									it->second.GetRenderedImageCamera().SetOrbitDistance(
+										it->second.GetRenderedImageCamera().GetOrbitDistance() + deltaPos.y * 0.05f);
+								}
+							}
+						}
+					});
+		}
+		else if (m2Down)
+			scene->camera.SetOrbitDistance(scene->camera.GetOrbitDistance() + deltaPos.y * 0.05f);
+		
+		if(updateMousePos)
+			prevMousePos = { x,y };
+
+
+	}
+
+private:
+	//--orbit controls--//
+	bool m1Down = false;
+	bool m2Down = false;
+	glm::vec2 prevMousePos;
+
+	bool ctrlDown = false;
+	bool altDown = false;
 };
 
 

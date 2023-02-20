@@ -3,6 +3,7 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <fstream>
+#include <functional>
 #include <string>
 #include <glm/glm.hpp>
 #include <vector>
@@ -339,7 +340,7 @@ public:
 			0,
 			format,
 			dataType,
-			data));
+			data==nullptr ? 0 : data));
 
 		if (mipmapLevel >= 0)
 			GL_CALL(glGenerateMipmap(GL_TEXTURE_2D));
@@ -357,6 +358,30 @@ public:
 		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapS));
 		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT));
 	}
+	
+	Texture2D(const Texture2D& other)
+	{
+		glID = other.glID;
+		textUnit = other.textUnit;
+		dataType = other.dataType;
+		format = other.format;
+		mipmapLevel = other.mipmapLevel;
+		wrapS = other.wrapS;
+		wrapT = other.wrapT;
+	}
+
+	void SetParami(GLenum param, GLenum value)
+	{
+		GL_CALL(glBindTexture(GL_TEXTURE_2D, glID));
+		GL_CALL(glTexParameteri(GL_TEXTURE_2D, param, value));
+	}
+	
+	void SetParamf(GLenum param, GLfloat value)
+	{
+		GL_CALL(glBindTexture(GL_TEXTURE_2D, glID));
+		GL_CALL(glTexParameterf(GL_TEXTURE_2D, param, value));
+	}
+	
 	GLuint GetGLID() { return glID; }
 
 	void Delete()
@@ -375,14 +400,14 @@ public:
 		GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
 	}
 
-	/*int GetTextureUnitNum()
+	int GetTextureUnitNum()
 	{
 		return textUnit - GL_TEXTURE0;
 	}
 	GLenum GetTextureUnit()
 	{
 		return textUnit;
-	}*/
+	}
 
 private:
 	GLuint glID;
@@ -395,11 +420,97 @@ private:
 	GLenum textUnit = GL_TEXTURE0;
 };
 
+struct RenderedTexture2D
+{
+	RenderedTexture2D(glm::uvec2 dims, GLenum textUnit, bool hasDepthBuffer = true,
+		GLenum wrapS = GL_REPEAT, GLenum wrapT = GL_REPEAT, 
+		GLenum dataType = GL_UNSIGNED_BYTE, GLenum format = GL_RGB,
+		int mipmapLevel = -1)
+		:dims(dims), hasDepth(hasDepthBuffer),
+		texture(nullptr, dims,textUnit, wrapS, wrapT, dataType, format, mipmapLevel)
+	{
+		//Get the renderer state
+		GLint origFB;
+		GL_CALL(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &origFB));
+
+		GL_CALL(glGenFramebuffers(1, &frameBufferID));
+		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID));
+
+		if (hasDepthBuffer)
+		{
+			GL_CALL(glGenRenderbuffers(1, &depthBufferID));
+			GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, depthBufferID));
+			GL_CALL(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, dims.x, dims.y));
+		}
+		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID)); //For safety
+		GL_CALL(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, 
+			GL_RENDERBUFFER, depthBufferID));
+		GL_CALL(glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texture.GetGLID(), 0));
+
+		GLenum drawBuffers[1] = { GL_COLOR_ATTACHMENT0 };
+		GL_CALL(glDrawBuffers(1, drawBuffers));
+
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, origFB));
+	}
+
+	RenderedTexture2D(const RenderedTexture2D& other)
+		:dims(other.dims), hasDepth(other.hasDepth),
+		texture(other.texture), frameBufferID(other.frameBufferID), depthBufferID(other.depthBufferID)
+	{}
+
+	~RenderedTexture2D()
+	{}
+
+	void Render(std::function <void()> renderFunc)
+	{
+		//Get the renderer state
+		GLint origFB;
+		GL_CALL(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &origFB));
+		GLint origViewport[4];
+		GL_CALL(glGetIntegerv(GL_VIEWPORT, origViewport));
+		
+		//Render the scene
+		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID));
+		GL_CALL(glViewport(0, 0, dims.x, dims.y));
+		auto mask = GL_COLOR_BUFFER_BIT | (hasDepth ? GL_DEPTH_BUFFER_BIT : 0);
+		GL_CALL(glClear(mask));
+		renderFunc();//Tell how the scene is going to be rendered
+		
+		//Restore the renderer
+		glGenerateTextureMipmap(texture.GetGLID());
+		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, origFB));
+		GL_CALL(glViewport(origViewport[0], origViewport[1], origViewport[2], origViewport[3]));
+		GL_CALL(glClear(mask));
+	}
+
+	Texture2D GetTexture()
+	{
+		return texture;
+	}
+	
+	void Delete()
+	{
+		texture.Delete();
+		GL_CALL(glDeleteFramebuffers(1, &frameBufferID));
+		if (hasDepth)
+			GL_CALL(glDeleteRenderbuffers(1, &depthBufferID));
+	}
+	
+	Texture2D texture;
+	GLuint frameBufferID=0;
+	GLuint depthBufferID = 0;
+	glm::uvec2 dims;
+	bool hasDepth;
+};
+
 class OpenGLProgram
 {
 public:
 	std::vector<VertexArrayObject> vaos;
 	std::vector<Texture2D> textures;
+	std::vector<RenderedTexture2D> renderedTextures;
 	
 	OpenGLProgram()
 	{
@@ -559,11 +670,17 @@ public:
 		clearColor = color;
 		GL_CALL(glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w));
 	}
+	
+	inline glm::vec4 GetClearColor()
+	{
+		return clearColor;
+	}
 
 	inline void Clear()
 	{
 		GL_CALL(glClear(clearFlags));
 	}
+	
 	
 private:
 	GLuint glID;
