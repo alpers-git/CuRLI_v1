@@ -146,53 +146,32 @@ void CVelocityField2D::Update()
 {
 }
 
+void CRigidBody::Update()
+{
+}
 
 void CForceField2D::Update()
 {
 }
-
-void CRigidBody::Update()
-{
-	const float stepSize = 1.f;
-	//euler method
-	/*velocity += acceleration * stepSize;
-
-	velocity += glm::pow(glm::length(velocity + 0.0000001f), 2.0f) 
-		* drag * -glm::normalize(velocity + 0.0000001f) * stepSize;
-
-	position += velocity * stepSize;*/
-		
-	//midpoint method
-	const glm::vec3 midVelocity = velocity + 0.5f * stepSize * acceleration
-		+ glm::pow(glm::length(velocity + 0.0000001f), 2.0f)
-		* drag * -glm::normalize(velocity + 0.0000001f) * 0.5f * stepSize;
-	const glm::vec3 midPosition = position + 0.5f * stepSize * midVelocity;
-	velocity = velocity + 0.5f * stepSize * acceleration
-		+ glm::pow(glm::length(velocity + 0.0000001f), 2.0f)
-		* drag * -glm::normalize(velocity + 0.0000001f) *  stepSize;
-	
-	position = position + 0.5f * stepSize * midVelocity;
-}
-
 void CBoundingBox::Update(){}
 
-glm::vec3 CVelocityField2D::VelocityAt(glm::vec2 p)
+glm::vec3 CVelocityField2D::At(glm::vec3 p)
 {
 	switch (this->plane)
 	{
 	case FieldPlane::XY:
-		return scaling * glm::vec3(field(p), 0.0f);
+		return scaling * glm::vec3(field({ p.x, p.y }), 0.0f);
 		break;
 	case FieldPlane::XZ:
 	{
-		auto t = field(p);
+		auto t = field(glm::vec2(p.x, p.z));
 		return scaling * glm::vec3(t.x, 0.0f, t.y);
 		break;
 	}
 	case FieldPlane::YZ:
 	{
-		auto t = field(p);
-		return scaling * glm::vec3(0.0f, field(p).x, field(p).y);
+		auto t = field(glm::vec2(p.y, p.z));
+		return scaling * glm::vec3(0.0f, t.x, t.y);
 		break;
 	}
 	default:
@@ -201,23 +180,23 @@ glm::vec3 CVelocityField2D::VelocityAt(glm::vec2 p)
 	}
 }
 
-glm::vec3 CForceField2D::ForceAt(glm::vec2 p)
+glm::vec3 CForceField2D::At(glm::vec3 p)
 {
 	switch (this->plane)
 	{
 	case FieldPlane::XY:
-		return scaling * glm::vec3(field(p), 0.0f);
+		return scaling * glm::vec3(field({p.x, p.y}), 0.0f);
 		break;
 	case FieldPlane::XZ:
 	{
-		auto t = field(p);
+		auto t = field(glm::vec2(p.x, p.z));
 		return scaling * glm::vec3(t.x, 0.0f, t.y);
 		break;
 	}
 	case FieldPlane::YZ:
 	{
-		auto t = field(p);
-		return scaling * glm::vec3(0.0f, field(p).x, field(p).y);
+		auto t = field(glm::vec2(p.y, p.z));
+		return scaling * glm::vec3(0.0f, t.x, t.y);
 		break;
 	}
 	default:
@@ -251,72 +230,16 @@ void Scene::Update()
 	//call update functions of every component
 	registry.view<CRigidBody, CTransform>().each([&](CRigidBody& rigidBody, CTransform& transform)
 		{
-			int i = 0;
-			glm::vec3 velocityFContribution = glm::vec3(0.0f);
-			registry.view<CVelocityField2D>().each([&](auto vField)
-				{
-					velocityFContribution += vField.VelocityAt(
-						glm::vec2(rigidBody.position.x, rigidBody.position.z));
-					i++;
-				});
-			if(i!=0)
-				rigidBody.velocity = velocityFContribution;
 			
-			i = 0;
-			glm::vec3 forceFContribution = glm::vec3(0.0f);
-			registry.view<CForceField2D>().each([&](auto fField)
-				{
-					const float stepSize = 0.33f;
-					for (float step = 0; step < 1.0f; step+=stepSize)
-					{
-						if (!explicit_euler)
-						{
-							const float r = glm::length(rigidBody.position);
-							const float deltaAngle = glm::length(rigidBody.velocity) *
-								stepSize/r;
-							glm::vec3 pPrime = glm::eulerAngleY(deltaAngle) * 
-								glm::vec4(rigidBody.position,1.0f);
-							forceFContribution = fField.ForceAt(
-								glm::vec2(pPrime.x, pPrime.z)) * stepSize;
-							//rigidBody.velocity = glm::vec3(0.0f);
-							//rigidBody.acceleration = forceFContribution / rigidBody.mass;
-							rigidBody.velocity += forceFContribution / rigidBody.mass * stepSize 
-								+ glm::pow(glm::length(rigidBody.velocity + 0.0000001f), 2.0f)
-								* rigidBody.drag * -glm::normalize(rigidBody.velocity + 0.0000001f) * 0.5f * stepSize;
-							rigidBody.position += stepSize * rigidBody.velocity;
-							//rigidBody.Update();
-						}
-						else
-						{
-							//midpoint method
-							forceFContribution = fField.ForceAt(glm::vec2(rigidBody.position.x, rigidBody.position.z));
-							const glm::vec3 acceleration = forceFContribution / rigidBody.mass;
-							const glm::vec3 midVelocity = rigidBody.velocity + 0.5f * stepSize * acceleration
-								+ glm::pow(glm::length(rigidBody.velocity + 0.0000001f), 2.0f)
-								* rigidBody.drag * -glm::normalize(rigidBody.velocity + 0.0000001f) * 0.5f * stepSize;
-							const glm::vec3 midPosition = rigidBody.position + 0.5f * stepSize * midVelocity;
-							rigidBody.velocity = rigidBody.velocity + 0.5f * stepSize * acceleration
-								+ glm::pow(glm::length(rigidBody.velocity + 0.0000001f), 2.0f)
-								* rigidBody.drag * -glm::normalize(rigidBody.velocity + 0.0000001f) * stepSize;
-
-							rigidBody.position = rigidBody.position + 0.5f * stepSize * midVelocity;
-						}
-					}
-					i++;
-				});
-			/*if (i != 0)
-				rigidBody.acceleration = forceFContribution / rigidBody.mass;*/
 			
-			registry.view<CBoundingBox>().each([&](CBoundingBox bbox) {
+			/*registry.view<CBoundingBox>().each([&](CBoundingBox bbox) {
 				bbox.Rebound(rigidBody);
-			});
-			if (i == 0)
-				rigidBody.Update();
+			});*/
+
 			transform.SetPosition(rigidBody.position);
 			//transform.SetEulerRotation(rigidBody.rotation);
 			transform.Update();
 		});
-	//registry.view<CTransform>().each([](CTransform& transform) { transform.Update(); });
 	registry.view<CTriMesh>().each([&](CTriMesh& mesh) { mesh.Update(); });
 	registry.view<CLight>().each([&](CLight& light) { light.Update(); });
 
@@ -367,6 +290,9 @@ bool Scene::EntityHas(entt::entity e, CType component)
 		break;
 	case CType::RigidBody:
 		return registry.all_of<CRigidBody>(e);
+		break;
+	case CType::ImageMaps:
+		return registry.all_of<CImageMaps>(e);
 		break;
 	case CType::Count:
 		break;
@@ -485,11 +411,6 @@ entt::entity Scene::CreateModelObject(cy::TriMesh& mesh, glm::vec3 position, glm
 	registry.emplace<CTransform>(entity, position, rotation, scale);
 	registry.emplace<CPhongMaterial>(entity);
 	return entity;
-}
-
-void CRigidBody::ApplyForce(glm::vec3 force)
-{
-	velocity += force / mass;
 }
 
 

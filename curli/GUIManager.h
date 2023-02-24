@@ -150,6 +150,87 @@ namespace gui
 					{
 						openComponentsPopup = true;
 					}
+					ImGui::Separator();
+					if (ImGui::BeginMenu("Tangencial ForceField2D", ""))
+					{
+						if(ImGui::MenuItem("XY"))
+						{
+							auto forceF = scene->CreateSceneObject("forceField");
+							scene->registry.emplace<CForceField2D>(forceF, [](glm::vec2 pos)
+								{
+									float x = pos.x;
+									float y = pos.y;
+									float radius = sqrt(x * x + y * y);
+									float angle = atan2(y, x) + 0.5f * glm::pi<float>();
+									return glm::vec2(-radius * cos(angle), - radius * sin(angle));
+								}, FieldPlane::XY).scaling = 0.5f;
+						}
+						if(ImGui::MenuItem("YZ"))
+						{
+							auto forceF = scene->CreateSceneObject("forceField");
+							scene->registry.emplace<CForceField2D>(forceF, [](glm::vec2 pos)
+								{
+									float x = pos.x;
+									float y = pos.y;
+									float radius = sqrt(x * x + y * y);
+									float angle = atan2(y, x) + 0.5f * glm::pi<float>();
+									return glm::vec2(-radius * cos(angle), - radius * sin(angle));
+								}, FieldPlane::YZ).scaling = 0.5f;
+						}
+						if (ImGui::MenuItem("XZ"))
+						{
+							auto forceF = scene->CreateSceneObject("forceField");
+							scene->registry.emplace<CForceField2D>(forceF, [](glm::vec2 pos)
+								{
+									float x = pos.x;
+									float y = pos.y;
+									float radius = sqrt(x * x + y * y);
+									float angle = atan2(y, x) + 0.5f * glm::pi<float>();
+									return glm::vec2(-radius * cos(angle), -radius * sin(angle));
+								}, FieldPlane::XZ).scaling = 0.5f;
+						}
+						ImGui::EndMenu();
+					}
+					if (ImGui::BeginMenu("To Right VelocityField2D", ""))
+					{
+						if(ImGui::MenuItem("XY"))
+						{
+							auto velocityF = scene->CreateSceneObject("velocityField");
+							scene->registry.emplace<CVelocityField2D>(velocityF, [](glm::vec2 pos)
+								{
+									float x = pos.x;
+									float y = pos.y;
+									return glm::vec2(
+										1.0f, -y*0.3f
+									);
+								}, FieldPlane::XY).scaling = 0.5f;
+						}
+						if (ImGui::MenuItem("YZ"))
+						{
+							auto velocityF = scene->CreateSceneObject("velocityField");
+							scene->registry.emplace<CVelocityField2D>(velocityF, [](glm::vec2 pos)
+								{
+									float x = pos.x;
+									float y = pos.y;
+									return glm::vec2(
+										1.0f, -y * 0.3f
+									);
+								}, FieldPlane::YZ).scaling = 0.5f;
+						}
+						if(ImGui::MenuItem("XZ"))
+						{
+							auto velocityF = scene->CreateSceneObject("velocityField");
+							scene->registry.emplace<CVelocityField2D>(velocityF, [](glm::vec2 pos)
+								{
+									float x = pos.x;
+									float y = pos.y;
+									return glm::vec2(
+										1.0f, -y*0.3f
+									);
+								}, FieldPlane::XZ).scaling = 0.5f;
+						}
+						ImGui::EndMenu();
+					}
 					ImGui::EndMenu();
 				}
 				ImGui::EndMainMenuBar();
@@ -185,7 +266,7 @@ namespace gui
 							case CType::PhongMaterial:
 								scene->registry.emplace_or_replace<CPhongMaterial>(selectedSceneObject);
 								break;
-							case CType::ImageMap:
+							case CType::ImageMaps:
 								scene->registry.emplace_or_replace<CImageMaps>(selectedSceneObject);
 								break;
 							case CType::Light:
@@ -245,7 +326,7 @@ namespace gui
 							case CType::PhongMaterial:
 								scene->registry.erase<CPhongMaterial>(selectedSceneObject);
 								break;
-							case CType::ImageMap:
+							case CType::ImageMaps:
 								scene->registry.erase<CImageMaps>(selectedSceneObject);
 								break;
 							case CType::Light:

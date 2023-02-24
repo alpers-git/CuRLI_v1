@@ -211,7 +211,7 @@ private:
 
 enum class CType{
 	Transform, TriMesh, 
-	PhongMaterial, ImageMap,
+	PhongMaterial, ImageMaps,
 	Light,
 	BoundingBox,VelocityField2D,
 	ForceField2D, RigidBody,
@@ -542,8 +542,6 @@ public:
 	glm::vec3 velocity = glm::vec3(0, 0, 0);
 	glm::vec3 acceleration = glm::vec3(0, 0, 0);
 
-	void ApplyForce(glm::vec3 force);
-
 	void Update();
 	
 private:
@@ -636,7 +634,7 @@ private:
 struct CImageMaps : Component
 {
 public:
-	static constexpr CType type = CType::ImageMap;
+	static constexpr CType type = CType::ImageMaps;
 	
 	CImageMaps()
 	{}
@@ -675,7 +673,7 @@ public:
 	{
 	}
 
-	glm::vec3 VelocityAt(glm::vec2 p);
+	glm::vec3 At(glm::vec3 p);
 };
 
 struct CForceField2D : Component
@@ -693,7 +691,7 @@ public:
 	{
 	}
 
-	glm::vec3 ForceAt(glm::vec2 p);
+	glm::vec3 At(glm::vec3 p);
 };
 
 struct CBoundingBox : Component

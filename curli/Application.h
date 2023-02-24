@@ -2,9 +2,10 @@
 //#include <Scene.h>
 #include "Renderer.h"
 #include <GUIManager.h>
+#include <PhysicsIntegrator.h>
 
 
-template <class R, class G>
+template <class R, class G, class P>
 class Application
 {
 public:
@@ -13,6 +14,7 @@ public:
 		scene = std::make_shared<Scene>();
 		renderer = std::make_unique<R>(scene);
 		guiManager = std::make_unique<G>(scene);
+		physicsIntegrator = std::make_unique<P>(scene);
 		ParseArguments(argc, argv);
 		renderer->ParseArguments(argc, argv);
 		
@@ -42,6 +44,9 @@ public:
 		//Create a rendering loop with glfw
 		while (windowManager.IsRunning())
 		{
+			//Update Physics
+			physicsIntegrator->Update();
+
 			//Update the scene
 			scene->Update();
 			
@@ -62,6 +67,7 @@ public:
 private:
 	std::unique_ptr<R> renderer;
 	std::unique_ptr<G> guiManager;
+	std::unique_ptr<P> physicsIntegrator;
 	std::shared_ptr<Scene> scene;
 	
 	
