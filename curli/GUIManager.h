@@ -163,7 +163,7 @@ namespace gui
 									float radius = sqrt(x * x + y * y);
 									float angle = atan2(y, x) + 0.5f * glm::pi<float>();
 									return glm::vec2(-radius * cos(angle), - radius * sin(angle));
-								}, FieldPlane::XY).scaling = 0.5f;
+								}, FieldPlane::XY).scaling = 1.5f;
 						}
 						if(ImGui::MenuItem("YZ"))
 						{
@@ -175,7 +175,7 @@ namespace gui
 									float radius = sqrt(x * x + y * y);
 									float angle = atan2(y, x) + 0.5f * glm::pi<float>();
 									return glm::vec2(-radius * cos(angle), - radius * sin(angle));
-								}, FieldPlane::YZ).scaling = 0.5f;
+								}, FieldPlane::YZ).scaling = 1.5f;
 						}
 						if (ImGui::MenuItem("XZ"))
 						{
@@ -187,7 +187,7 @@ namespace gui
 									float radius = sqrt(x * x + y * y);
 									float angle = atan2(y, x) + 0.5f * glm::pi<float>();
 									return glm::vec2(-radius * cos(angle), -radius * sin(angle));
-								}, FieldPlane::XZ).scaling = 0.5f;
+								}, FieldPlane::XZ).scaling = 1.5f;
 						}
 						ImGui::EndMenu();
 					}
@@ -203,7 +203,7 @@ namespace gui
 									return glm::vec2(
 										1.0f, -y*0.3f
 									);
-								}, FieldPlane::XY).scaling = 0.5f;
+								}, FieldPlane::XY).scaling = 1.5f;
 						}
 						if (ImGui::MenuItem("YZ"))
 						{
@@ -215,7 +215,7 @@ namespace gui
 									return glm::vec2(
 										1.0f, -y * 0.3f
 									);
-								}, FieldPlane::YZ).scaling = 0.5f;
+								}, FieldPlane::YZ).scaling = 1.5f;
 						}
 						if(ImGui::MenuItem("XZ"))
 						{
@@ -227,7 +227,7 @@ namespace gui
 									return glm::vec2(
 										1.0f, -y*0.3f
 									);
-								}, FieldPlane::XZ).scaling = 0.5f;
+								}, FieldPlane::XZ).scaling = 1.5f;
 						}
 						ImGui::EndMenu();
 					}

@@ -85,3 +85,61 @@ public:
 			});
 	}
 };
+
+class BwEulerIntegrator : public PhysicsIntegrator<BwEulerIntegrator>
+{
+	public:
+		BwEulerIntegrator(std::shared_ptr<Scene> scene) : PhysicsIntegrator(scene) {}
+		~BwEulerIntegrator() {}
+
+		void Integrate(float dt) override
+		{
+			
+			scene->registry.view<CRigidBody>()
+				.each([dt, this](auto entity, CRigidBody& rb)
+				{
+					//explicit step
+					glm::vec3 vFromField = glm::vec3(0.0f);
+					scene->registry.view<CVelocityField2D>()
+					.each([&vFromField, entity, rb](auto fieldEntity, CVelocityField2D& field)
+						{
+							vFromField += field.At(rb.position);
+						});
+					if (glm::length(vFromField) > 0.0f)
+					{
+						rb.velocity = vFromField;
+						rb.position += rb.velocity * dt;
+					}
+					else
+					{
+						glm::vec3 fFromField = glm::vec3(0.0f);
+						scene->registry.view<CForceField2D>()
+						.each([&fFromField, entity, rb](auto fieldEntity, CForceField2D& field)
+							{
+								fFromField += field.At(rb.position);
+							});
+						glm::vec3 acceleration = rb.acceleration;
+						glm::vec3 velocity = rb.velocity;
+						glm::vec3 position = rb.position;
+						if (rb.mass > 0.00001f)
+							acceleration += fFromField / rb.mass * dt;
+						acceleration -= 0.5f * rb.drag * velocity * velocity;
+						velocity += acceleration * dt;
+						position += velocity * dt;
+
+						//implcit step using explicit pos
+						fFromField = glm::vec3(0.0f);
+						scene->registry.view<CForceField2D>()
+						.each([&fFromField, entity, position](auto fieldEntity, CForceField2D& field)
+							{
+								fFromField += field.At(position);
+							});
+						if (rb.mass > 0.00001f)
+							rb.acceleration += fFromField / rb.mass * dt;
+						rb.acceleration -= 0.5f * rb.drag * velocity * velocity;
+						rb.velocity += rb.acceleration * dt;
+						rb.position += rb.velocity * dt;
+					}
+				});
+		}
+};

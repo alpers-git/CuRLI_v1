@@ -34,12 +34,30 @@ void scheduleSychForRemovedTexture(entt::registry& registry, entt::entity e)
 	GLFWHandler::GetInstance().QueueEvent(event);
 }
 
+void synchTransformAndRigidBody(entt::registry& registry, entt::entity e)
+{
+	//check if entity has a rigid body
+	if (registry.any_of<CRigidBody>(e))
+	{
+		//check if entity has a transform
+		if (registry.any_of<CTransform>(e))
+		{
+			CTransform& transform = registry.get<CTransform>(e);
+			CRigidBody& rigidBody = registry.get<CRigidBody>(e);
+			rigidBody.position = transform.GetPosition();
+			rigidBody.rotation = transform.GetRotation();
+		}
+	}
+}
+
 Scene::Scene()
 {
 	registry.on_construct<CTriMesh>().connect<&scheduleSynchForBuffers>();
 	registry.on_update<CTriMesh>().connect<&scheduleSynchForBuffers>();
 
 	registry.on_destroy<CImageMaps>().connect<&scheduleSychForRemovedTexture>();
+	
+	registry.on_construct<CRigidBody>().connect<&synchTransformAndRigidBody>();
 	
 	/*registry.on_construct<CTextures2D>().connect<&scheduleSychForTextures>();
 	registry.on_update<CTextures2D>().connect<&scheduleSychForTextures>();*/
