@@ -2,6 +2,7 @@
 #include <GLFWHandler.h>
 
 
+//===============Sinks for entity management===============
 void scheduleSynchForBuffers(entt::registry& registry, entt::entity e)
 {
 
@@ -50,6 +51,31 @@ void synchTransformAndRigidBody(entt::registry& registry, entt::entity e)
 	}
 }
 
+void synchEnvMap(entt::registry& registry, entt::entity e)
+{
+	//------ensure single environment map in scene------//
+	//check if scene has another environment map
+	const auto view = registry.view<CEnvironmentMap>();
+	if (view.size()>1)
+	{
+		//then remove it
+		registry.destroy(view.front());
+	}
+	
+	//schedule update with renderer
+	Event event;
+	event.type = Event::Type::GeometryChange;
+	event.geometryChange.e = e;
+	GLFWHandler::GetInstance().QueueEvent(event);
+	
+	Event event2;
+	event2.type = Event::Type::TextureChange;
+	event2.textureChange.e = e;
+	event2.textureChange.toBeRemoved = false;
+	GLFWHandler::GetInstance().QueueEvent(event2);
+}
+
+//==============================
 Scene::Scene()
 {
 	registry.on_construct<CTriMesh>().connect<&scheduleSynchForBuffers>();
@@ -58,9 +84,13 @@ Scene::Scene()
 	registry.on_destroy<CImageMaps>().connect<&scheduleSychForRemovedTexture>();
 	
 	registry.on_construct<CRigidBody>().connect<&synchTransformAndRigidBody>();
+	registry.on_update<CRigidBody>().connect<&synchTransformAndRigidBody>();
+	registry.on_construct<CTransform>().connect<&synchTransformAndRigidBody>();//Untested!
+
+
+	registry.on_construct<CEnvironmentMap>().connect<&synchEnvMap>();
+	registry.on_update<CEnvironmentMap>().connect<&synchEnvMap>();
 	
-	/*registry.on_construct<CTextures2D>().connect<&scheduleSychForTextures>();
-	registry.on_update<CTextures2D>().connect<&scheduleSychForTextures>();*/
 }
 
 Scene::~Scene()
@@ -171,7 +201,13 @@ void CRigidBody::Update()
 void CForceField2D::Update()
 {
 }
-void CBoundingBox::Update(){}
+void CBoundingBox::Update()
+{
+}
+
+void CEnvironmentMap::Update()
+{
+}
 
 glm::vec3 CVelocityField2D::At(glm::vec3 p)
 {
@@ -491,8 +527,21 @@ std::string ImageMap::GetSlotName()
 	case ImageMap::BindingSlot::BUMP:
 		return "BumpMap";
 		break;
+	case ImageMap::BindingSlot::ENV_MAP:
+		return "Environment Map";
+		break;
 	default:
 		return "";
 		break;
 	}
+}
+
+std::vector<unsigned char> CEnvironmentMap::GetSideImagesFlat()
+{
+	std::vector<unsigned char> flattenedImages;
+	for (auto& img : sides)
+	{
+		flattenedImages.insert(flattenedImages.end(), img.GetImage().begin(), img.GetImage().end());
+	}
+	return flattenedImages;
 }

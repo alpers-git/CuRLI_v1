@@ -27,6 +27,16 @@ public:
 			tr->SetPosition(glm::vec3(0, -10, 0));
 			tr->SetScale(glm::vec3(50, 50, 1));
 		}
+
+		std::string paths[] = {
+			"../assets/images/cubemap/cubemap_posx.png",
+			"../assets/images/cubemap/cubemap_negx.png",
+			"../assets/images/cubemap/cubemap_posy.png",
+			"../assets/images/cubemap/cubemap_negy.png",
+			"../assets/images/cubemap/cubemap_posz.png",
+			"../assets/images/cubemap/cubemap_negz.png"
+		};
+		scene->registry.emplace<CEnvironmentMap>(scene->CreateSceneObject("envMap"), paths);
 	}
 	~Application() {}
 

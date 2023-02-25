@@ -505,12 +505,138 @@ struct RenderedTexture2D
 	bool hasDepth;
 };
 
+struct CubeMappedTexture
+{
+	CubeMappedTexture(void* data, glm::uvec2 dims, bool seamless = true,
+		GLenum textUnit= GL_TEXTURE30, GLenum wrapS = GL_CLAMP_TO_EDGE,
+		GLenum wrapT = GL_CLAMP_TO_EDGE, GLenum dataType = GL_UNSIGNED_BYTE,
+		GLenum format = GL_RGBA, int mipmapLevel = -1)
+		:dims(dims), seamless(seamless), textUnit(textUnit),
+		wrapS(wrapS), wrapT(wrapT), dataType(dataType), format(format),
+		mipmapLevel(mipmapLevel)
+	{
+		GL_CALL(glGenTextures(1, &glID));
+		
+		GL_CALL(glBindTexture(GL_TEXTURE_CUBE_MAP, glID));
+
+		size_t typeSize = 0;
+		
+		switch (dataType)
+		{
+		case GL_UNSIGNED_BYTE:
+			typeSize = sizeof(GLubyte);
+			break;
+		case GL_UNSIGNED_SHORT:
+			typeSize = sizeof(GLushort);
+			break;
+		case GL_UNSIGNED_INT:
+			typeSize = sizeof(GLuint);
+			break;
+		case GL_FLOAT:
+			typeSize = sizeof(GLfloat);
+			break;
+		default:
+			std::cout << "ERROR::CUBEMAP:: Unknown data type" << std::endl;
+			break;
+		}
+
+		for (size_t i = 0; i < 6; i++)
+		{
+			//Create a temporary array that is a slice of data to each of 6 pieces using dims
+			/*void* tmp = nullptr;
+			if (data != nullptr)
+				tmp = (char*)data + i * dims.x * dims.y * typeSize;*/
+			
+			GL_CALL(glTexImage2D(
+				GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 
+				mipmapLevel >= 0 ? mipmapLevel : 0,
+				internalFormat,
+				dims.x,
+				dims.y,
+				0,
+				format,
+				dataType,
+				data == nullptr ? 0 : data));
+		}
+		if(seamless)
+			GL_CALL(glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS));
+			
+		if (mipmapLevel > 0)
+			GL_CALL(glGenerateMipmap(GL_TEXTURE_CUBE_MAP));
+
+		GL_CALL(glTexParameteri(
+			GL_TEXTURE_CUBE_MAP,
+			GL_TEXTURE_MIN_FILTER,
+			mipmapLevel >= 0 ? GL_NEAREST_MIPMAP_LINEAR : GL_LINEAR));
+
+		GL_CALL(glTexParameteri(
+			GL_TEXTURE_CUBE_MAP,
+			GL_TEXTURE_MAG_FILTER,
+			mipmapLevel >= 0 ? GL_NEAREST_MIPMAP_LINEAR : GL_LINEAR));
+
+		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapS));
+		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT));
+
+	}
+
+	CubeMappedTexture(const CubeMappedTexture& other)
+		:glID(other.glID), dims(other.dims), seamless(other.seamless), textUnit(other.textUnit),
+		wrapS(other.wrapS), wrapT(other.wrapT), dataType(other.dataType),
+		format(other.format), mipmapLevel(other.mipmapLevel)
+	{}
+
+	~CubeMappedTexture()
+	{}
+
+	void Bind()
+	{
+		GL_CALL(glActiveTexture(textUnit));
+		GL_CALL(glBindTexture(GL_TEXTURE_CUBE_MAP, glID));
+	}
+
+	void Unbind()
+	{
+		GL_CALL(glActiveTexture(textUnit));
+		GL_CALL(glBindTexture(GL_TEXTURE_CUBE_MAP, 0));
+	}
+
+	void Delete()
+	{
+		GL_CALL(glDeleteTextures(1, &glID));
+	}
+
+	GLuint GetGLID()
+	{
+		return glID;
+	}
+
+	glm::uvec2 GetDims()
+	{
+		return dims;
+	}
+	
+
+private:
+	GLuint glID;
+	glm::uvec2 dims;
+	GLenum wrapS, wrapT;
+	GLenum format = GL_RGBA;
+	int mipmapLevel = 0;
+	GLenum dataType = GL_UNSIGNED_BYTE;
+	GLenum internalFormat = GL_RGBA;
+
+	bool seamless;
+
+	GLenum textUnit = GL_TEXTURE0;
+};
+
 class OpenGLProgram
 {
 public:
 	std::vector<VertexArrayObject> vaos;
 	std::vector<Texture2D> textures;
 	std::vector<RenderedTexture2D> renderedTextures;
+	std::vector<CubeMappedTexture> cubeMaps;
 	
 	OpenGLProgram()
 	{

@@ -27,11 +27,13 @@ uniform int shading_mode;//0 = phong-color, 1 = editor mode
 uniform int has_texture[5] = {0,0,0,0,0};//[0] = diffuse, [1] = specular, [2] = normal
 uniform sampler2D tex_list[5];
 
+uniform samplerCube env_map;
+
 
 out vec4 color;
 
 void main() {
-     if(shading_mode == 0)
+     if(shading_mode == 0)//phong shading and textures
      {
           color = vec4(0,0,0,1);
           vec3 v_space_norm = normalize(v_space_norm);
@@ -54,13 +56,13 @@ void main() {
           color = clamp(color + vec4( (has_texture[0]==1 ? (texture(tex_list[0], tex_coord)).xyz :
                                                              material.ka), 1),0,1);
      }
-     else if(shading_mode == 1)
+     else if(shading_mode == 1)//editor lines and components
      {
           color = vec4(1,1,1,1);
      }
-     else if(shading_mode == 2)
+     else if(shading_mode == 2)//env_map background
      {
-          color = vec4(1,1,1,1);
+          color = texture(env_map, normalize(-v_space_pos));
      }
      else
      {

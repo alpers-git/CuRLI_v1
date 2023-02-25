@@ -212,7 +212,7 @@ private:
 enum class CType{
 	Transform, TriMesh, 
 	PhongMaterial, ImageMaps,
-	Light,
+	Light, EnvironmentMap,
 	BoundingBox,VelocityField2D,
 	ForceField2D, RigidBody,
 	Count
@@ -324,7 +324,6 @@ enum class ShadingMode
 {
 	PHONG, EDITOR
 };
-
 struct CTriMesh : Component
 {
 public:
@@ -458,6 +457,115 @@ private:
 	ShadingMode shading = ShadingMode::PHONG; //0 = phong-color, 1 = phong-texture, 2 = editor mode
 };
 
+struct CPhongMaterial : Component
+{
+public:
+	static constexpr CType type = CType::PhongMaterial;
+	glm::vec3 ambient = glm::vec3(0.2f, 0.2f, 0.3f);
+	glm::vec3 diffuse = glm::vec3(0.5f, 0.5f, 0.5f);
+	glm::vec3 specular = glm::vec3(0.9f, 0.9f, 0.9f);
+	float shininess = 450.f;
+
+	void Update();
+};
+
+struct ImageMap
+{
+	enum class BindingSlot {
+		T_AMBIENT, T_DIFFUSE, T_SPECULAR, NORMAL, BUMP, ENV_MAP
+	};
+public:
+	ImageMap()
+	{}
+	
+	ImageMap(std::string path, BindingSlot slot)
+		:path(path), bindingSlot(slot)
+	{
+		std::vector<unsigned char> png;
+		//load and decode
+		unsigned error = lodepng::load_file(png, path);
+		if (error)
+		{
+			printf("Texture constructor\n\tlodepng:load error %d - %s\n", error, lodepng_error_text(error));
+			return;
+		}
+		unsigned int w, h;
+		error = lodepng::decode(image, w, h, png);
+		dims.x = w;
+		dims.y = h;
+
+		//if there's an error, display it
+		if (error)
+		{
+			printf("Texture constructor\n\tlodepng:decoder error %d - %s\n", error, lodepng_error_text(error));
+			return;
+		}
+	}
+
+	ImageMap(Camera camera, glm::uvec2 dims, BindingSlot slot)
+		:renderedImageCamera(camera), dims(dims), bindingSlot(slot)
+	{
+		renderedImg = true;
+		camera.SetAspectRatio((float)dims.x / (float)dims.y);
+		image.clear();
+	}
+
+	bool SetCamera(Camera camera)
+	{
+		if (renderedImg)
+		{
+			renderedImageCamera = camera;
+			return true;
+		}
+		return false;
+	}
+
+	//getters
+	std::string GetPath() { return path; }
+	std::vector<unsigned char> GetImage() { return image; }
+	glm::uvec2 GetDims() { return dims; }
+	BindingSlot GetBindingSlot() { return bindingSlot; }
+	std::string GetSlotName();
+	Camera& GetRenderedImageCamera() { return renderedImageCamera; }
+	bool IsRenderedImage() { return renderedImg; }
+	unsigned int GetProgramRenderedTexIndexIndex() { return programRenderedTexIndex; }
+
+	//setters
+	void SetProgramRenderedTexIndex(unsigned int index) { programRenderedTexIndex = index; }
+
+	GLuint glID; //Maybe find a better way...
+private:
+	std::string path;
+	std::vector<unsigned char> image;
+	glm::uvec2 dims;
+	BindingSlot bindingSlot;
+
+	Camera renderedImageCamera;
+	bool renderedImg = false;
+	unsigned int programRenderedTexIndex = 0;
+};
+struct CImageMaps : Component
+{
+public:
+	static constexpr CType type = CType::ImageMaps;
+
+	CImageMaps()
+	{}
+
+	void AddImageMap(ImageMap::BindingSlot slot, std::string path);
+	void AddImageMap(ImageMap::BindingSlot slot, Camera camera, glm::uvec2 dims);
+	void RemoveMap(ImageMap::BindingSlot slot);
+	void Update();
+
+	unsigned int inline GetNumMaps() { return imgMaps.size(); }
+	std::unordered_map<ImageMap::BindingSlot, ImageMap>::iterator mapsBegin() { return imgMaps.begin(); }
+	std::unordered_map<ImageMap::BindingSlot, ImageMap>::iterator mapsEnd() { return imgMaps.end(); }
+
+	bool dirty = false;
+private:
+	std::unordered_map<ImageMap::BindingSlot, ImageMap> imgMaps;
+};
+
 enum class LightType
 {
 	POINT,
@@ -503,23 +611,89 @@ public:
 			innerCutOff = iCutoff;
 			outerCutoff = oCutoff;
 		}
-		
+
 	}
-	
+
 	LightType GetLightType() { return lightType; }
-	
+
 	glm::vec3 color;
 	float intensity;
 	float innerCutOff;
 	float outerCutoff;
 	glm::vec3 direction;
 	glm::vec3 position;
-	
+
 	void Update();
-	
+
 private:
 	LightType lightType;
+
+};
+
+struct CEnvironmentMap : Component
+{
+public:
+	static constexpr CType type = CType::EnvironmentMap;
+	CEnvironmentMap(std::string path[6])
+	{
+		sides.resize(6);
+		for (int i = 0; i < 6; i++)
+		{
+			sides[i] = ImageMap(path[i], ImageMap::BindingSlot::ENV_MAP);
+		}
+		
+		dims = glm::uvec2(sides[0].GetDims());//TODO:: better way ??
+	}
 	
+	std::vector<unsigned char> GetSideImagesFlat();
+	glm::uvec2 GetDims() { return dims; }
+
+	void Update();
+	std::vector<ImageMap> sides;//order: x+, x-, y+, y-, z+, z-
+private:
+	glm::uvec2 dims;
+};
+
+
+enum class FieldPlane
+{
+	XY, YZ, XZ
+};
+struct CVelocityField2D : Component
+{
+public:
+	static constexpr CType type = CType::VelocityField2D;
+	void Update();
+	//function pointer here
+	std::function<glm::vec2(glm::vec2)> field;
+	float scaling = 1.f;
+
+	FieldPlane plane;
+
+	CVelocityField2D(std::function<glm::vec2(glm::vec2)> field, FieldPlane plane = FieldPlane::XY)
+		:field(field), plane(plane)
+	{
+	}
+
+	glm::vec3 At(glm::vec3 p);
+};
+
+struct CForceField2D : Component
+{
+public:
+	static constexpr CType type = CType::ForceField2D;
+	void Update();
+	//function pointer here
+	std::function<glm::vec2(glm::vec2)> field;
+	float scaling = 1.f;
+	FieldPlane plane;
+
+	CForceField2D(std::function<glm::vec2(glm::vec2)> field, FieldPlane plane = FieldPlane::XY)
+		:field(field), plane(plane)
+	{
+	}
+
+	glm::vec3 At(glm::vec3 p);
 };
 
 struct CRigidBody : Component
@@ -547,153 +721,6 @@ public:
 private:
 };
 
-struct CPhongMaterial : Component
-{
-public:
-	static constexpr CType type = CType::PhongMaterial;
-	glm::vec3 ambient = glm::vec3(0.2f, 0.2f, 0.3f);
-	glm::vec3 diffuse = glm::vec3(0.5f, 0.5f, 0.5f);
-	glm::vec3 specular = glm::vec3(0.9f, 0.9f, 0.9f);
-	float shininess = 450.f;
-
-	void Update();
-};
-
-struct ImageMap
-{
-	enum class BindingSlot{
-		T_AMBIENT, T_DIFFUSE, T_SPECULAR, NORMAL, BUMP
-	};
-public:
-	ImageMap(std::string path, BindingSlot slot)
-		:path(path), bindingSlot(slot)
-	{
-		std::vector<unsigned char> png;
-		//load and decode
-		unsigned error = lodepng::load_file(png, path);
-		if (error)
-		{
-			printf("Texture constructor\n\tlodepng:load error %d - %s\n", error, lodepng_error_text(error));
-			return;
-		}
-		unsigned int w, h;
-		error = lodepng::decode(image, w, h, png);
-		dims.x = w;
-		dims.y = h;
-
-		//if there's an error, display it
-		if (error)
-		{
-			printf("Texture constructor\n\tlodepng:decoder error %d - %s\n", error, lodepng_error_text(error));
-			return;
-		}
-	}
-
-	ImageMap(Camera camera, glm::uvec2 dims, BindingSlot slot)
-		:renderedImageCamera(camera), dims(dims), bindingSlot(slot)
-	{
-		renderedImg = true;
-		camera.SetAspectRatio((float)dims.x / (float)dims.y);
-		image.clear();
-	}
-	
-	bool SetCamera(Camera camera)
-	{
-		if (renderedImg)
-		{
-			renderedImageCamera = camera;
-			return true;
-		}
-		return false;
-	}
-	
-	//getters
-	std::string GetPath() { return path; }
-	std::vector<unsigned char> GetImage() { return image; }
-	glm::uvec2 GetDims() { return dims; }
-	BindingSlot GetBindingSlot() { return bindingSlot; }
-	std::string GetSlotName();
-	Camera& GetRenderedImageCamera() { return renderedImageCamera; }
-	bool IsRenderedImage() { return renderedImg; }
-	unsigned int GetProgramRenderedTexIndexIndex() { return programRenderedTexIndex; }
-
-	//setters
-	void SetProgramRenderedTexIndexIndex(unsigned int index) { programRenderedTexIndex = index; }
-
-	GLuint glID; //Maybe find a better way...
-private:
-	std::string path;
-	std::vector<unsigned char> image;
-	glm::uvec2 dims;
-	BindingSlot bindingSlot;
-	
-	Camera renderedImageCamera;
-	bool renderedImg = false;
-	unsigned int programRenderedTexIndex = 0;
-};
-struct CImageMaps : Component
-{
-public:
-	static constexpr CType type = CType::ImageMaps;
-	
-	CImageMaps()
-	{}
-	
-	void AddImageMap(ImageMap::BindingSlot slot, std::string path);
-	void AddImageMap(ImageMap::BindingSlot slot, Camera camera, glm::uvec2 dims);
-	void RemoveMap(ImageMap::BindingSlot slot);
-	void Update();
-
-	unsigned int inline GetNumMaps() { return imgMaps.size(); }
-	std::unordered_map<ImageMap::BindingSlot, ImageMap>::iterator mapsBegin() { return imgMaps.begin(); }
-	std::unordered_map<ImageMap::BindingSlot, ImageMap>::iterator mapsEnd() { return imgMaps.end(); }
-
-	bool dirty = false;
-private:
-	std::unordered_map<ImageMap::BindingSlot,ImageMap> imgMaps;
-};
-
-enum class FieldPlane
-{
-	XY, YZ, XZ
-};
-struct CVelocityField2D : Component
-{
-public:
-	static constexpr CType type = CType::VelocityField2D;
-	void Update();
-	//function pointer here
-	std::function<glm::vec2 (glm::vec2)> field;
-	float scaling = 1.f;
-	
-	FieldPlane plane;
-	
-	CVelocityField2D(std::function<glm::vec2(glm::vec2)> field, FieldPlane plane = FieldPlane::XY)
-		:field(field), plane(plane)
-	{
-	}
-
-	glm::vec3 At(glm::vec3 p);
-};
-
-struct CForceField2D : Component
-{
-public:
-	static constexpr CType type = CType::ForceField2D;
-	void Update();
-	//function pointer here
-	std::function<glm::vec2(glm::vec2)> field;
-	float scaling = 1.f;
-	FieldPlane plane;
-
-	CForceField2D(std::function<glm::vec2(glm::vec2)> field, FieldPlane plane = FieldPlane::XY)
-		:field(field), plane(plane)
-	{
-	}
-
-	glm::vec3 At(glm::vec3 p);
-};
-
 struct CBoundingBox : Component
 {
 public:
@@ -704,13 +731,13 @@ public:
 		this->min = glm::min(min, max);
 		this->max = glm::max(min, max);
 	}
-	
+
 	glm::vec3 GetMin() { return min; }
 	glm::vec3 GetMax() { return max; }
-	
+
 	void SetMin(glm::vec3 min) { this->min = min; dirty = true; }
 	void SetMax(glm::vec3 max) { this->max = max; dirty = true; }
-	
+
 	inline bool IsDirty() { return dirty; }
 
 

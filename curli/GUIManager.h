@@ -245,7 +245,8 @@ namespace gui
 			{
 				const char* components[] = {
 						"Transform", "TriMesh",
-						"PhongMaterial", "Image Map", "Light", "BoundingBox",
+						"PhongMaterial", "Image Map", "Light", 
+						"EnvironmentMap", "BoundingBox",
 						"VelocityField2D", "ForceField2D",
 						"RigidBody" };
 				if (ImGui::BeginListBox("Add Component", 

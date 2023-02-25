@@ -75,6 +75,7 @@ protected:
 	};
 	std::unordered_map<entt::entity, unsigned int> entity2VAOIndex;
 	std::unordered_map<entt::entity,vec5> entity2TextureIndices;
+	std::unordered_map<entt::entity, unsigned int> entity2EnvMapIndex;
 
 	/*
 	* Parses arguments called when application starts
@@ -150,54 +151,95 @@ protected:
 			entity2VAOIndex.erase(e);
 		}
 		auto* mesh = scene->registry.try_get<CTriMesh>(e);
-		program->vaos.push_back(VertexArrayObject());
-		entity2VAOIndex[e] = program->vaos.size() - 1;
-		VertexBufferObject vertexVBO(
-			mesh->GetVertexDataPtr(),
-			mesh->GetNumVertices(),
-			GL_FLOAT,
-			"pos",
-			3,
-			program->GetID());
-		program->vaos.back().AddVBO(vertexVBO);
-
-		if (mesh->GetNumNormals() > 0)
+		auto* envMap = scene->registry.try_get<CEnvironmentMap>(e);
+		if (mesh)
 		{
-			VertexBufferObject normalsVBO(
-				mesh->GetNormalDataPtr(),
-				mesh->GetNumNormals(),
+			program->vaos.push_back(VertexArrayObject());
+			entity2VAOIndex[e] = program->vaos.size() - 1;
+			VertexBufferObject vertexVBO(
+				mesh->GetVertexDataPtr(),
+				mesh->GetNumVertices(),
 				GL_FLOAT,
-				"norm",
+				"pos",
 				3,
 				program->GetID());
-			program->vaos.back().AddVBO(normalsVBO);		
-		}
-		if (mesh->GetNumTextureVertices() > 0 && mesh->GetTextureDataPtr() != nullptr)
-		{
-			VertexBufferObject texVBO(
-				mesh->GetTextureDataPtr(),
-				mesh->GetNumTextureVertices(),
-				GL_FLOAT,
-				"texc",
-				2,
-				program->GetID());
-			program->vaos.back().AddVBO(texVBO);
+			program->vaos.back().AddVBO(vertexVBO);
 
-			//vao.SetRenderType(CVertexArrayObject::RenderType::PHONG_TEXTURE);
+			if (mesh->GetNumNormals() > 0)
+			{
+				VertexBufferObject normalsVBO(
+					mesh->GetNormalDataPtr(),
+					mesh->GetNumNormals(),
+					GL_FLOAT,
+					"norm",
+					3,
+					program->GetID());
+				program->vaos.back().AddVBO(normalsVBO);
+			}
+			if (mesh->GetNumTextureVertices() > 0 && mesh->GetTextureDataPtr() != nullptr)
+			{
+				VertexBufferObject texVBO(
+					mesh->GetTextureDataPtr(),
+					mesh->GetNumTextureVertices(),
+					GL_FLOAT,
+					"texc",
+					2,
+					program->GetID());
+				program->vaos.back().AddVBO(texVBO);
+
+				//vao.SetRenderType(CVertexArrayObject::RenderType::PHONG_TEXTURE);
+			}
+			if (mesh->GetNumFaces() > 0)
+			{
+				program->vaos.back().CreateEBO(
+					(unsigned int*)mesh->GetFaceDataPtr(),
+					mesh->GetNumFaces() * 3);
+			}
+			program->vaos.back().SetDrawMode(GL_TRIANGLES);
 		}
-		if(mesh->GetNumFaces() > 0)
+		else if (envMap)
 		{
-			program->vaos.back().CreateEBO(
-				(unsigned int*)mesh->GetFaceDataPtr(),
-				mesh->GetNumFaces()*3);
+			float data[] = {
+				-1, 3, 0.999999f,
+				-1, -1, 0.999999f,
+				3, -1, 0.999999f
+			};
+			program->vaos.push_back(VertexArrayObject());
+			entity2VAOIndex[e] = program->vaos.size() - 1;
+			VertexBufferObject vertexVBO(
+				data,
+				3,
+				GL_FLOAT,
+				"pos",
+				3,
+				program->GetID());
+			program->vaos.back().AddVBO(vertexVBO);
+			program->vaos.back().SetDrawMode(GL_TRIANGLES);
 		}
-		program->vaos.back().SetDrawMode(GL_TRIANGLES);
 	};
 	/*
 	* Handles texture updates
 	*/
 	void OnTextureChange(entt::entity e, bool toBeRemoved)
 	{
+		auto* envMap = scene->registry.try_get<CEnvironmentMap>(e);
+		if (envMap)
+		{
+			if (entity2EnvMapIndex.find(e) != entity2EnvMapIndex.end())
+			{
+				program->cubeMaps[entity2EnvMapIndex[e]].Delete();
+				entity2EnvMapIndex.erase(e);
+			}
+
+			if (toBeRemoved)
+				return;
+
+			CubeMappedTexture cMap((void*)&envMap->sides[0].GetImage()[0], envMap->sides[0].GetDims());
+			program->cubeMaps.push_back(cMap);
+			entity2EnvMapIndex[e] = program->cubeMaps.size() - 1;
+
+			return;
+		}
 		if (entity2TextureIndices.find(e) != entity2TextureIndices.end())
 		{
 			for (int i = 0; i < 5; ++i)
@@ -235,7 +277,7 @@ protected:
 				program->renderedTextures.push_back(renderedTexture);
 				it->second.glID = renderedTexture.GetTexture().GetGLID();
 				//Needed for mapping between textures and CImageMaps
-				it->second.SetProgramRenderedTexIndexIndex(program->renderedTextures.size() - 1);
+				it->second.SetProgramRenderedTexIndex(program->renderedTextures.size() - 1);
 			}
 			else
 			{
@@ -1053,7 +1095,7 @@ public:
 
 		program->CreatePipelineFromFiles("../assets/shaders/phong_textured/shader.vert",
 			"../assets/shaders/phong_textured/shader.frag");
-		program->SetClearColor({ 0.01f,0.f,0.05f,1.f });
+		program->SetClearColor({ 0.01f,0.f,0.09f,1.f });
 		
 		scene->registry.view<CTriMesh>()
 			.each([&](const auto entity, auto& mesh)
@@ -1129,6 +1171,7 @@ public:
 		//bind GLSL program
 		program->Use();
 
+		//Set up lights
 		int i = 0;
 		scene->registry.view<CLight>()
 			.each([&](auto& light)
@@ -1143,6 +1186,7 @@ public:
 			});
 		program->SetUniform("light_count", i);
 
+		//Render meshes
 		scene->registry.view<CTriMesh>()
 			.each([&](const auto& entity, auto& mesh)
 			{
@@ -1196,6 +1240,29 @@ public:
 					tex.Unbind();
 				}
 			});
+
+		//Render Environment map
+		glDepthMask(GL_FALSE);//TODO
+		scene->registry.view<CEnvironmentMap>()
+			.each([&](const auto& entity, auto& env)
+				{
+					if (entity2EnvMapIndex.find(entity) != entity2EnvMapIndex.end())
+					{
+						int cubemapIndex = entity2EnvMapIndex[entity];
+						program->SetUniform("to_screen_space", 
+							glm::mat4(1.0f));//hmmmm
+						program->SetUniform("to_view_space", 
+							glm::inverse(scene->camera.GetProjectionMatrix() * scene->camera.GetViewMatrix()));
+						program->SetUniform("shading_mode", 2);//envmap shading mode
+						program->cubeMaps[cubemapIndex].Bind();
+						program->SetUniform("env_map", 30);
+						program->vaos[entity2VAOIndex[entity]].Draw();
+
+						program->cubeMaps[cubemapIndex].Unbind();
+					}
+				});
+		glDepthMask(GL_TRUE);//TODO
+
 	}
 
 	void End()
