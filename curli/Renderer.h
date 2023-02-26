@@ -234,7 +234,7 @@ protected:
 			if (toBeRemoved)
 				return;
 
-			CubeMappedTexture cMap((void*)&envMap->sides[0].GetImage()[0], envMap->sides[0].GetDims());
+			CubeMappedTexture cMap((void*)&envMap->GetSideImagesFlat()[0], envMap->sides[0].GetDims());
 			program->cubeMaps.push_back(cMap);
 			entity2EnvMapIndex[e] = program->cubeMaps.size() - 1;
 

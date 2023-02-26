@@ -62,7 +62,7 @@ void main() {
      }
      else if(shading_mode == 2)//env_map background
      {
-          color = texture(env_map, normalize(-v_space_pos));
+          color = texture(env_map, normalize(v_space_pos));
      }
      else
      {

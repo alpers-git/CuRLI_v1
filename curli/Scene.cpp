@@ -539,6 +539,7 @@ std::string ImageMap::GetSlotName()
 std::vector<unsigned char> CEnvironmentMap::GetSideImagesFlat()
 {
 	std::vector<unsigned char> flattenedImages;
+	flattenedImages.reserve(sides[0].GetImage().size() * 6);
 	for (auto& img : sides)
 	{
 		flattenedImages.insert(flattenedImages.end(), img.GetImage().begin(), img.GetImage().end());

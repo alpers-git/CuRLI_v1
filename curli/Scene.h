@@ -522,7 +522,7 @@ public:
 
 	//getters
 	std::string GetPath() { return path; }
-	std::vector<unsigned char> GetImage() { return image; }
+	std::vector<unsigned char>& GetImage() { return image; }
 	glm::uvec2 GetDims() { return dims; }
 	BindingSlot GetBindingSlot() { return bindingSlot; }
 	std::string GetSlotName();

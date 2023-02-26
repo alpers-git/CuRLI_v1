@@ -543,9 +543,9 @@ struct CubeMappedTexture
 		for (size_t i = 0; i < 6; i++)
 		{
 			//Create a temporary array that is a slice of data to each of 6 pieces using dims
-			/*void* tmp = nullptr;
+			void* tmp = nullptr;
 			if (data != nullptr)
-				tmp = (char*)data + i * dims.x * dims.y * typeSize;*/
+				tmp = (char*)data + i * dims.x * dims.y * 4;
 			
 			GL_CALL(glTexImage2D(
 				GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 
@@ -556,7 +556,7 @@ struct CubeMappedTexture
 				0,
 				format,
 				dataType,
-				data == nullptr ? 0 : data));
+				data == nullptr ? 0 : tmp));
 		}
 		if(seamless)
 			GL_CALL(glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS));
