@@ -55,7 +55,7 @@ void synchEnvMap(entt::registry& registry, entt::entity e)
 {
 	//------ensure single environment map in scene------//
 	//check if scene has another environment map
-	const auto view = registry.view<CEnvironmentMap>();
+	const auto view = registry.view<CSkyBox>();
 	if (view.size()>1)
 	{
 		//then remove it
@@ -88,8 +88,8 @@ Scene::Scene()
 	registry.on_construct<CTransform>().connect<&synchTransformAndRigidBody>();//Untested!
 
 
-	registry.on_construct<CEnvironmentMap>().connect<&synchEnvMap>();
-	registry.on_update<CEnvironmentMap>().connect<&synchEnvMap>();
+	registry.on_construct<CSkyBox>().connect<&synchEnvMap>();
+	registry.on_update<CSkyBox>().connect<&synchEnvMap>();
 	
 }
 
@@ -205,7 +205,7 @@ void CBoundingBox::Update()
 {
 }
 
-void CEnvironmentMap::Update()
+void CSkyBox::Update()
 {
 }
 
@@ -500,6 +500,12 @@ void CImageMaps::AddImageMap(ImageMap::BindingSlot slot, Camera camera, glm::uve
 	dirty = true;
 }
 
+void CImageMaps::AddImageMap(ImageMap::BindingSlot slot, std::string path[6])
+{
+	imgMaps.insert({ slot, ImageMap(path, slot) });
+	dirty = true;
+}
+
 void CImageMaps::RemoveMap(ImageMap::BindingSlot slot)
 {
 	imgMaps.erase(slot);
@@ -536,7 +542,7 @@ std::string ImageMap::GetSlotName()
 	}
 }
 
-std::vector<unsigned char> CEnvironmentMap::GetSideImagesFlat()
+std::vector<unsigned char> CSkyBox::GetSideImagesFlat()
 {
 	std::vector<unsigned char> flattenedImages;
 	flattenedImages.reserve(sides[0].GetImage().size() * 6);

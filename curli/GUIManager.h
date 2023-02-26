@@ -246,7 +246,7 @@ namespace gui
 				const char* components[] = {
 						"Transform", "TriMesh",
 						"PhongMaterial", "Image Map", "Light", 
-						"EnvironmentMap", "BoundingBox",
+						"Skybox", "BoundingBox",
 						"VelocityField2D", "ForceField2D",
 						"RigidBody" };
 				if (ImGui::BeginListBox("Add Component", 
@@ -585,7 +585,7 @@ namespace gui
 								static const char* current_item = NULL;
 								//Texturebinding picker combo box
 								const char* items[] = {
-									"Ambient", "Diffuse", "Specular", "Normal Map", "Bump Map" };
+									"Ambient", "Diffuse", "Specular", "Normal Map", "Bump Map", "Environment Map"};
 								if (ImGui::BeginCombo("##combo", current_item))
 								{
 									for (int n = 0; n < IM_ARRAYSIZE(items); n++)
@@ -626,7 +626,7 @@ namespace gui
 									if (mesh);
 									//TODO: find a way to extract dims from mesh
 
-									t.AddImageMap(textureBinding, Camera(), glm::uvec2(500,500));
+									t.AddImageMap(textureBinding, Camera(), glm::uvec2(800,800));
 								}
 								
 								ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();

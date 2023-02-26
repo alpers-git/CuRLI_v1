@@ -49,6 +49,7 @@ public:
 		program->Clear();
 		//Rendering
 		static_cast<T*>(this)->Update();
+		frameCounter++;
 	}
 	//Cleans up after render loop exits
 	void Terminate()
@@ -68,6 +69,7 @@ protected:
 	//unsigned int VBO, VAO, EBO;
 	std::unique_ptr<OpenGLProgram> program;
 	std::shared_ptr<Scene> scene;
+	long int frameCounter = 0;
 
 	struct vec5
 	{
@@ -151,7 +153,7 @@ protected:
 			entity2VAOIndex.erase(e);
 		}
 		auto* mesh = scene->registry.try_get<CTriMesh>(e);
-		auto* envMap = scene->registry.try_get<CEnvironmentMap>(e);
+		auto* envMap = scene->registry.try_get<CSkyBox>(e);
 		if (mesh)
 		{
 			program->vaos.push_back(VertexArrayObject());
@@ -222,8 +224,8 @@ protected:
 	*/
 	void OnTextureChange(entt::entity e, bool toBeRemoved)
 	{
-		auto* envMap = scene->registry.try_get<CEnvironmentMap>(e);
-		if (envMap)
+		auto* skybox = scene->registry.try_get<CSkyBox>(e);
+		if (skybox)
 		{
 			if (entity2EnvMapIndex.find(e) != entity2EnvMapIndex.end())
 			{
@@ -234,7 +236,7 @@ protected:
 			if (toBeRemoved)
 				return;
 
-			CubeMappedTexture cMap((void*)&envMap->GetSideImagesFlat()[0], envMap->sides[0].GetDims());
+			CubeMappedTexture cMap((void*)&skybox->GetSideImagesFlat()[0], skybox->sides[0].GetDims());
 			program->cubeMaps.push_back(cMap);
 			entity2EnvMapIndex[e] = program->cubeMaps.size() - 1;
 
@@ -249,48 +251,74 @@ protected:
 		}
 		
 		if (toBeRemoved)
+		{
+			auto* imgMaps = scene->registry.try_get<CImageMaps>(e);
+			imgMaps->dirty = false;
 			return;
+		}
 		
 		
 		auto* imgMaps = scene->registry.try_get<CImageMaps>(e);
 		
 		//create an array of 5 ints to store the texture ids
 		vec5 textureIDs;
-		textureIDs.v[0] = -1;
-		textureIDs.v[1] = -1;
-		textureIDs.v[2] = -1;
-		textureIDs.v[3] = -1;
-		textureIDs.v[4] = -1;
 		//iterate over all the image maps create texture objects for them
 		for (auto it = imgMaps->mapsBegin(); it != imgMaps->mapsEnd(); ++it)
 		{
 			if (it->second.IsRenderedImage())
 			{
-				RenderedTexture2D renderedTexture(it->second.GetDims(), 
-					GL_TEXTURE0 + (int)it->second.GetBindingSlot(), true, 
-					GL_REPEAT, GL_REPEAT, GL_UNSIGNED_BYTE, GL_RGB, 0);
-				renderedTexture.GetTexture().SetParami(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-				renderedTexture.GetTexture().SetParami(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-				renderedTexture.GetTexture().SetParamf(GL_TEXTURE_MAX_ANISOTROPY, 4.0f);
-				//add the texture to the program
-				program->textures.push_back(renderedTexture.GetTexture());
-				program->renderedTextures.push_back(renderedTexture);
-				it->second.glID = renderedTexture.GetTexture().GetGLID();
-				//Needed for mapping between textures and CImageMaps
-				it->second.SetProgramRenderedTexIndex(program->renderedTextures.size() - 1);
+				if (it->second.GetBindingSlot() == ImageMap::BindingSlot::ENV_MAP)
+				{
+					CubeMappedTexture cMap(it->second.GetDims(),
+						GL_TEXTURE0 + (int)it->second.GetBindingSlot());//Rendered variant
+					program->cubeMaps.push_back(cMap);
+					entity2EnvMapIndex[e] = program->cubeMaps.size() - 1;
+					it->second.glID = cMap.GetGLID();
+				}
+				else
+				{
+					RenderedTexture2D renderedTexture(it->second.GetDims(), 
+						GL_TEXTURE0 + (int)it->second.GetBindingSlot(), true, 
+						GL_REPEAT, GL_REPEAT, GL_UNSIGNED_BYTE, GL_RGB, 0);
+					renderedTexture.GetTexture().SetParami(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+					renderedTexture.GetTexture().SetParami(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+					renderedTexture.GetTexture().SetParamf(GL_TEXTURE_MAX_ANISOTROPY, 4.0f);
+					
+					//add the texture to the program
+					program->textures.push_back(renderedTexture.GetTexture());
+					program->renderedTextures.push_back(renderedTexture);
+					
+					it->second.glID = renderedTexture.GetTexture().GetGLID();
+					//Needed for mapping between textures and CImageMaps
+					it->second.SetProgramRenderedTexIndex(program->renderedTextures.size() - 1);
+					textureIDs.v[(int)it->second.GetBindingSlot()] = program->textures.size() - 1;
+					//add the texture ids to the entity2TextureIndex map
+					entity2TextureIndices[e] = textureIDs;
+				}
 			}
 			else
 			{
-				Texture2D texture ((void*)&it->second.GetImage()[0], it->second.GetDims(),
-					GL_TEXTURE0 + (int)it->second.GetBindingSlot());
-				//add the texture to the program
-				program->textures.push_back(texture);
-				it->second.glID = texture.GetGLID();
+				if (it->second.GetBindingSlot() == ImageMap::BindingSlot::ENV_MAP)
+				{
+					CubeMappedTexture cMap((void*)&it->second.GetImage()[0], it->second.GetDims(),
+						GL_TEXTURE0 + (int)it->second.GetBindingSlot());//Static image variant TODO::Send 6 flat image as GetImage
+					program->cubeMaps.push_back(cMap);
+					entity2EnvMapIndex[e] = program->cubeMaps.size() - 1;
+					it->second.glID = cMap.GetGLID();
+				}
+				else
+				{
+					Texture2D texture ((void*)&it->second.GetImage()[0], it->second.GetDims(),
+						GL_TEXTURE0 + (int)it->second.GetBindingSlot());
+					//add the texture to the program
+					program->textures.push_back(texture);
+					it->second.glID = texture.GetGLID();
+					textureIDs.v[(int)it->second.GetBindingSlot()] = program->textures.size() - 1;
+					//add the texture ids to the entity2TextureIndex map
+					entity2TextureIndices[e] = textureIDs;
+				}
 			}
-			textureIDs.v[(int)it->second.GetBindingSlot()] = program->textures.size() - 1;
 		}
-		//add the texture ids to the entity2TextureIndex map
-		entity2TextureIndices[e] = textureIDs;
 		imgMaps->dirty = false;
 	}
 };
@@ -1135,13 +1163,17 @@ public:
 				//=======StackPush=======
 				//Set the object's visibility to false
 				auto* mesh = scene->registry.try_get<CTriMesh>(entity);
+				bool meshVisibility = true;
 				Camera tmp = scene->camera;
 				glm::vec4 clearColor = program->GetClearColor();
-				if(mesh)
+				if (mesh)
+				{
+					meshVisibility = mesh->visible;
 					mesh->visible = false;
+				}
 
 				//iterate over each imagemap of maps
-				if (!maps.dirty)
+				if (!maps.dirty && meshVisibility)
 				{
 					for (auto it = maps.mapsBegin(); it != maps.mapsEnd(); ++it)
 					{
@@ -1150,9 +1182,29 @@ public:
 							auto* material = scene->registry.try_get<CPhongMaterial>(entity);
 							if(material)
 								program->SetClearColor(glm::vec4(material->diffuse,1));
-							scene->camera = it->second.GetRenderedImageCamera();
-							program->renderedTextures[it->second.GetProgramRenderedTexIndexIndex()].
-								Render(std::bind(&MultiTargetRenderer::Update, this));
+							if(it->second.GetBindingSlot() == ImageMap::BindingSlot::ENV_MAP)
+							{
+								for (int i = 0; i < 6; i++)
+								{
+									//int i = frameCounter%6;
+									glm::vec3 center = (i == 0) ? glm::vec3(1, 0, 0) :
+										(i == 1) ? glm::vec3(-1, 0, 0) :
+										(i == 2) ? glm::vec3(0, 1, 0) :
+										(i == 3) ? glm::vec3(0, -1, 0) :
+										(i == 4) ? glm::vec3(0, 0, 1) :
+										glm::vec3(0, 0, -1);
+									
+									scene->camera = Camera(center, { 0,0,0 }, {0,i<4?1:0,i > 3 ? 0 : 1 });
+									program->cubeMaps[entity2EnvMapIndex[entity]].
+										RenderSide(i,std::bind(&MultiTargetRenderer::Update, this),i==0);
+								}
+							}
+							else
+							{
+								scene->camera = it->second.GetRenderedImageCamera();
+								program->renderedTextures[it->second.GetProgramRenderedTexIndex()].
+									Render(std::bind(&MultiTargetRenderer::Update, this));
+							}
 						}
 					}
 				}
@@ -1161,7 +1213,7 @@ public:
 				program->SetClearColor(clearColor);
 				scene->camera = tmp;
 				if(mesh)
-					mesh->visible = true;
+					mesh->visible = meshVisibility;
 
 			});
 	}
@@ -1205,8 +1257,11 @@ public:
 				
 				program->SetUniform("to_screen_space", mvp);
 				program->SetUniform("to_view_space", mv);
+				program->SetUniform("to_world_space", transform->GetModelMatrix());
+				program->SetUniform("normals_to_world_space", glm::transpose(glm::inverse(glm::mat3(transform->GetModelMatrix()))));
 				program->SetUniform("normals_to_view_space",
 					glm::transpose(glm::inverse(glm::mat3(mv))));
+				program->SetUniform("camera_pos", scene->camera.GetLookAtEye());
 				
 				CImageMaps* imgMaps = scene->registry.try_get<CImageMaps>(entity);
 				if (imgMaps && !imgMaps->dirty)
@@ -1214,22 +1269,37 @@ public:
 					//iterate over all imagemaps
 					for (auto it = imgMaps->mapsBegin(); it != imgMaps->mapsEnd(); ++it)
 					{
-						int texIndex = entity2TextureIndices[entity].v[(int)it->first];
-						//bind texture
-						if (texIndex >= 0)
+						if (it->second.GetBindingSlot() == ImageMap::BindingSlot::ENV_MAP)
 						{
-							program->textures[texIndex].Bind();
-							//set uniform
-							const std::string uniformName = std::string("has_texture[") + std::to_string(((int)it->first)) + std::string("]");
-							program->SetUniform(uniformName.c_str(), 1);
-							const std::string uniformName2 = std::string("tex_list[") + std::to_string(((int)it->first)) + std::string("]");
-							program->SetUniform(uniformName2.c_str(), ((int)it->first));
+							int texIndex = entity2EnvMapIndex[entity];
+							//bind texture
+							if (texIndex >= 0)
+							{
+								program->cubeMaps[texIndex].Bind();
+								program->SetUniform("has_env_map", 1);
+								program->SetUniform("env_map", 30);
+							}
+						}
+						else
+						{
+							int texIndex = entity2TextureIndices[entity].v[(int)it->first];
+							//bind texture
+							if (texIndex >= 0)
+							{
+								program->textures[texIndex].Bind();
+								//set uniform
+								const std::string uniformName = std::string("has_texture[") + std::to_string(((int)it->first)) + std::string("]");
+								program->SetUniform(uniformName.c_str(), 1);
+								const std::string uniformName2 = std::string("tex_list[") + std::to_string(((int)it->first)) + std::string("]");
+								program->SetUniform(uniformName2.c_str(), ((int)it->first));
+							}
 						}
 					}
 				}
 				program->SetUniform("shading_mode", ((int)mesh.GetShadingMode()));
 				
 				program->vaos[entity2VAOIndex[entity]].Draw();
+				//Reset uniforms
 				for (int i = 0; i < 5; i++)
 				{
 					const std::string uniformName = std::string("has_texture[") + std::to_string(i) + std::string("]");
@@ -1239,11 +1309,17 @@ public:
 				{
 					tex.Unbind();
 				}
+				program->SetUniform("has_env_map", 0);
+				for (auto tex : program->cubeMaps)
+				{
+					tex.Unbind();
+				}
+				
 			});
 
-		//Render Environment map
+		//Render skybox
 		glDepthMask(GL_FALSE);//TODO
-		scene->registry.view<CEnvironmentMap>()
+		scene->registry.view<CSkyBox>()
 			.each([&](const auto& entity, auto& env)
 				{
 					if (entity2EnvMapIndex.find(entity) != entity2EnvMapIndex.end())

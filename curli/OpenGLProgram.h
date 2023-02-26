@@ -479,7 +479,7 @@ struct RenderedTexture2D
 		renderFunc();//Tell how the scene is going to be rendered
 		
 		//Restore the renderer
-		glGenerateTextureMipmap(texture.GetGLID());
+		GL_CALL(glGenerateTextureMipmap(texture.GetGLID()));
 		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, origFB));
 		GL_CALL(glViewport(origViewport[0], origViewport[1], origViewport[2], origViewport[3]));
 		GL_CALL(glClear(mask));
@@ -524,10 +524,10 @@ struct CubeMappedTexture
 		switch (dataType)
 		{
 		case GL_UNSIGNED_BYTE:
-			typeSize = sizeof(GLubyte);
+			typeSize = 4;
 			break;
 		case GL_UNSIGNED_SHORT:
-			typeSize = sizeof(GLushort);
+			typeSize = 2;
 			break;
 		case GL_UNSIGNED_INT:
 			typeSize = sizeof(GLuint);
@@ -545,7 +545,7 @@ struct CubeMappedTexture
 			//Create a temporary array that is a slice of data to each of 6 pieces using dims
 			void* tmp = nullptr;
 			if (data != nullptr)
-				tmp = (char*)data + i * dims.x * dims.y * 4;
+				tmp = (char*)data + i * dims.x * dims.y * typeSize;
 			
 			GL_CALL(glTexImage2D(
 				GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 
@@ -572,21 +572,84 @@ struct CubeMappedTexture
 		GL_CALL(glTexParameteri(
 			GL_TEXTURE_CUBE_MAP,
 			GL_TEXTURE_MAG_FILTER,
-			mipmapLevel >= 0 ? GL_NEAREST_MIPMAP_LINEAR : GL_LINEAR));
+			GL_LINEAR));
 
 		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapS));
 		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT));
 
 	}
 
+	CubeMappedTexture(glm::uvec2 dims, bool seamless = true,
+		GLenum textUnit = GL_TEXTURE30, GLenum wrapS = GL_CLAMP_TO_EDGE,
+		GLenum wrapT = GL_CLAMP_TO_EDGE, GLenum dataType = GL_UNSIGNED_BYTE,
+		GLenum format = GL_RGBA, int mipmapLevel = -1) // For rendered cubemap variant
+		: CubeMappedTexture(nullptr, dims, seamless, textUnit, wrapS, 
+			wrapT, dataType, format, mipmapLevel)
+	{
+		//Get the renderer state
+		GLint origFB;
+		GL_CALL(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &origFB));
+
+		GL_CALL(glGenFramebuffers(1, &frameBufferID));
+		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID));
+
+		GL_CALL(glGenRenderbuffers(1, &depthBufferID));
+		GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, depthBufferID));
+		GL_CALL(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, dims.x, dims.y));
+		
+		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID)); //For safety
+		GL_CALL(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+			GL_RENDERBUFFER, depthBufferID));
+		GL_CALL(glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, glID , 0));
+
+		GLenum drawBuffers[1] = { GL_COLOR_ATTACHMENT0 };
+		GL_CALL(glDrawBuffers(1, drawBuffers));
+
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, origFB));
+	}
+
 	CubeMappedTexture(const CubeMappedTexture& other)
 		:glID(other.glID), dims(other.dims), seamless(other.seamless), textUnit(other.textUnit),
 		wrapS(other.wrapS), wrapT(other.wrapT), dataType(other.dataType),
-		format(other.format), mipmapLevel(other.mipmapLevel)
+		format(other.format), mipmapLevel(other.mipmapLevel), frameBufferID(other.frameBufferID),
+		depthBufferID(other.depthBufferID)
 	{}
 
 	~CubeMappedTexture()
 	{}
+
+	void RenderSide(int i, std::function <void()> renderFunc, bool lastFace = false)
+	{
+		//Get the renderer state
+		GLint origFB;
+		GL_CALL(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &origFB));
+		GLint origViewport[4];
+		GL_CALL(glGetIntegerv(GL_VIEWPORT, origViewport));
+
+		//Render the scene
+		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID));
+		GL_CALL(glViewport(0, 0, dims.x, dims.y));
+		auto mask = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT;
+		if(lastFace)
+			GL_CALL(glClear(mask));
+		GL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+			GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, glID, 0));
+		renderFunc();//Tell how the scene is going to be rendered
+
+		//Restore the renderer
+		GL_CALL(glGenerateTextureMipmap(glID));
+		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, origFB));
+		GL_CALL(glViewport(origViewport[0], origViewport[1], origViewport[2], origViewport[3]));
+		GL_CALL(glClear(mask));
+	}
+
+	void RenderAll(std::function <void()> renderFunc)
+	{
+		for (int i = 0; i < 6; i++)
+			RenderSide(i, renderFunc);
+	}
 
 	void Bind()
 	{
@@ -628,6 +691,9 @@ private:
 	bool seamless;
 
 	GLenum textUnit = GL_TEXTURE0;
+
+	GLuint frameBufferID = 0;
+	GLuint depthBufferID = 0;
 };
 
 class OpenGLProgram

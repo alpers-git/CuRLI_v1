@@ -124,7 +124,7 @@ public:
 			cos(theta) * cos(phi)
 		};
 		eye = center + unitSpherePos * glm::length(eye-center);
-		up = {0.f, 1.f, 0.f};
+		//up = {0.f, 1.f, 0.f};
 		
 		if (recalculate)
 			CalculateViewMatrix();
@@ -501,6 +501,43 @@ public:
 			return;
 		}
 	}
+	
+	ImageMap(std::string path[6], BindingSlot slot)//creates a flat list of 6 images
+		:path(path[0]), bindingSlot(slot)
+	{
+		for (int i = 0; i < 6; i++)
+		{
+			std::vector<unsigned char> png;
+			//load and decode
+			unsigned error = lodepng::load_file(png, path[i]);
+			if (error)
+			{
+				printf("Texture constructor\n\tlodepng:load error %d - %s\n", error, lodepng_error_text(error));
+				return;
+			}
+			unsigned int w, h;
+			std::vector<unsigned char> tmp;
+			error = lodepng::decode(tmp, w, h, png);
+			if (slot == BindingSlot::ENV_MAP)
+			{
+				dims.x = w;
+				dims.y = h;
+			}
+			else
+			{
+				dims.x += w;
+				dims.y += h;
+			}
+
+			//if there's an error, display it
+			if (error)
+			{
+				printf("Texture constructor\n\tlodepng:decoder error %d - %s\n", error, lodepng_error_text(error));
+				return;
+			}
+			image.insert(image.end(), tmp.begin(), tmp.end());
+		}
+	}
 
 	ImageMap(Camera camera, glm::uvec2 dims, BindingSlot slot)
 		:renderedImageCamera(camera), dims(dims), bindingSlot(slot)
@@ -528,7 +565,7 @@ public:
 	std::string GetSlotName();
 	Camera& GetRenderedImageCamera() { return renderedImageCamera; }
 	bool IsRenderedImage() { return renderedImg; }
-	unsigned int GetProgramRenderedTexIndexIndex() { return programRenderedTexIndex; }
+	unsigned int GetProgramRenderedTexIndex() { return programRenderedTexIndex; }
 
 	//setters
 	void SetProgramRenderedTexIndex(unsigned int index) { programRenderedTexIndex = index; }
@@ -553,6 +590,7 @@ public:
 	{}
 
 	void AddImageMap(ImageMap::BindingSlot slot, std::string path);
+	void AddImageMap(ImageMap::BindingSlot slot, std::string path[6]);
 	void AddImageMap(ImageMap::BindingSlot slot, Camera camera, glm::uvec2 dims);
 	void RemoveMap(ImageMap::BindingSlot slot);
 	void Update();
@@ -630,11 +668,11 @@ private:
 
 };
 
-struct CEnvironmentMap : Component
+struct CSkyBox : Component
 {
 public:
 	static constexpr CType type = CType::EnvironmentMap;
-	CEnvironmentMap(std::string path[6])
+	CSkyBox(std::string path[6])
 	{
 		sides.resize(6);
 		for (int i = 0; i < 6; i++)

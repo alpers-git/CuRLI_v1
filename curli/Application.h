@@ -36,7 +36,10 @@ public:
 			"../assets/images/cubemap/cubemap_posz.png",
 			"../assets/images/cubemap/cubemap_negz.png"
 		};
-		scene->registry.emplace<CEnvironmentMap>(scene->CreateSceneObject("envMap"), paths);
+		scene->registry.emplace<CSkyBox>(scene->CreateSceneObject("skybox"), paths);
+
+		auto imaps = scene->registry.emplace<CImageMaps>(scene->GetSceneObject("sphere"));
+		imaps.AddImageMap(ImageMap::BindingSlot::ENV_MAP, paths);
 	}
 	~Application() {}
 
