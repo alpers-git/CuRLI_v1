@@ -508,15 +508,6 @@ struct RenderedTexture2D
 
 struct CubeMappedTexture
 {
-	/*constexpr static Camera camera[6]=
-	{
-		const Camera(glm::vec3(1,0,0), glm::vec3(0,0,0), glm::vec3(0,-1,0)),
-		const Camera(glm::vec3(-1,0,0), glm::vec3(0,0,0), glm::vec3(0,-1,0)),
-		const Camera(glm::vec3(0,1,0), glm::vec3(0,0,0), glm::vec3(0,0,1)),
-		const Camera(glm::vec3(0,-1,0), glm::vec3(0,0,0), glm::vec3(0,0,-1)),
-		const Camera(glm::vec3(0,0,1), glm::vec3(0,0,0), glm::vec3(0,-1,0)),
-		const Camera( glm::vec3(0,0,-1), glm::vec3(0,0,0), glm::vec3(0,-1,0))
-	};*/
 	CubeMappedTexture(void* data, glm::uvec2 dims, bool seamless = true,
 		GLenum textUnit= GL_TEXTURE30, GLenum wrapS = GL_CLAMP_TO_EDGE,
 		GLenum wrapT = GL_CLAMP_TO_EDGE, GLenum dataType = GL_UNSIGNED_BYTE,

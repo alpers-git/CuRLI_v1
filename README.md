@@ -157,3 +157,19 @@ Some Screenshots:
 
 <img src="./images/pr5_1.png" width=80%>
 <img src="./images/pr5_2.png" width=80%>
+
+#### Project 6 - Environment Mapping
+###### Project 6 requirements:
+- [X] Display the background(named as `CSkybox`).
+- [X] Reflections on a sphere and other objects using on-the-flye generated cubemaps
+  -  to attach this component: Select a scene object, go to edit->attach/detach components, select ImageMaps from the attach menu. Then go to newly attached ImageMaps components tab on the right, select Environment Map from the menu and press "from rendered image".
+- [X] Flat objects like plane can also be attached with environment map components however, its better to use a `RenderedTexture2D` with it's camera positioned at reflected camera position.
+
+###### Additional Features:
+- Instead of drawing all cube faces in one frame CuRLI draws one side in every six frames.
+
+Some Screenshots:
+
+<img src="./images/pr6_1.png" width=80%>
+<img src="./images/pr6_2.png" width=80%>
+<img src="./images/pr6_3.png" width=80%>

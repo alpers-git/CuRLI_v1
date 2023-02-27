@@ -1157,7 +1157,7 @@ public:
 		glm::vec3(0.0f, 270.0f, 0.f),
 		glm::vec3(0.0f, 90.f, 0.f),
 		glm::vec3(-90.0f, -180.f, 0.f),
-		glm::vec3(90.0f, 0.f, 0.f),
+		glm::vec3(90.0f, 180.f, 0.f),
 		glm::vec3(0.0f, 180.f,0),
 		glm::vec3(0.0f, 0.f,0.f),
 	};
@@ -1193,7 +1193,9 @@ public:
 							if(it->second.GetBindingSlot() == ImageMap::BindingSlot::ENV_MAP)
 							{
 								int i = frameCounter % 6;
-								scene->camera = Camera(glm::vec3(glm::vec4(mesh->GetBoundingBoxCenter(), 1.0f) * transform->GetModelMatrix()), angles[i], 0.1f, -90);
+								auto cntr = glm::vec3(glm::vec4(mesh->GetBoundingBoxCenter(), 1.0f) * transform->GetModelMatrix());
+								scene->camera = Camera(transform->GetPosition(),
+									angles[i], 1.0f * transform->GetScale()[i/2], -90);
 								program->cubeMaps[entity2EnvMapIndex[entity]].
 									RenderSide(i,std::bind(&MultiTargetRenderer::Update, this),i==5);
 							}
