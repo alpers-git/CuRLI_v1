@@ -626,7 +626,7 @@ namespace gui
 									if (mesh);
 									//TODO: find a way to extract dims from mesh
 
-									t.AddImageMap(textureBinding, Camera(), glm::uvec2(800,800));
+									t.AddImageMap(textureBinding, Camera(), glm::uvec2(1000,1000));
 								}
 								
 								ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
@@ -637,8 +637,9 @@ namespace gui
 									ImGui::PushID(j);
 									ImGui::BeginGroup();
 									ImGui::Text("As %s", it->second.GetSlotName().c_str());
-									ImGui::Image((void*)(intptr_t)it->second.glID,
-										ImVec2(viewportPanelSize.x / 2, viewportPanelSize.x / 2));
+									if (it->second.GetBindingSlot() != ImageMap::BindingSlot::ENV_MAP)
+										ImGui::Image((void*)(intptr_t)it->second.glID,
+											ImVec2(viewportPanelSize.x / 2, viewportPanelSize.x / 2));
 									if (ImGui::Button("Remove"))
 									{
 										t.RemoveMap(it->second.GetBindingSlot());

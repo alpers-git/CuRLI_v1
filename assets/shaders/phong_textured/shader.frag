@@ -61,7 +61,7 @@ void main() {
                                                              material.ka), 1);
           if(has_env_map != 0)
           {
-               vec3 env_color = texture(env_map, reflect(camera_pos, w_space_norm)).xyz;
+               vec3 env_color = texture(env_map, reflect(-camera_pos+w_space_pos, normalize(w_space_norm))).xyz;
                color = mix(color, vec4(env_color, 1), 0.5);
           }
           color = clamp(color, 0, 1);                                                

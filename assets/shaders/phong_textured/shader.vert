@@ -24,7 +24,7 @@ void main() {
     v_space_norm = normals_to_view_space * norm;
     v_space_pos = (to_view_space * vec4(pos, 1.0)).xyz;
 
-    w_space_pos = (to_world_space * vec4(camera_pos, 1.0)).xyz;
+    w_space_pos = (to_world_space * vec4(pos, 1.0)).xyz;
     w_space_norm = normals_to_world_space * norm;
 
     tex_coord = texc;

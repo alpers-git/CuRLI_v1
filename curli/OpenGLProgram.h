@@ -7,6 +7,7 @@
 #include <string>
 #include <glm/glm.hpp>
 #include <vector>
+#include <Scene.h>
 
 //define a macro that takes a function calls it and ctaches opengl errors
 #define GL_CALL(func) \
@@ -507,6 +508,15 @@ struct RenderedTexture2D
 
 struct CubeMappedTexture
 {
+	/*constexpr static Camera camera[6]=
+	{
+		const Camera(glm::vec3(1,0,0), glm::vec3(0,0,0), glm::vec3(0,-1,0)),
+		const Camera(glm::vec3(-1,0,0), glm::vec3(0,0,0), glm::vec3(0,-1,0)),
+		const Camera(glm::vec3(0,1,0), glm::vec3(0,0,0), glm::vec3(0,0,1)),
+		const Camera(glm::vec3(0,-1,0), glm::vec3(0,0,0), glm::vec3(0,0,-1)),
+		const Camera(glm::vec3(0,0,1), glm::vec3(0,0,0), glm::vec3(0,-1,0)),
+		const Camera( glm::vec3(0,0,-1), glm::vec3(0,0,0), glm::vec3(0,-1,0))
+	};*/
 	CubeMappedTexture(void* data, glm::uvec2 dims, bool seamless = true,
 		GLenum textUnit= GL_TEXTURE30, GLenum wrapS = GL_CLAMP_TO_EDGE,
 		GLenum wrapT = GL_CLAMP_TO_EDGE, GLenum dataType = GL_UNSIGNED_BYTE,
@@ -632,17 +642,18 @@ struct CubeMappedTexture
 		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID));
 		GL_CALL(glViewport(0, 0, dims.x, dims.y));
 		auto mask = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT;
-		if(lastFace)
-			GL_CALL(glClear(mask));
 		GL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
 			GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, glID, 0));
+		if(!lastFace)
+			GL_CALL(glClear(mask));
 		renderFunc();//Tell how the scene is going to be rendered
 
 		//Restore the renderer
 		GL_CALL(glGenerateTextureMipmap(glID));
 		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, origFB));
 		GL_CALL(glViewport(origViewport[0], origViewport[1], origViewport[2], origViewport[3]));
-		GL_CALL(glClear(mask));
+		if (lastFace)
+			GL_CALL(glClear(mask));
 	}
 
 	void RenderAll(std::function <void()> renderFunc)

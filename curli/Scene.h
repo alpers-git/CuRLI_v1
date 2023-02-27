@@ -112,10 +112,10 @@ public:
 
 	void inline SetOrbitAngles(glm::vec3 angles, bool recalculate = false)
 	{
-		if (angles.x > 89.5f)
-			angles.x = 89.5f;
-		if (angles.x < -89.5f)
-			angles.x = -89.5f;
+		if (angles.x > 89.999f)
+			angles.x = 89.999f;
+		if (angles.x < -89.999f)
+			angles.x = -89.999f;
 		const float theta = glm::radians(angles.x);
 		const float phi = glm::radians(angles.y);
 		glm::vec3 unitSpherePos = {

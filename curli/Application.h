@@ -38,8 +38,8 @@ public:
 		};
 		scene->registry.emplace<CSkyBox>(scene->CreateSceneObject("skybox"), paths);
 
-		auto imaps = scene->registry.emplace<CImageMaps>(scene->GetSceneObject("sphere"));
-		imaps.AddImageMap(ImageMap::BindingSlot::ENV_MAP, paths);
+		auto& imaps = scene->registry.emplace<CImageMaps>(scene->GetSceneObject("sphere"));
+		//imaps.AddImageMap(ImageMap::BindingSlot::ENV_MAP, paths);
 	}
 	~Application() {}
 

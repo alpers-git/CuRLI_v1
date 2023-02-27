@@ -311,7 +311,8 @@ void Scene::Update()
 				e.textureChange.e = entity;
 				e.textureChange.toBeRemoved = false;
 			
-				GLFWHandler::GetInstance().QueueEvent(e);	
+				GLFWHandler::GetInstance().QueueEvent(e);
+				maps.dirty = false;
 			}
 		});
 	

@@ -1153,7 +1153,14 @@ public:
 				transform.SetEulerRotation(glm::vec3(glm::radians(-90.f), 0, 0));
 			});
 	}
-
+	glm::vec3 angles[6] = {
+		glm::vec3(0.0f, 270.0f, 0.f),
+		glm::vec3(0.0f, 90.f, 0.f),
+		glm::vec3(-90.0f, -180.f, 0.f),
+		glm::vec3(90.0f, 0.f, 0.f),
+		glm::vec3(0.0f, 180.f,0),
+		glm::vec3(0.0f, 0.f,0.f),
+	};
 	void PreUpdate()
 	{	
 		//render renderedTextures
@@ -1163,6 +1170,7 @@ public:
 				//=======StackPush=======
 				//Set the object's visibility to false
 				auto* mesh = scene->registry.try_get<CTriMesh>(entity);
+				auto* transform = scene->registry.try_get<CTransform>(entity);
 				bool meshVisibility = true;
 				Camera tmp = scene->camera;
 				glm::vec4 clearColor = program->GetClearColor();
@@ -1184,20 +1192,10 @@ public:
 								program->SetClearColor(glm::vec4(material->diffuse,1));
 							if(it->second.GetBindingSlot() == ImageMap::BindingSlot::ENV_MAP)
 							{
-								for (int i = 0; i < 6; i++)
-								{
-									//int i = frameCounter%6;
-									glm::vec3 center = (i == 0) ? glm::vec3(1, 0, 0) :
-										(i == 1) ? glm::vec3(-1, 0, 0) :
-										(i == 2) ? glm::vec3(0, 1, 0) :
-										(i == 3) ? glm::vec3(0, -1, 0) :
-										(i == 4) ? glm::vec3(0, 0, 1) :
-										glm::vec3(0, 0, -1);
-									
-									scene->camera = Camera(center, { 0,0,0 }, {0,i<4?1:0,i > 3 ? 0 : 1 });
-									program->cubeMaps[entity2EnvMapIndex[entity]].
-										RenderSide(i,std::bind(&MultiTargetRenderer::Update, this),i==0);
-								}
+								int i = frameCounter % 6;
+								scene->camera = Camera(glm::vec3(glm::vec4(mesh->GetBoundingBoxCenter(), 1.0f) * transform->GetModelMatrix()), angles[i], 0.1f, -90);
+								program->cubeMaps[entity2EnvMapIndex[entity]].
+									RenderSide(i,std::bind(&MultiTargetRenderer::Update, this),i==5);
 							}
 							else
 							{
