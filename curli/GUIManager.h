@@ -642,7 +642,7 @@ namespace gui
 											ImVec2(viewportPanelSize.x / 2, viewportPanelSize.x / 2));
 									if (ImGui::Button("Remove"))
 									{
-										t.RemoveMap(it->second.GetBindingSlot());
+										t.RemoveImageMap(it->second.GetBindingSlot());
 										ImGui::EndGroup();
 										ImGui::PopID();
 										break;

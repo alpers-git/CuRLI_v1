@@ -1199,7 +1199,7 @@ public:
 								program->cubeMaps[entity2EnvMapIndex[entity]].
 									RenderSide(i,std::bind(&MultiTargetRenderer::Update, this),i==5);
 							}
-							else
+							else if(program->renderedTextures.size() > it->second.GetProgramRenderedTexIndex())
 							{
 								scene->camera = it->second.GetRenderedImageCamera();
 								program->renderedTextures[it->second.GetProgramRenderedTexIndex()].

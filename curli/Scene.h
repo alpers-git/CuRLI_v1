@@ -592,7 +592,7 @@ public:
 	void AddImageMap(ImageMap::BindingSlot slot, std::string path);
 	void AddImageMap(ImageMap::BindingSlot slot, std::string path[6]);
 	void AddImageMap(ImageMap::BindingSlot slot, Camera camera, glm::uvec2 dims);
-	void RemoveMap(ImageMap::BindingSlot slot);
+	void RemoveImageMap(ImageMap::BindingSlot slot);
 	void Update();
 
 	unsigned int inline GetNumMaps() { return imgMaps.size(); }

@@ -507,7 +507,7 @@ void CImageMaps::AddImageMap(ImageMap::BindingSlot slot, std::string path[6])
 	dirty = true;
 }
 
-void CImageMaps::RemoveMap(ImageMap::BindingSlot slot)
+void CImageMaps::RemoveImageMap(ImageMap::BindingSlot slot)
 {
 	imgMaps.erase(slot);
 	
