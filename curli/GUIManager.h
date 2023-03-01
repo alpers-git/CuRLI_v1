@@ -601,32 +601,75 @@ namespace gui
 									}
 									ImGui::EndCombo();
 								}
-								if (ImGui::SmallButton("from Img. file") && current_item !=NULL)
+								ImGui::SameLine();
+								if (ImGui::Button(textureBinding == ImageMap::BindingSlot::ENV_MAP ?
+									"from Img. 6 files" : "from img") && current_item != NULL)
 								{
-									std::string path;
-									if (openFilePicker(path))
+									if (textureBinding == ImageMap::BindingSlot::ENV_MAP)
 									{
-										//Get extension
-										std::string extension = path.substr(path.find_last_of(".") + 1);
-										//Check if extension is supported
-										if (extension == "png" || extension == "jpg" || extension == "jpeg" || extension == "bmp")
+										std::string paths[6];
+										if (openFilePicker(paths[0]))
 										{
-											t.AddImageMap(textureBinding, path); 
+											if (openFilePicker(paths[1]))
+											{
+												if (openFilePicker(paths[2]))
+												{
+													if (openFilePicker(paths[3]))
+													{
+														if (openFilePicker(paths[4]))
+														{
+															if (openFilePicker(paths[5]))
+															{
+																t.AddImageMap(textureBinding, paths);
+															}
+														}
+													}
+												}
+											}
 										}
-										else
+										
+									}
+									else
+									{
+										std::string path;
+										if (openFilePicker(path))
 										{
-											std::cout << "extension not supported:" << extension << std::endl;
+											//Get extension
+											std::string extension = path.substr(path.find_last_of(".") + 1);
+											//Check if extension is supported
+											if (extension == "png" || extension == "jpg" || extension == "jpeg" || extension == "bmp")
+											{
+												t.AddImageMap(textureBinding, path); 
+											}
+											else
+											{
+												std::cout << "extension not supported:" << extension << std::endl;
+											}
 										}
 									}
 								}
+								
+								static ImageMap::RenderImageMode mode;
+								if (textureBinding == ImageMap::BindingSlot::ENV_MAP)
+									ImGui::BeginDisabled();
+								ImGui::BeginGroup();
+								ImGui::RadioButton("Reflection", &(int)mode, 0);
+								ImGui::RadioButton("Shadow", &(int)mode, 1);
+								ImGui::EndGroup();
+								if (textureBinding == ImageMap::BindingSlot::ENV_MAP)
+									ImGui::EndDisabled();
+								
 								ImGui::SameLine();
-								if (ImGui::SmallButton("from rendered img") && current_item != NULL)
+								if (ImGui::Button("from render") && current_item != NULL)
 								{
+									printf("mode %d\n", mode);
 									auto* mesh = scene->registry.try_get<CTriMesh>(e);
 									if (mesh);
 									//TODO: find a way to extract dims from mesh
-
-									t.AddImageMap(textureBinding, Camera(), glm::uvec2(1000,1000));
+									if (textureBinding == ImageMap::BindingSlot::ENV_MAP)
+										t.AddImageMap(textureBinding, glm::uvec2(1000, 1000), ImageMap::RenderImageMode::CUSTOM);
+									else
+										t.AddImageMap(textureBinding, glm::uvec2(1000,1000), (ImageMap::RenderImageMode)mode);
 								}
 								
 								ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();

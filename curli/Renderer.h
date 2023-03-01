@@ -1201,9 +1201,15 @@ public:
 							}
 							else if(program->renderedTextures.size() > it->second.GetProgramRenderedTexIndex())
 							{
-								scene->camera = it->second.GetRenderedImageCamera();
-								program->renderedTextures[it->second.GetProgramRenderedTexIndex()].
-									Render(std::bind(&MultiTargetRenderer::Update, this));
+								if (it->second.GetRenderImageMode() == ImageMap::RenderImageMode::REFLECTION)
+								{
+									scene->camera = Camera::Reflect(glm::vec4(mesh->GetBoundingBoxCenter(), 1.0f) * 
+										transform->GetModelMatrix(), 
+										glm::vec3(0,1,0) * glm::transpose(glm::inverse(glm::mat3(transform->GetModelMatrix()))),
+										scene->camera);
+									program->renderedTextures[it->second.GetProgramRenderedTexIndex()].
+										Render(std::bind(&MultiTargetRenderer::Update, this));
+								}
 							}
 						}
 					}

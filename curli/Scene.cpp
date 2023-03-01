@@ -493,9 +493,10 @@ void CImageMaps::AddImageMap(ImageMap::BindingSlot slot, std::string path)
 	dirty = true;
 }
 
-void CImageMaps::AddImageMap(ImageMap::BindingSlot slot, Camera camera, glm::uvec2 dims)
+void CImageMaps::AddImageMap(ImageMap::BindingSlot slot, glm::uvec2 dims, 
+	ImageMap::RenderImageMode mode, Camera camera)
 {
-	imgMaps.insert({ slot, ImageMap(camera, dims, slot) });
+	imgMaps.insert({ slot, ImageMap(dims, slot, mode, camera) });
 
 	//TODO::Schedule texture synch with renderer
 	dirty = true;

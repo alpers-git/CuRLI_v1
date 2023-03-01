@@ -53,6 +53,32 @@ public:
 		this->CalculateProjectionMatrix();
 	}
 	
+	static Camera Reflect(glm::vec3 point, glm::vec3 normal, Camera& camera)
+	{
+		glm::vec3 center = camera.GetCenter();
+		glm::vec3 eye = camera.GetLookAtEye();
+		glm::vec3 up = camera.GetLookAtUp();
+		float fov = camera.GetFOV();
+		float near = camera.GetNearPlane();
+		float far = camera.GetFarPlane();
+		float aspectRatio = camera.GetAspectRatio();
+		bool perspective = camera.IsPerspective();
+		normal = glm::normalize(normal);
+		const glm::vec3 eyeToPoint = eye - point;
+		const glm::vec3 centerToPoint = center - point;
+		const glm::vec3 upToPoint = up - point;
+
+		//reflect eye by the plane define by point and normal
+		const glm::vec3 reflectedEye = eye - 2.f * glm::dot(eyeToPoint, normal) * normal;
+		//reflect center by the plane define by point and normal
+		const glm::vec3 reflectedCenter = center - 2.f * glm::dot(centerToPoint, normal) * normal;
+		//reflect up by the plane define by point and normal
+		const glm::vec3 reflectedUp = up - 2.f * glm::dot(upToPoint, normal) * normal;
+		
+
+		return Camera(reflectedCenter, reflectedEye, glm::normalize(reflectedUp), 90, near, far, -1.0, perspective);
+	}
+	
 	glm::vec3 GetCenter() { return center; }
 	
 	glm::vec3 GetLookAtEye() { return eye; }
@@ -474,6 +500,9 @@ struct ImageMap
 	enum class BindingSlot {
 		T_AMBIENT, T_DIFFUSE, T_SPECULAR, NORMAL, BUMP, ENV_MAP
 	};
+	enum class RenderImageMode {
+		REFLECTION, SHADOW, CUSTOM, NONE
+	};
 public:
 	ImageMap()
 	{}
@@ -539,17 +568,27 @@ public:
 		}
 	}
 
-	ImageMap(Camera camera, glm::uvec2 dims, BindingSlot slot)
-		:renderedImageCamera(camera), dims(dims), bindingSlot(slot)
+	ImageMap(glm::uvec2 dims, BindingSlot slot, RenderImageMode rmode, Camera camera = Camera())
+		:renderedImageCamera(camera), dims(dims), bindingSlot(slot), mode(rmode)
 	{
-		renderedImg = true;
 		camera.SetAspectRatio((float)dims.x / (float)dims.y);
 		image.clear();
+	}
+	
+	ImageMap(ImageMap const& other)
+	{
+		image = other.image;
+		dims = other.dims;
+		bindingSlot = other.bindingSlot;
+		path = other.path;
+		mode = other.mode;
+		renderedImageCamera = other.renderedImageCamera;
+		programRenderedTexIndex = other.programRenderedTexIndex;
 	}
 
 	bool SetCamera(Camera camera)
 	{
-		if (renderedImg)
+		if (IsRenderedImage())
 		{
 			renderedImageCamera = camera;
 			return true;
@@ -564,8 +603,9 @@ public:
 	BindingSlot GetBindingSlot() { return bindingSlot; }
 	std::string GetSlotName();
 	Camera& GetRenderedImageCamera() { return renderedImageCamera; }
-	bool IsRenderedImage() { return renderedImg; }
+	bool IsRenderedImage() { return mode != RenderImageMode::NONE; }
 	unsigned int GetProgramRenderedTexIndex() { return programRenderedTexIndex; }
+	RenderImageMode GetRenderImageMode() { return mode; }
 
 	//setters
 	void SetProgramRenderedTexIndex(unsigned int index) { programRenderedTexIndex = index; }
@@ -578,7 +618,7 @@ private:
 	BindingSlot bindingSlot;
 
 	Camera renderedImageCamera;
-	bool renderedImg = false;
+	RenderImageMode mode = RenderImageMode::NONE;
 	unsigned int programRenderedTexIndex = 0;
 };
 struct CImageMaps : Component
@@ -591,7 +631,8 @@ public:
 
 	void AddImageMap(ImageMap::BindingSlot slot, std::string path);
 	void AddImageMap(ImageMap::BindingSlot slot, std::string path[6]);
-	void AddImageMap(ImageMap::BindingSlot slot, Camera camera, glm::uvec2 dims);
+	void AddImageMap(ImageMap::BindingSlot slot, glm::uvec2 dims,
+		ImageMap::RenderImageMode mode, Camera camera = Camera());
 	void RemoveImageMap(ImageMap::BindingSlot slot);
 	void Update();
 
