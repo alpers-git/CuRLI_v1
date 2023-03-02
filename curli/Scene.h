@@ -966,6 +966,21 @@ public:
 		return entity != entt::tombstone;
 	}
 
+	inline bool RemoveSceneObject(entt::entity object)
+	{
+		//search sceneObjects for object
+		for (auto it = sceneObjects.begin(); it != sceneObjects.end(); it++)
+		{
+			if (it->second == object)
+			{
+				sceneObjects.erase(it);
+				registry.destroy(object);
+				return true;
+			}
+		}
+		return object != entt::tombstone;
+	}
+
 	inline std::unordered_map<std::string, entt::entity>::iterator sceneObjectsBegin()
 	{
 		return sceneObjects.begin(); 

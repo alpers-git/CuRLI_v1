@@ -75,6 +75,7 @@ struct Event
 		struct
 		{
 			entt::entity e;//todo
+			bool toBeRemoved;
 		} geometryChange;
 		struct
 		{
@@ -179,7 +180,7 @@ public:
 				renderer.OnMouseScroll(eventQueue.front().mouseScroll.x, eventQueue.front().mouseScroll.y);
 				break;
 			case Event::Type::GeometryChange:
-				renderer.OnGeometryChange(eventQueue.front().geometryChange.e);
+				renderer.OnGeometryChange(eventQueue.front().geometryChange.e, eventQueue.front().geometryChange.toBeRemoved);
 				break;
 			case Event::Type::TextureChange:
 				renderer.OnTextureChange(eventQueue.front().textureChange.e, eventQueue.front().textureChange.toBeRemoved);

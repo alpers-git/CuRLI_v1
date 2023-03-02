@@ -146,6 +146,10 @@ namespace gui
 					{
 						openCreateEntityPopup = true;
 					}
+					if (ImGui::MenuItem("Delete Entity", "del"))
+					{
+						scene->RemoveSceneObject(selectedSceneObject);
+					}
 					if (ImGui::MenuItem("Attach/Detach Component", "CTRL+Space")) 
 					{
 						openComponentsPopup = true;
@@ -762,6 +766,7 @@ namespace gui
 							{
 								ImGui::Text("Yeah I exist");
 								
+								ImGui::EndTabItem();
 							}
 						});
 

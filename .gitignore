@@ -64,3 +64,5 @@ assets/models/yoda-stick.png
 assets/models/yoda.mtl
 
 *.log
+
+assets/images/cubemap/imgui.ini

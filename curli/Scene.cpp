@@ -3,7 +3,7 @@
 
 
 //===============Sinks for entity management===============
-void scheduleSynchForBuffers(entt::registry& registry, entt::entity e)
+void scheduleSynchForAddedGeom(entt::registry& registry, entt::entity e)
 {
 
 	////check if entity has a trimesh
@@ -12,9 +12,25 @@ void scheduleSynchForBuffers(entt::registry& registry, entt::entity e)
 		Event event;
 		event.type = Event::Type::GeometryChange;
 		event.geometryChange.e = e;
+		event.geometryChange.toBeRemoved = false;
 		GLFWHandler::GetInstance().QueueEvent(event);
 	}
 	
+}
+
+void scheduleSynchForRemovedGeom(entt::registry& registry, entt::entity e)
+{
+
+	////check if entity has a trimesh
+	if (registry.any_of<CTriMesh>(e))
+	{
+		Event event;
+		event.type = Event::Type::GeometryChange;
+		event.geometryChange.e = e;
+		event.geometryChange.toBeRemoved = true;
+		GLFWHandler::GetInstance().QueueEvent(event);
+	}
+
 }
 
 void scheduleSychForAddedTexture(entt::registry& registry, entt::entity e)
@@ -66,6 +82,7 @@ void synchEnvMap(entt::registry& registry, entt::entity e)
 	Event event;
 	event.type = Event::Type::GeometryChange;
 	event.geometryChange.e = e;
+	event.geometryChange.toBeRemoved = false;
 	GLFWHandler::GetInstance().QueueEvent(event);
 	
 	Event event2;
@@ -78,8 +95,9 @@ void synchEnvMap(entt::registry& registry, entt::entity e)
 //==============================
 Scene::Scene()
 {
-	registry.on_construct<CTriMesh>().connect<&scheduleSynchForBuffers>();
-	registry.on_update<CTriMesh>().connect<&scheduleSynchForBuffers>();
+	registry.on_construct<CTriMesh>().connect<&scheduleSynchForAddedGeom>();
+	registry.on_update<CTriMesh>().connect<&scheduleSynchForAddedGeom>();
+	registry.on_destroy<CTriMesh>().connect<&scheduleSynchForRemovedGeom>();
 
 	registry.on_destroy<CImageMaps>().connect<&scheduleSychForRemovedTexture>();
 	

@@ -145,13 +145,15 @@ protected:
 	/*
 	* Handles geometry updates
 	*/
-	void OnGeometryChange(entt::entity e)
+	void OnGeometryChange(entt::entity e, bool toBeRemoved)
 	{
 		if (entity2VAOIndex.find(e) != entity2VAOIndex.end())
 		{
 			program->vaos[entity2VAOIndex[e]].Delete();
 			entity2VAOIndex.erase(e);
 		}
+		if (toBeRemoved)
+			return;
 		auto* mesh = scene->registry.try_get<CTriMesh>(e);
 		auto* envMap = scene->registry.try_get<CSkyBox>(e);
 		if (mesh)
@@ -253,7 +255,8 @@ protected:
 		if (toBeRemoved)
 		{
 			auto* imgMaps = scene->registry.try_get<CImageMaps>(e);
-			imgMaps->dirty = false;
+			if(imgMaps)
+				imgMaps->dirty = false;
 			return;
 		}
 		
@@ -395,7 +398,7 @@ public:
 		scene->registry.view<CTriMesh>()
 			.each([&](const auto entity, auto& mesh)
 				{
-					OnGeometryChange(entity);
+					OnGeometryChange(entity, false);
 				});
 
 		//Init camera
@@ -571,7 +574,7 @@ public:
 		scene->registry.view<CTriMesh>()
 			.each([&](const auto entity, auto& mesh)
 				{
-					OnGeometryChange(entity);
+					OnGeometryChange(entity,false);
 				});
 
 		//Init camera
@@ -868,7 +871,7 @@ public:
 		scene->registry.view<CTriMesh>()
 			.each([&](const auto entity, auto& mesh)
 				{
-					OnGeometryChange(entity);
+					OnGeometryChange(entity,false);
 				});
 		
 		scene->registry.view<CImageMaps>()
@@ -1129,7 +1132,7 @@ public:
 		scene->registry.view<CTriMesh>()
 			.each([&](const auto entity, auto& mesh)
 				{
-					OnGeometryChange(entity);
+					OnGeometryChange(entity,false);
 				});
 		
 		scene->registry.view<CImageMaps>()
@@ -1248,81 +1251,82 @@ public:
 		//Render meshes
 		scene->registry.view<CTriMesh>()
 			.each([&](const auto& entity, auto& mesh)
-			{
+		{
+			if (entity2VAOIndex.find(entity) != entity2VAOIndex.end())
 				program->vaos[entity2VAOIndex[entity]].visible = mesh.visible;
-				CPhongMaterial* material = scene->registry.try_get<CPhongMaterial>(entity);
-				CTransform* transform = scene->registry.try_get<CTransform>(entity);
+			CPhongMaterial* material = scene->registry.try_get<CPhongMaterial>(entity);
+			CTransform* transform = scene->registry.try_get<CTransform>(entity);
 				
-				const glm::mat4 mv =  scene->camera.GetViewMatrix() * (transform ? 
-					transform->GetModelMatrix() : glm::mat4(1.0f));
-				const glm::mat4 mvp = scene->camera.GetProjectionMatrix() * mv;
+			const glm::mat4 mv =  scene->camera.GetViewMatrix() * (transform ? 
+				transform->GetModelMatrix() : glm::mat4(1.0f));
+			const glm::mat4 mvp = scene->camera.GetProjectionMatrix() * mv;
 					
-				program->SetUniform("material.ka", material ? material->ambient : glm::vec3(0.0f));
-				program->SetUniform("material.kd", material ? material->diffuse : glm::vec3(0.0f));
-				program->SetUniform("material.ks", material ? material->specular : glm::vec3(0.0f));
-				program->SetUniform("material.shininess", material ? material->shininess : 0.0f);
+			program->SetUniform("material.ka", material ? material->ambient : glm::vec3(0.0f));
+			program->SetUniform("material.kd", material ? material->diffuse : glm::vec3(0.0f));
+			program->SetUniform("material.ks", material ? material->specular : glm::vec3(0.0f));
+			program->SetUniform("material.shininess", material ? material->shininess : 0.0f);
 				
-				program->SetUniform("to_screen_space", mvp);
-				program->SetUniform("to_view_space", mv);
-				program->SetUniform("to_world_space", transform->GetModelMatrix());
-				program->SetUniform("normals_to_world_space", glm::transpose(glm::inverse(glm::mat3(transform->GetModelMatrix()))));
-				program->SetUniform("normals_to_view_space",
-					glm::transpose(glm::inverse(glm::mat3(mv))));
-				program->SetUniform("camera_pos", scene->camera.GetLookAtEye());
+			program->SetUniform("to_screen_space", mvp);
+			program->SetUniform("to_view_space", mv);
+			program->SetUniform("to_world_space", transform->GetModelMatrix());
+			program->SetUniform("normals_to_world_space", glm::transpose(glm::inverse(glm::mat3(transform->GetModelMatrix()))));
+			program->SetUniform("normals_to_view_space",
+				glm::transpose(glm::inverse(glm::mat3(mv))));
+			program->SetUniform("camera_pos", scene->camera.GetLookAtEye());
 				
-				CImageMaps* imgMaps = scene->registry.try_get<CImageMaps>(entity);
-				if (imgMaps && !imgMaps->dirty)
+			CImageMaps* imgMaps = scene->registry.try_get<CImageMaps>(entity);
+			if (imgMaps && !imgMaps->dirty)
+			{
+				//iterate over all imagemaps
+				for (auto it = imgMaps->mapsBegin(); it != imgMaps->mapsEnd(); ++it)
 				{
-					//iterate over all imagemaps
-					for (auto it = imgMaps->mapsBegin(); it != imgMaps->mapsEnd(); ++it)
+					if (it->second.GetBindingSlot() == ImageMap::BindingSlot::ENV_MAP)
 					{
-						if (it->second.GetBindingSlot() == ImageMap::BindingSlot::ENV_MAP)
+						int texIndex = entity2EnvMapIndex[entity];
+						//bind texture
+						if (texIndex >= 0)
 						{
-							int texIndex = entity2EnvMapIndex[entity];
-							//bind texture
-							if (texIndex >= 0)
-							{
-								program->cubeMaps[texIndex].Bind();
-								program->SetUniform("has_env_map", 1);
-								program->SetUniform("env_map", 30);
-							}
+							program->cubeMaps[texIndex].Bind();
+							program->SetUniform("has_env_map", 1);
+							program->SetUniform("env_map", 30);
 						}
-						else
+					}
+					else
+					{
+						int texIndex = entity2TextureIndices[entity].v[(int)it->first];
+						//bind texture
+						if (texIndex >= 0)
 						{
-							int texIndex = entity2TextureIndices[entity].v[(int)it->first];
-							//bind texture
-							if (texIndex >= 0)
-							{
-								program->textures[texIndex].Bind();
-								//set uniform
-								const std::string uniformName = std::string("has_texture[") + std::to_string(((int)it->first)) + std::string("]");
-								program->SetUniform(uniformName.c_str(), 1);
-								const std::string uniformName2 = std::string("tex_list[") + std::to_string(((int)it->first)) + std::string("]");
-								program->SetUniform(uniformName2.c_str(), ((int)it->first));
-							}
+							program->textures[texIndex].Bind();
+							//set uniform
+							const std::string uniformName = std::string("has_texture[") + std::to_string(((int)it->first)) + std::string("]");
+							program->SetUniform(uniformName.c_str(), 1);
+							const std::string uniformName2 = std::string("tex_list[") + std::to_string(((int)it->first)) + std::string("]");
+							program->SetUniform(uniformName2.c_str(), ((int)it->first));
 						}
 					}
 				}
-				program->SetUniform("shading_mode", ((int)mesh.GetShadingMode()));
-				
+			}
+			program->SetUniform("shading_mode", ((int)mesh.GetShadingMode()));
+			if (entity2VAOIndex.find(entity) != entity2VAOIndex.end())
 				program->vaos[entity2VAOIndex[entity]].Draw();
-				//Reset uniforms
-				for (int i = 0; i < 5; i++)
-				{
-					const std::string uniformName = std::string("has_texture[") + std::to_string(i) + std::string("]");
-					program->SetUniform(uniformName.c_str(), 0);
-				}
-				for (auto tex : program->textures)
-				{
-					tex.Unbind();
-				}
-				program->SetUniform("has_env_map", 0);
-				for (auto tex : program->cubeMaps)
-				{
-					tex.Unbind();
-				}
+			//Reset uniforms
+			for (int i = 0; i < 5; i++)
+			{
+				const std::string uniformName = std::string("has_texture[") + std::to_string(i) + std::string("]");
+				program->SetUniform(uniformName.c_str(), 0);
+			}
+			for (auto tex : program->textures)
+			{
+				tex.Unbind();
+			}
+			program->SetUniform("has_env_map", 0);
+			for (auto tex : program->cubeMaps)
+			{
+				tex.Unbind();
+			}
 				
-			});
+		});
 
 		//Render skybox
 		glDepthMask(GL_FALSE);//TODO
