@@ -506,6 +506,14 @@ namespace gui
 						{
 							if (e == selectedSceneObject && ImGui::BeginTabItem("Light"))
 							{
+								if (ImGui::Checkbox("Show", &l.show))
+								{
+									Event event;
+									event.type = Event::Type::GeometryChange;
+									event.geometryChange.e = e;
+									event.geometryChange.toBeRemoved = !l.show;
+									GLFWHandler::GetInstance().QueueEvent(event);
+								}
 								ImGui::Text(l.GetLightType() == LightType::POINT ? "Point" :
 									(l.GetLightType() == LightType::DIRECTIONAL ? "Directional" : "Spot"));
 								ImGui::DragFloat("Intensity", &l.intensity, 0.01f, 0.0f, 1.0f);

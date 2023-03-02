@@ -754,6 +754,7 @@ public:
 	float outerCutoff;
 	glm::vec3 direction;
 	glm::vec3 position;
+	bool show = false;
 
 	void Update();
 

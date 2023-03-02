@@ -156,6 +156,7 @@ protected:
 			return;
 		auto* mesh = scene->registry.try_get<CTriMesh>(e);
 		auto* envMap = scene->registry.try_get<CSkyBox>(e);
+		auto* light = scene->registry.try_get<CLight>(e);
 		if (mesh)
 		{
 			program->vaos.push_back(VertexArrayObject());
@@ -207,6 +208,25 @@ protected:
 				-1, 3, 0.999999f,
 				-1, -1, 0.999999f,
 				3, -1, 0.999999f
+			};
+			program->vaos.push_back(VertexArrayObject());
+			entity2VAOIndex[e] = program->vaos.size() - 1;
+			VertexBufferObject vertexVBO(
+				data,
+				3,
+				GL_FLOAT,
+				"pos",
+				3,
+				program->GetID());
+			program->vaos.back().AddVBO(vertexVBO);
+			program->vaos.back().SetDrawMode(GL_TRIANGLES);
+		}
+		else if (light)
+		{
+			float data[] = {
+				0.0,1.0,0.0,
+				1.0,0.0,0.0,
+				-1.0,0.0,0.0
 			};
 			program->vaos.push_back(VertexArrayObject());
 			entity2VAOIndex[e] = program->vaos.size() - 1;
@@ -1236,7 +1256,7 @@ public:
 		//Set up lights
 		int i = 0;
 		scene->registry.view<CLight>()
-			.each([&](auto& light)
+			.each([&](const auto& entity, auto& light)
 			{
 				std::string shaderName("light[" + std::to_string(i) + "].position");
 				program->SetUniform(shaderName.c_str(), glm::vec3(scene->camera.GetViewMatrix() * glm::vec4(light.position, 1)));
@@ -1244,6 +1264,15 @@ public:
 				program->SetUniform(shaderName.c_str(), light.intensity);
 				shaderName = std::string("light[" + std::to_string(i) + "].color");
 				program->SetUniform(shaderName.c_str(), light.color);
+				if (light.show)
+				{
+					program->SetUniform("shading_mode", 1);
+					program->SetUniform("to_screen_space",
+						scene->camera.GetProjectionMatrix() *
+						scene->camera.GetViewMatrix() * glm::translate(glm::mat4(1), light.position));
+					if (entity2VAOIndex.find(entity) != entity2VAOIndex.end())
+						program->vaos[entity2VAOIndex[entity]].Draw();
+				}
 				i++;
 			});
 		program->SetUniform("light_count", i);
