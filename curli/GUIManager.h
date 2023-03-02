@@ -506,7 +506,8 @@ namespace gui
 						{
 							if (e == selectedSceneObject && ImGui::BeginTabItem("Light"))
 							{
-								if (ImGui::Checkbox("Show", &l.show))
+								if ((l.GetLightType() == LightType::POINT ||
+									l.GetLightType() == LightType::SPOT) && ImGui::Checkbox("Show", &l.show))
 								{
 									Event event;
 									event.type = Event::Type::GeometryChange;
@@ -527,7 +528,7 @@ namespace gui
 								if (l.GetLightType() == LightType::DIRECTIONAL ||
 									l.GetLightType() == LightType::SPOT)
 								{
-									ImGui::DragFloat3("Direction", &(l.position[0]));
+									ImGui::DragFloat3("Direction", &(l.direction[0]));
 								}
 								if (l.GetLightType() == LightType::SPOT)
 								{

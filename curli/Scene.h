@@ -918,6 +918,11 @@ public:
 	*/
 	entt::entity CreatePointLight(glm::vec3 pos, float intesity,
 		glm::vec3 color = glm::vec3(1, 1, 1));
+
+	/*
+	* Creates a Directional light source
+	*/
+	entt::entity CreateDirectionalLight(glm::vec3 dir, float intesity, glm::vec3 color);
 	
 	/*
 	* Creates a bounding box that acts as a physics bound alongside with a VAO so it can be drawn

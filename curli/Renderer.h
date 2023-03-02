@@ -1254,16 +1254,20 @@ public:
 		program->Use();
 
 		//Set up lights
-		int i = 0;
+		int p = 0;
+		int d = 0;
 		scene->registry.view<CLight>()
 			.each([&](const auto& entity, auto& light)
+		{
+			if (light.GetLightType() == LightType::POINT)
 			{
-				std::string shaderName("light[" + std::to_string(i) + "].position");
+				std::string shaderName("p_lights[" + std::to_string(p) + "].position");
 				program->SetUniform(shaderName.c_str(), glm::vec3(scene->camera.GetViewMatrix() * glm::vec4(light.position, 1)));
-				shaderName = std::string("light[" + std::to_string(i) + "].intensity");
+				shaderName = std::string("p_lights[" + std::to_string(p) + "].intensity");
 				program->SetUniform(shaderName.c_str(), light.intensity);
-				shaderName = std::string("light[" + std::to_string(i) + "].color");
+				shaderName = std::string("p_lights[" + std::to_string(p) + "].color");
 				program->SetUniform(shaderName.c_str(), light.color);
+				p++;
 				if (light.show)
 				{
 					program->SetUniform("shading_mode", 1);
@@ -1273,9 +1277,20 @@ public:
 					if (entity2VAOIndex.find(entity) != entity2VAOIndex.end())
 						program->vaos[entity2VAOIndex[entity]].Draw();
 				}
-				i++;
-			});
-		program->SetUniform("light_count", i);
+			}
+			else if (light.GetLightType() == LightType::DIRECTIONAL)
+			{
+				std::string shaderName("d_lights[" + std::to_string(d) + "].direction");
+				program->SetUniform(shaderName.c_str(), glm::vec3(scene->camera.GetViewMatrix() * glm::vec4(light.direction, 0)));
+				shaderName = std::string("d_lights[" + std::to_string(d) + "].intensity");
+				program->SetUniform(shaderName.c_str(), light.intensity);
+				shaderName = std::string("d_lights[" + std::to_string(d) + "].color");
+				program->SetUniform(shaderName.c_str(), light.color);
+				d++;
+			}
+		});
+		program->SetUniform("p_light_count", p);
+		program->SetUniform("d_light_count", d);
 
 		//Render meshes
 		scene->registry.view<CTriMesh>()

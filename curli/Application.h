@@ -18,7 +18,6 @@ public:
 		ParseArguments(argc, argv);
 		renderer->ParseArguments(argc, argv);
 		
-		scene->CreatePointLight(glm::vec3(5, 20, 0), 1, glm::vec3(0.85, 0.8, 0.95));//TODO
 		auto* tr = scene->registry.try_get<CTransform>(scene->GetSceneObject("plane"));
 		auto& tex = scene->registry.emplace<CImageMaps>(scene->GetSceneObject("plane"));
 		//tex.AddImageMap(ImageMap::BindingSlot::T_DIFFUSE, Camera(), {500,500});
@@ -27,19 +26,6 @@ public:
 			tr->SetPosition(glm::vec3(0, -10, 0));
 			tr->SetScale(glm::vec3(50, 50, 1));
 		}
-
-		std::string paths[] = {
-			"../assets/images/cubemap/cubemap_posx.png",
-			"../assets/images/cubemap/cubemap_negx.png",
-			"../assets/images/cubemap/cubemap_posy.png",
-			"../assets/images/cubemap/cubemap_negy.png",
-			"../assets/images/cubemap/cubemap_posz.png",
-			"../assets/images/cubemap/cubemap_negz.png"
-		};
-		scene->registry.emplace<CSkyBox>(scene->CreateSceneObject("skybox"), paths);
-
-		auto& imaps = scene->registry.emplace<CImageMaps>(scene->GetSceneObject("sphere"));
-		//imaps.AddImageMap(ImageMap::BindingSlot::ENV_MAP, paths);
 	}
 	~Application() {}
 
@@ -115,6 +101,77 @@ private:
 					scene->registry.emplace<CRigidBody>(scene->CreateModelObject(path), 1.0f, glm::vec3(0), glm::vec3(0));
 				else
 					scene->CreateModelObject(path), 1.0f, glm::vec3(0), glm::vec3(0);
+			}
+			else if (std::string(argv[i]).compare("-skybox") == 0)
+			{
+				i++;
+				std::string paths[] = {
+					argv[i],
+					argv[i + 1],
+					argv[i + 2],
+					argv[i + 3],
+					argv[i + 4],
+					argv[i + 5]
+				};
+				scene->registry.emplace<CSkyBox>(scene->CreateSceneObject("skybox"), paths);
+				i += 5;
+			}
+			else if (std::string(argv[i]).compare("-light") == 0)
+			{
+				i++;
+				glm::vec3 pos(NAN);
+				glm::vec3 dir(NAN);
+				float innerAng = NAN;
+				float outerAng = NAN;
+				glm::vec3 color;
+				float intensity;
+				for (; i < argc; i++)
+				{
+					if (std::string(argv[i]).compare("--pos") == 0)
+					{
+						i++;
+						pos = glm::vec3(std::stof(argv[i]), std::stof(argv[i + 1]), std::stof(argv[i + 2]));
+						i += 2;
+					}
+					else if (std::string(argv[i]).compare("--color") == 0)
+					{
+						i++;
+						color = glm::vec3(std::stof(argv[i]), std::stof(argv[i + 1]), std::stof(argv[i + 2]));
+						i += 2;
+					}
+					else if (std::string(argv[i]).compare("--intensity") == 0)
+					{
+						i++;
+						intensity = std::stof(argv[i]);
+					}
+					else if (std::string(argv[i]).compare("--dir") == 0)
+					{
+						i++;
+						dir = glm::vec3(std::stof(argv[i]), std::stof(argv[i + 1]), std::stof(argv[i + 2]));
+						i += 2;
+					}
+					else if (std::string(argv[i]).compare("--innerAng") == 0)
+					{
+						i++;
+						innerAng = std::stof(argv[i]);
+					}
+					else if (std::string(argv[i]).compare("--outerAng") == 0)
+					{
+						i++;
+						outerAng = std::stof(argv[i]);
+					}
+					else
+					{
+						i--;
+						break;
+					}
+				}
+				if(glm::any(glm::isnan(pos)))
+					scene->CreateDirectionalLight(dir, intensity, color);
+				else if (glm::any(glm::isnan(dir)))
+					scene->CreatePointLight(pos, intensity, color);
+				/*else
+					scene->CreateSpotLight(pos, dir, innerAng, outerAng, intensity, color);*/
 			}
 		}
 	}
