@@ -317,21 +317,50 @@ public:
 	glm::vec3 GetPivot() { return pivot; }
 	glm::vec3 GetRotation() { return rotation; }
 	glm::vec3 GetScale() { return scale; }
+	CTransform* GetParent() { return parent; }
 	glm::mat4 GetModelMatrix()
 	{
 		if (modelDirty)
 			CalculateModelMatrix();
 		return modelMatrix;
 	}
+	void Reset()
+	{
+		position = glm::vec3(0.f);
+		rotation = glm::vec3(0.f);
+		scale = glm::vec3(1.f);
+		pivot = glm::vec3(0.f);
+		CalculateModelMatrix();
+	}
+	
+	//parenting
+	void SetParent(CTransform* parent, bool recalculate = false)
+	{
+		this->parent = parent;
+		parent->children.push_back(this);
+		if (recalculate)
+			CalculateModelMatrix();
+		modelDirty = !recalculate;
+	}
 	
 	void CalculateModelMatrix()
 	{
-		modelMatrix = glm::translate(glm::mat4(1.f), position);
+		modelMatrix = glm::mat4(1.f);
+		if (parent != nullptr)
+		{
+			modelMatrix = glm::translate(modelMatrix, parent->GetPosition());
+			modelMatrix = modelMatrix * glm::eulerAngleXYZ(parent->GetRotation().x, 
+				parent->GetRotation().y, parent->GetRotation().z);
+			modelMatrix = glm::translate(modelMatrix, -parent->GetPivot());
+		}
+		modelMatrix = glm::translate(modelMatrix, position);
 		modelMatrix = modelMatrix * glm::eulerAngleXYZ(rotation.x, rotation.y, rotation.z);
 		modelMatrix = glm::scale(modelMatrix, scale);
 		modelMatrix = glm::translate(modelMatrix, -pivot);//everything happens with respect to pivot
 
 		modelDirty = false;
+		for (auto child : children)
+			child->CalculateModelMatrix();
 	}
 
 	void Update();
@@ -343,6 +372,9 @@ private:
 
 	glm::mat4 modelMatrix = glm::mat4(1.f);
 	bool modelDirty = false;
+	
+	CTransform* parent = nullptr;
+	std::vector<CTransform*> children;
 
 };
 

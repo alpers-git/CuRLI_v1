@@ -274,6 +274,7 @@ protected:
 					program->cubeMaps.push_back(cMap);
 					entity2EnvMapIndex[e] = program->cubeMaps.size() - 1;
 					it->second.glID = cMap.GetGLID();
+					printf("Env map created with %d\n", cMap.GetGLID());
 				}
 				else
 				{

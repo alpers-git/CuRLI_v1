@@ -417,10 +417,11 @@ namespace gui
 			ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
 			if (ImGui::BeginTabBar("Components", tab_bar_flags))
 			{
+				static bool openParentSelector = false;
 				//Draw transform tab
 				scene->registry.view<CTransform>()
 					.each([&](auto e,  auto& t)
-					{
+				{
 							if (e== selectedSceneObject && ImGui::BeginTabItem("Transform"))
 							{
 								glm::vec3 p = t.GetPosition();
@@ -435,9 +436,48 @@ namespace gui
 								glm::vec3 l = t.GetPivot();
 								if (ImGui::DragFloat3("Pivot", &l[0]))
 									t.SetPivot(l);
+								if (t.GetParent())
+									ImGui::Text("Has a Parent");
+								else 
+									ImGui::Text("No Parent");
+								ImGui::SameLine();
+								if (ImGui::Button("Set Parent"))
+								{
+									//create a popup to select the parent
+									openParentSelector = true;
+								}
+								ImGui::SameLine();
+								if (ImGui::Button("Unset Parent"))
+									t.SetParent(nullptr);
+								if (ImGui::Button("Reset"))
+									t.Reset();
 								ImGui::EndTabItem();
 							}
-					});
+				});
+				if (openParentSelector)
+				{
+					ImGui::OpenPopup("parentselector");
+					openParentSelector = false;
+				}
+				if (ImGui::BeginPopup("parentselector"))
+				{
+					static bool close = false;
+					for (std::unordered_map<std::string, entt::entity>::iterator
+						it = scene->sceneObjectsBegin(); it != scene->sceneObjectsEnd(); ++it)
+					{
+						auto* parentTrPtr = scene->registry.try_get<CTransform>(it->second);
+						if (parentTrPtr && it->second != selectedSceneObject && ImGui::Selectable(it->first.c_str(), false))
+						{
+							scene->registry.try_get<CTransform>(selectedSceneObject)->
+								SetParent(parentTrPtr);
+							break;
+							close = true;
+						}
+					}
+					if (close)
+						ImGui::CloseCurrentPopup();
+					ImGui::EndPopup();
+				}
 
 				//Draw Material tab
 				scene->registry.view<CPhongMaterial>()
@@ -706,6 +746,18 @@ namespace gui
 									j++;
 								}
 								ImGui::EndTabItem();
+							}
+						});
+
+				//Draw CSkybox tab
+				scene->registry.view<CSkyBox>()
+					.each([&](auto e, auto& b)
+						{
+							ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+							if (e == selectedSceneObject && ImGui::BeginTabItem("Skybox"))
+							{
+								ImGui::Text("Yeah I exist");
+								
 							}
 						});
 
