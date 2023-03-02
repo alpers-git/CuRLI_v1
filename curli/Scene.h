@@ -334,36 +334,57 @@ public:
 	}
 	
 	//parenting
-	void SetParent(CTransform* parent, bool recalculate = false)
+	void SetParent(CTransform* parent)
 	{
+		if(!parent)
+		{
+			//find this in parent's children and remove
+			for (int i = 0;  this->parent && i < this->parent->children.size(); i++)
+			{
+				if (this->parent->children[i] == this)
+				{
+					this->parent->children.erase(this->parent->children.begin() + i);
+					break;
+				}
+			}
+		}
+		else
+		{
+			bool found = false;
+			for (int i = 0; i < parent->children.size(); i++)
+			{
+				if (parent->children[i] == this)
+				{
+					found = true;
+					break;
+				}
+			}
+			if(!found)
+				parent->children.push_back(this);
+		}
 		this->parent = parent;
-		parent->children.push_back(this);
-		if (recalculate)
-			CalculateModelMatrix();
-		modelDirty = !recalculate;
+		CalculateModelMatrix();
 	}
 	
 	void CalculateModelMatrix()
 	{
 		modelMatrix = glm::mat4(1.f);
-		if (parent != nullptr)
-		{
-			modelMatrix = glm::translate(modelMatrix, parent->GetPosition());
-			modelMatrix = modelMatrix * glm::eulerAngleXYZ(parent->GetRotation().x, 
-				parent->GetRotation().y, parent->GetRotation().z);
-			modelMatrix = glm::translate(modelMatrix, -parent->GetPivot());
-		}
 		modelMatrix = glm::translate(modelMatrix, position);
 		modelMatrix = modelMatrix * glm::eulerAngleXYZ(rotation.x, rotation.y, rotation.z);
 		modelMatrix = glm::scale(modelMatrix, scale);
 		modelMatrix = glm::translate(modelMatrix, -pivot);//everything happens with respect to pivot
+		if (parent != nullptr)
+			modelMatrix *= parent->GetModelMatrix();
 
 		modelDirty = false;
 		for (auto child : children)
+		{
 			child->CalculateModelMatrix();
+		}
 	}
 
 	void Update();
+	std::string entityName;
 private:
 	glm::vec3 position = glm::vec3(0.f);
 	glm::vec3 rotation = glm::vec3(0.f);

@@ -436,11 +436,13 @@ namespace gui
 								glm::vec3 l = t.GetPivot();
 								if (ImGui::DragFloat3("Pivot", &l[0]))
 									t.SetPivot(l);
+								
 								if (t.GetParent())
-									ImGui::Text("Has a Parent");
+									ImGui::Text("Parent: %s", t.GetParent()->entityName.c_str());
 								else 
-									ImGui::Text("No Parent");
+									ImGui::Text("Parent: None");
 								ImGui::SameLine();
+								
 								if (ImGui::Button("Set Parent"))
 								{
 									//create a popup to select the parent
@@ -466,10 +468,12 @@ namespace gui
 						it = scene->sceneObjectsBegin(); it != scene->sceneObjectsEnd(); ++it)
 					{
 						auto* parentTrPtr = scene->registry.try_get<CTransform>(it->second);
-						if (parentTrPtr && it->second != selectedSceneObject && ImGui::Selectable(it->first.c_str(), false))
+						if (parentTrPtr && it->second != selectedSceneObject && 
+							ImGui::Selectable(it->first.c_str(), false))
 						{
 							scene->registry.try_get<CTransform>(selectedSceneObject)->
 								SetParent(parentTrPtr);
+							parentTrPtr->entityName = it->first;
 							break;
 							close = true;
 						}
