@@ -77,6 +77,7 @@ namespace gui
 		};
 
 		void Draw() {
+			DrawStatPanel();
 			DrawTopMenu();
 			DrawSceneObjectsList();
 			DrawCameraController(scene->camera);
@@ -107,6 +108,24 @@ namespace gui
 
 		}
 		
+		void DrawStatPanel()
+		{
+			static bool first = true;
+			if (first)
+			{
+				first = false;
+				return;
+			}
+			const ImGuiViewport* stats_viewport = ImGui::GetMainViewport();
+			ImGui::SetNextWindowSize(ImVec2(stats_viewport->WorkSize.x / 8, 0));
+			
+			ImGui::SetNextWindowPos(ImVec2(5, stats_viewport->WorkSize.y - ImGui::GetCursorPos().y -20));
+			ImGui::Begin("Stats", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+			ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+			ImGui::Text("Frame Time: %.3f ms", 1000.0f / ImGui::GetIO().Framerate);
+			ImGui::End();
+			
+		}
 		void DrawTopMenu()
 		{
 			if (ImGui::BeginMainMenuBar())
