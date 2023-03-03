@@ -18,6 +18,7 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 find_package(OpenGL REQUIRED)
 
 add_subdirectory(submodules/glm EXCLUDE_FROM_ALL)
+add_subdirectory(submodules/eigen EXCLUDE_FROM_ALL)
 
 #--------------------GLAD---------------------#
 #https://glad.dav1d.de/#language=c&specification=gl&api=gl%3D4.6&api=gles1%3Dnone&api=gles2%3Dnone&api=glsc2%3Dnone&profile=compatibility&loader=on
@@ -63,6 +64,7 @@ include_directories(
     submodules/lodepng
     submodules/glfw/include
     submodules/cyCodeBase
+    submodules/eigen
     curli
 )
 #========== Targets Configurations ===========#
@@ -78,6 +80,7 @@ target_link_libraries(curli
     PRIVATE glad
     PRIVATE glfw
     PRIVATE glm::glm
+    PRIVATE Eigen3::Eigen
     PRIVATE EnTT::EnTT
     PUBLIC ImGui
     PUBLIC lodepng
