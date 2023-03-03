@@ -241,6 +241,7 @@ enum class CType{
 	Light, EnvironmentMap,
 	BoundingBox,VelocityField2D,
 	ForceField2D, RigidBody,
+	BoxCollider,
 	Count
 };
 struct Component
@@ -852,6 +853,26 @@ public:
 	void Update();
 	
 private:
+};
+
+struct CBoxCollider : Component
+{
+public:
+	static constexpr CType type = CType::BoxCollider;
+	CBoxCollider(glm::vec3 min, glm::vec3 max)
+	{
+		this->min = glm::min(min, max);
+		this->max = glm::max(min, max);
+		
+		this->center = (min + max) * 0.5f;
+	}
+	
+	bool MoveAndCollide(glm::vec3 motion) {};
+	void Update() {};
+	
+	glm::vec3 min;
+	glm::vec3 max;
+	glm::vec3 center;
 };
 
 struct CBoundingBox : Component

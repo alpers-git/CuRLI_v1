@@ -367,6 +367,9 @@ bool Scene::EntityHas(entt::entity e, CType component)
 	case CType::ImageMaps:
 		return registry.all_of<CImageMaps>(e);
 		break;
+	case CType::BoxCollider:
+		return registry.all_of<CBoxCollider>(e);
+		break;
 	case CType::Count:
 		break;
 	default:
