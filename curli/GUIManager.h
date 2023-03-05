@@ -5,6 +5,9 @@
 #include <Scene.h>
 #include <windows.h>
 #include <string>
+#include <ApplicationState.h>
+
+class ApplicationState;
 
 namespace gui
 {
@@ -419,7 +422,10 @@ namespace gui
 							ImGui::PushStyleColor(ImGuiCol_Header,
 								ImGui::GetStyle().Colors[ImGuiCol_HeaderActive]);
 						if (ImGui::Selectable(it->first.c_str(), is_selected))
+						{
 							selectedSceneObject = it->second;
+							ApplicationState::GetInstance().selectedObject = selectedSceneObject;
+						}
 
 						if (is_selected)
 						{
@@ -475,7 +481,12 @@ namespace gui
 								if (ImGui::Button("Unset Parent"))
 									t.SetParent(nullptr);
 								if (ImGui::Button("Reset"))
+								{
+									auto* rb = scene->registry.try_get<CRigidBody>(e);
+									if (rb)
+										rb->Reset();
 									t.Reset();
+								}
 								ImGui::EndTabItem();
 							}
 				});
@@ -563,7 +574,17 @@ namespace gui
 						{
 							if (e == selectedSceneObject && ImGui::BeginTabItem("RigidBody"))
 							{
-								ImGui::DragFloat("Mass", &r.mass, 0.01f, 0.0f);
+								if (ImGui::DragFloat("Mass", &r.mass, 0.01f, 0.0f))
+								{
+									r.mass = max(0.f, r.mass);
+									auto* tr = scene->registry.try_get<CTransform>(e);
+									const auto* mesh = scene->registry.try_get<CTriMesh>(e);
+									if (tr && mesh)
+									{
+										r.SetMassMatrix();
+										r.SetInteriaMatrix(mesh, tr);
+									}
+								}
 								ImGui::DragFloat("Drag", &r.drag, 0.01f, 0.0f);
 								ImGui::BeginDisabled();
 								ImGui::DragFloat3("Position", &r.position[0]);

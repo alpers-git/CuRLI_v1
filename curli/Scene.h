@@ -877,15 +877,19 @@ public:
 	void SetInteriaMatrix(const CTriMesh* mesh, CTransform* transform);
 	void SetMassMatrix();
 
+	void Reset()
+	{
+		linearMomentum = glm::vec3(0, 0, 0);
+		angularMomentum = glm::vec3(0, 0, 0);
+		
+		position = glm::vec3(0, 0, 0);
+		rotation = glm::vec3(0, 0, 0);
+	}
+
 	inline glm::vec3 GetVelocity()
 	{
 		return glm::inverse(massMatrix) * linearMomentum;
 	}
-	
-	/*inline glm::mat3 GetDeltaRotation()
-	{
-		return glm::matrixCross3(rotation * glm::inverse(inertiaMatrix) * glm::transpose(rotation) * angularMomentum) * rotation;
-	}*/
 	
 	inline glm::vec3 GetAngularVelocity()
 	{

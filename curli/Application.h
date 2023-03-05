@@ -4,7 +4,6 @@
 #include <GUIManager.h>
 #include <PhysicsIntegrator.h>
 
-
 template <class R, class G, class P>
 class Application
 {
@@ -15,6 +14,7 @@ public:
 		renderer = std::make_unique<R>(scene);
 		guiManager = std::make_unique<G>(scene);
 		physicsIntegrator = std::make_unique<P>(scene);
+		
 		ParseArguments(argc, argv);
 		renderer->ParseArguments(argc, argv);
 		
@@ -57,7 +57,7 @@ public:
 			//renderer->DrawGUI();
 
 			//Event handling
-			windowManager.DispatchEvents(*renderer);
+			windowManager.DispatchEvents(*renderer, *physicsIntegrator);
 		}
 
 		guiManager->Terminate();
@@ -68,7 +68,6 @@ private:
 	std::unique_ptr<G> guiManager;
 	std::unique_ptr<P> physicsIntegrator;
 	std::shared_ptr<Scene> scene;
-	
 	
 	inline void ParseArguments(int argc, char const* argv[])
 	{

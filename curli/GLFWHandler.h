@@ -106,8 +106,8 @@ public:
 	void SetWindowIcon(const char* path);
 	void SetWindowIcon(const char* path, int width, int height);
 	
-	template<typename R>
-	void DispatchEvents(R& renderer)
+	template<typename R, typename P>
+	void DispatchEvents(R& renderer, P& pIntegrator)
 	{
 		glfwPollEvents();
 		
@@ -166,15 +166,18 @@ public:
 				break;
 			case Event::Type::Keyboard:
 				renderer.OnKeyboard(eventQueue.front().keyboard.key, eventQueue.front().keyboard.scancode, eventQueue.front().keyboard.action, eventQueue.front().keyboard.mods);
+				pIntegrator.OnKeyboard(eventQueue.front().keyboard.key, eventQueue.front().keyboard.scancode, eventQueue.front().keyboard.action, eventQueue.front().keyboard.mods);
 				break;
 			/*case Event::Type::Char:
 				renderer.OnChar(eventQueue.front().character.codepoint);
 				break;*/
 			case Event::Type::MouseButton:
 				renderer.OnMouseButton(eventQueue.front().mouseButton.button, eventQueue.front().mouseButton.action, eventQueue.front().mouseButton.mods);
+				pIntegrator.OnMouseButton(eventQueue.front().mouseButton.button, eventQueue.front().mouseButton.action, eventQueue.front().mouseButton.mods);
 				break;
 			case Event::Type::MouseMove:
 				renderer.OnMouseMove(eventQueue.front().mouseMove.x, eventQueue.front().mouseMove.y);
+				pIntegrator.OnMouseMove(eventQueue.front().mouseMove.x, eventQueue.front().mouseMove.y);
 				break;
 			case Event::Type::MouseScroll:
 				renderer.OnMouseScroll(eventQueue.front().mouseScroll.x, eventQueue.front().mouseScroll.y);

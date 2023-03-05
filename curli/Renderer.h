@@ -10,6 +10,7 @@
 #include <string.h>
 #include <imgui.h>
 #include <ImguiHelpers.h>
+#include <ApplicationState.h>
 
 
 template <class T>
@@ -1220,8 +1221,10 @@ public:
 								auto cntr = glm::vec3(glm::vec4(mesh->GetBoundingBoxCenter(), 1.0f) * transform->GetModelMatrix());
 								scene->camera = Camera(transform->GetPosition(),
 									angles[i], 1.0f * transform->GetScale()[i/2], -90);
-								program->cubeMaps[entity2EnvMapIndex[entity]].
-									RenderSide(i,std::bind(&MultiTargetRenderer::Update, this),i==5);
+								if (entity2EnvMapIndex.find(entity) != entity2EnvMapIndex.end() &&
+									entity2EnvMapIndex[entity] < program->cubeMaps.size())
+									program->cubeMaps[entity2EnvMapIndex[entity]].
+										RenderSide(i,std::bind(&MultiTargetRenderer::Update, this),i==5);
 							}
 							else if(program->renderedTextures.size() > it->second.GetProgramRenderedTexIndex())
 							{
@@ -1328,7 +1331,7 @@ public:
 					{
 						int texIndex = entity2EnvMapIndex[entity];
 						//bind texture
-						if (texIndex >= 0)
+						if (texIndex < program->cubeMaps.size())
 						{
 							program->cubeMaps[texIndex].Bind();
 							program->SetUniform("has_env_map", 1);
@@ -1481,6 +1484,9 @@ public:
 	//orbit camera
 	void OnMouseMove(double x, double y)
 	{
+		if (ApplicationState::GetInstance().physicsInteraction)
+			return;
+		
 		bool updateMousePos = true;
 		glm::vec2 deltaPos(prevMousePos.x - x, prevMousePos.y - y);
 		if(m1Down && altDown)//Apllies to all textures with cameras NO EXCEPTIONS... REMOVE IF YOU ARE DOING SOMETHING ELABORATE
