@@ -1,19 +1,23 @@
 #pragma once
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+
+#include <cyTriMesh.h>
+#include <CyToGLMHelper.h>
+#include <Eigen/Sparse>
+#include <Eigen/Dense>
 #include <entt/entt.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/matrix_cross_product.hpp>
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <cyTriMesh.h>
-#include <CyToGLMHelper.h>
 #include <glm/gtx/log_base.hpp>
 #include <glm/gtc/matrix_access.hpp>
+#include <lodepng.h>
 #include <stdarg.h>
 #include <string>
 #include <unordered_map>
-#include <lodepng.h>
 
 //define a macro that takes a function calls it and ctaches opengl errors
 #define GL_CALL(func) \
@@ -279,6 +283,19 @@ public:
 			CalculateModelMatrix();
 		modelDirty = !recalculate;
 	}
+	void SetEulerRotation(glm::mat3 rotationMat, bool recalculate = false)
+	{
+		glm::vec3 rotation;
+		rotation.x = atan2(-rotationMat[1][2], rotationMat[2][2]);
+		rotation.y = atan2(rotationMat[0][2], sqrt(1.0f - rotationMat[0][2]));
+		float sinZ = cos(rotation.x) * rotationMat[1][0] + sin(rotation.x) * rotationMat[2][0];
+		float cosZ = cos(rotation.x) * rotationMat[1][1] + sin(rotation.x) * rotationMat[2][1];
+		rotation.z = atan2(sinZ, cosZ);
+		this->rotation = rotation;
+		if (recalculate)
+			CalculateModelMatrix();
+		modelDirty = !recalculate;
+	}
 	void SetScale(glm::vec3 scale, bool recalculate = false)
 	{
 		this->scale = scale;
@@ -317,6 +334,7 @@ public:
 	glm::vec3 GetPosition() { return position; }
 	glm::vec3 GetPivot() { return pivot; }
 	glm::vec3 GetRotation() { return rotation; }
+	glm::mat4 GetRotationMatrix() { return glm::eulerAngleXYZ(rotation.x, rotation.y, rotation.z); }
 	glm::vec3 GetScale() { return scale; }
 	CTransform* GetParent() { return parent; }
 	glm::mat4 GetModelMatrix()
@@ -422,15 +440,15 @@ public:
 	{
 	}
 	
-	unsigned int GetNumVertices() { return vertices.size(); }
-	unsigned int GetNumFaces() { return faces.size(); }
-	unsigned int GetNumNormals() { return vertexNormals.size(); }
-	unsigned int GetNumTextureVertices() { return  textureCoords.size(); }
+	unsigned int GetNumVertices() const { return vertices.size(); }
+	unsigned int GetNumFaces() const { return faces.size(); }
+	unsigned int GetNumNormals() const { return vertexNormals.size(); }
+	unsigned int GetNumTextureVertices() const { return  textureCoords.size(); }
 	
-	glm::vec3 GetVertex(unsigned int index) { return vertices.at(index); }
-	glm::vec3 GetVNormal(unsigned int index) { return vertexNormals.at(index);}
-	glm::vec2 GetVTexture(unsigned int index) { return textureCoords.at(index); }
-	glm::uvec3 GetFace(unsigned int index) { return faces.at(index); }
+	glm::vec3 GetVertex(unsigned int index) const { return vertices.at(index); }
+	glm::vec3 GetVNormal(unsigned int index) const { return vertexNormals.at(index);}
+	glm::vec2 GetVTexture(unsigned int index) const { return textureCoords.at(index); }
+	glm::uvec3 GetFace(unsigned int index) const { return faces.at(index); }
 	
 
 	void* GetVertexDataPtr() { return &vertices.front(); }
@@ -839,20 +857,47 @@ public:
 	{
 		this->mass = mass;
 		this->position = position;
-		this->rotation = rotation;
+		this->rotation = rotation;//glm::eulerAngleXYZ(rotation.x, rotation.y, rotation.z);
 		drag = drag;
 	}
 
 	float mass = 0.0f;
 	float drag = 0.0f;
 	glm::vec3 position = glm::vec3(0, 0, 0);
-	glm::vec3 rotation = glm::vec3(0, 0, 0);
+	glm::vec3 rotation = glm::vec3(0.0f);
+
+	glm::vec3 linearMomentum = glm::vec3(0, 0, 0);
+	glm::vec3 angularMomentum = glm::vec3(0, 0, 0);
+	
 	glm::vec3 velocity = glm::vec3(0, 0, 0);
 	glm::vec3 acceleration = glm::vec3(0, 0, 0);
 
 	void Update();
+
+	void SetInteriaMatrix(const CTriMesh* mesh, CTransform* transform);
+	void SetMassMatrix();
+
+	inline glm::vec3 GetVelocity()
+	{
+		return glm::inverse(massMatrix) * linearMomentum;
+	}
+	
+	/*inline glm::mat3 GetDeltaRotation()
+	{
+		return glm::matrixCross3(rotation * glm::inverse(inertiaMatrix) * glm::transpose(rotation) * angularMomentum) * rotation;
+	}*/
+	
+	inline glm::vec3 GetAngularVelocity()
+	{
+		return glm::inverse(inertiaMatrix) * angularMomentum;
+	}
+
+	void ApplyLinearImpulse(glm::vec3 imp);
+	void ApplyAngularImpulse(glm::vec3 imp);
 	
 private:
+	glm::mat3 inertiaMatrix;
+	glm::mat3 massMatrix;
 };
 
 struct CBoxCollider : Component

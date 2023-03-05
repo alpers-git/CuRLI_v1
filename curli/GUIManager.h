@@ -567,9 +567,9 @@ namespace gui
 								ImGui::DragFloat("Drag", &r.drag, 0.01f, 0.0f);
 								ImGui::BeginDisabled();
 								ImGui::DragFloat3("Position", &r.position[0]);
-								ImGui::DragFloat3("Velocity", &r.velocity[0]);
+								/*ImGui::DragFloat3("Velocity", &r.velocity[0]);
 								ImGui::DragFloat3("Acceleration", &r.acceleration[0]);
-								ImGui::DragFloat3("Rotation", &r.rotation[0]);
+								ImGui::DragFloat3("Rotation", &r.rotation[0]);*/
 								ImGui::EndDisabled();
 								ImGui::EndTabItem();
 							}

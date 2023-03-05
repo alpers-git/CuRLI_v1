@@ -63,6 +63,9 @@ void synchTransformAndRigidBody(entt::registry& registry, entt::entity e)
 			CRigidBody& rigidBody = registry.get<CRigidBody>(e);
 			rigidBody.position = transform.GetPosition();
 			rigidBody.rotation = transform.GetRotation();
+			CTriMesh& mesh = registry.get<CTriMesh>(e);
+			rigidBody.SetInteriaMatrix(&mesh, &transform);
+			rigidBody.SetMassMatrix();
 		}
 	}
 }
@@ -133,14 +136,14 @@ void CTriMesh::InitializeFrom(cy::TriMesh& mesh)
 	for (size_t i = 0; i < mesh.NF(); i++)
 	{
 		bool pushNewFace = this->vertices.size() < mesh.F(i).v[0] || 
-			this->vertices.size() < mesh.F(i).v[1] || 
-			this->vertices.size() < mesh.F(i).v[2] ||
-			this->vertexNormals.size() < mesh.FN(i).v[0] ||
-			this->vertexNormals.size() < mesh.FN(i).v[1] ||
-			this->vertexNormals.size() < mesh.FN(i).v[2] ||
-			this->textureCoords.size() < mesh.FT(i).v[0] ||
-			this->textureCoords.size() < mesh.FT(i).v[1] ||
-			this->textureCoords.size() < mesh.FT(i).v[2];
+			this->vertices.size() <= mesh.F(i).v[1] || 
+			this->vertices.size() <= mesh.F(i).v[2] ||
+			this->vertexNormals.size() <= mesh.FN(i).v[0] ||
+			this->vertexNormals.size() <= mesh.FN(i).v[1] ||
+			this->vertexNormals.size() <= mesh.FN(i).v[2] ||
+			this->textureCoords.size() <= mesh.FT(i).v[0] ||
+			this->textureCoords.size() <= mesh.FT(i).v[1] ||
+			this->textureCoords.size() <= mesh.FT(i).v[2];
 		if (!pushNewFace)
 		{
 			const bool repeatedVerts = !glm::all(glm::isnan(this->vertices[mesh.F(i).v[0]])) &&
@@ -214,6 +217,43 @@ void CVelocityField2D::Update()
 
 void CRigidBody::Update()
 {
+}
+
+void CRigidBody::SetInteriaMatrix(const CTriMesh* mesh, CTransform* transform)
+{
+	//Assuming the object is uniform density
+	inertiaMatrix = glm::mat3(0.0f);
+	
+	//go over all the vertices, calculate the inertia tensor and sum
+	for (size_t i = 0; i < mesh->GetNumVertices(); i++)
+	{
+		const glm::vec3 v = transform->GetModelMatrix() * glm::vec4(mesh->GetVertex(i), 1.0f);
+		if (glm::all(glm::isnan(v)))
+			continue;
+		inertiaMatrix[0][0] = inertiaMatrix[0][0] + v.y * v.y + v.z * v.z;
+		inertiaMatrix[1][1] = inertiaMatrix[1][1] + v.x * v.x + v.z * v.z;
+		inertiaMatrix[2][2] = inertiaMatrix[2][2] + v.x * v.x + v.y * v.y;
+		inertiaMatrix[0][1] = inertiaMatrix[0][1] - v.x * v.y;
+		inertiaMatrix[0][2] = inertiaMatrix[0][2] - v.x * v.z;
+		inertiaMatrix[1][2] = inertiaMatrix[1][2] -v.y * v.z;
+	}
+	
+	inertiaMatrix = inertiaMatrix * mass;
+}
+
+void CRigidBody::SetMassMatrix()
+{
+	massMatrix = glm::mat3(1.0f) * mass;
+}
+
+void CRigidBody::ApplyLinearImpulse(glm::vec3 imp)
+{
+	linearMomentum += imp;
+}
+
+void CRigidBody::ApplyAngularImpulse(glm::vec3 imp)
+{
+	angularMomentum += imp;
 }
 
 void CForceField2D::Update()
@@ -309,7 +349,7 @@ void Scene::Update()
 			});*/
 
 			transform.SetPosition(rigidBody.position);
-			//transform.SetEulerRotation(rigidBody.rotation);
+			transform.SetEulerRotation(rigidBody.rotation);
 			transform.Update();
 		});
 	registry.view<CTriMesh>().each([&](CTriMesh& mesh) { mesh.Update(); });
