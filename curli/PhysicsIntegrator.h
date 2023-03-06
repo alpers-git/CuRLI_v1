@@ -154,14 +154,57 @@ public:
 				glm::vec3 fFromField = AccumilateForceFields(rb.position);
 				if (rb.mass > 0.0000001f)
 					rb.ApplyLinearImpulse(fFromField*dt);
-				/*glm::vec3 v = rb.GetVelocity();
-				rb.ApplyLinearImpulse(-0.5f * rb.drag * v * v * dt);
-				rb.position += v * dt;
 
-				glm::vec3 w = rb.GetAngularVelocity();
-				rb.ApplyAngularImpulse(-0.5f * rb.drag * w  * w * dt);
-				rb.rotation += w * dt;*/
 				rb.TakeFwEulerStep(dt);
+				
+				//check for collisions with world boundary
+				auto* boxcollider = scene->registry.try_get<CBoxCollider>(entity);
+				if (boxcollider)
+				{
+					entt::entity e = scene->registry.view<CPhysicsBounds>().front();
+					//check if null entity
+					if (e != entt::null)
+					{
+						auto* bounds = scene->registry.try_get<CPhysicsBounds>(e);
+						if (bounds)
+						{
+							const glm::vec3 min = bounds->GetMin();
+							const glm::vec3 max = bounds->GetMax();
+							const glm::vec3 cMin = boxcollider->GetMin();
+							const glm::vec3 cMax = boxcollider->GetMax();
+
+							const glm::bvec3 collisionsToMax = glm::greaterThan(cMax, max);
+							const glm::bvec3 collisionsToMin = glm::lessThan(cMax, max);
+							
+							for (int i = 0; i < 3; i++)
+							{
+								if (collisionsToMax[i])
+								{
+									const glm::vec3 collisionNormal(collisionsToMax);
+									const glm::vec3 reflectedMomentum = glm::reflect(rb.linearMomentum,
+										-collisionNormal);
+									rb.linearMomentum = reflectedMomentum;
+									printf("%f %f %f\n", collisionNormal.x, collisionNormal.y, collisionNormal.z);
+									break;
+								}
+							}
+
+							for (int i = 0; i < 3; i++)
+							{
+								if (collisionsToMin[i])
+								{
+									/*const glm::vec3 collisionNormal(collisionsToMin);
+									const glm::vec3 reflectedMomentum = glm::reflect(rb.linearMomentum,
+										collisionNormal);
+									rb.linearMomentum = reflectedMomentum;*/
+									break;
+								}
+							}
+							
+						}
+					}	
+				}
+				
 			}
 		});
 	}

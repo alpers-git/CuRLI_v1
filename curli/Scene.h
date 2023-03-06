@@ -246,7 +246,7 @@ enum class CType{
 	Transform, TriMesh, 
 	PhongMaterial, ImageMaps,
 	Light, EnvironmentMap,
-	BoundingBox,VelocityField2D,
+	PhysicsBounds,VelocityField2D,
 	ForceField2D, RigidBody,
 	BoxCollider,
 	Count
@@ -930,24 +930,35 @@ public:
 	{
 		this->min = glm::min(min, max);
 		this->max = glm::max(min, max);
-		
-		this->center = (min + max) * 0.5f;
 	}
 	
-	bool MoveAndCollide(glm::vec3 motion) {};
+	//bool MoveAndCollide(glm::vec3 motion) {};
+	bool CollidingWith(CBoxCollider* Other);
 	void Update() {};
+
+	glm::vec3 GetMin() { return min; }
+	glm::vec3 GetMax() { return max; }
 	
+	void SetMin(glm::vec3 min) { this->min = min; }
+	void SetMax(glm::vec3 max) { this->max = max; }
+
+	void SetBounds(glm::vec3 min, glm::vec3 max)
+	{
+		this->min = glm::min(min, max);
+		this->max = glm::max(min, max);
+	}
+	
+private:
 	glm::vec3 min;
 	glm::vec3 max;
-	glm::vec3 center;
 };
 
-struct CBoundingBox : Component
+//Box to contrain rigid bodies with colliders
+struct CPhysicsBounds : Component
 {
 public:
-	friend class Scene;
-	static constexpr CType type = CType::BoundingBox;
-	CBoundingBox(glm::vec3 min, glm::vec3 max)
+	static constexpr CType type = CType::PhysicsBounds;
+	CPhysicsBounds(glm::vec3 min, glm::vec3 max)
 	{
 		this->min = glm::min(min, max);
 		this->max = glm::max(min, max);
@@ -963,6 +974,7 @@ public:
 
 
 	void Update();
+	std::vector<glm::vec3> GenerateVertices();
 	void Rebound(CRigidBody& rigidBody);
 private:
 	glm::vec3 min;

@@ -272,9 +272,9 @@ namespace gui
 				const char* components[] = {
 						"Transform", "TriMesh",
 						"PhongMaterial", "Image Map", "Light", 
-						"Skybox", "BoundingBox",
+						"Skybox", "Physics Bounds",
 						"VelocityField2D", "ForceField2D",
-						"RigidBody" };
+						"RigidBody", "Box Collider"};
 				if (ImGui::BeginListBox("Add Component", 
 					ImVec2(0, 5 * ImGui::GetTextLineHeightWithSpacing())))
 				{
@@ -300,8 +300,8 @@ namespace gui
 								scene->registry.emplace_or_replace<CLight>(selectedSceneObject, LightType::POINT, 
 									glm::vec3(1.0f), 1.0f, glm::vec3(0.0f), glm::vec3(0.0f), 0.0f, 0.0f);
 								break;
-							case CType::BoundingBox:
-								scene->registry.emplace_or_replace<CBoundingBox>(selectedSceneObject, glm::vec3(-10.0f), glm::vec3(10.0f));
+							case CType::PhysicsBounds:
+								scene->registry.emplace_or_replace<CPhysicsBounds>(selectedSceneObject, glm::vec3(-10.0f), glm::vec3(10.0f));
 								break;
 							case CType::VelocityField2D:
 								scene->registry.emplace_or_replace<CVelocityField2D>(selectedSceneObject, [](glm::vec2 pos)
@@ -325,6 +325,9 @@ namespace gui
 								break;
 							case CType::RigidBody:
 								scene->registry.emplace_or_replace<CRigidBody>(selectedSceneObject);
+								break;
+							case CType::BoxCollider:
+								scene->registry.emplace_or_replace<CBoxCollider>(selectedSceneObject, glm::vec3(0.0f), glm::vec3(0.0f));
 								break;
 							case CType::Count:
 								break;
@@ -359,8 +362,8 @@ namespace gui
 							case CType::Light:
 								scene->registry.erase<CLight>(selectedSceneObject);
 								break;
-							case CType::BoundingBox:
-								scene->registry.erase<CBoundingBox>(selectedSceneObject);
+							case CType::PhysicsBounds:
+								scene->registry.erase<CPhysicsBounds>(selectedSceneObject);
 								break;
 							case CType::VelocityField2D:
 								scene->registry.erase<CVelocityField2D>(selectedSceneObject);
@@ -659,10 +662,10 @@ namespace gui
 							}
 						});
 				//Draw CBoundingBox tab
-				scene->registry.view<CBoundingBox>()
+				scene->registry.view<CPhysicsBounds>()
 					.each([&](auto e, auto& b)
 						{
-							if (e == selectedSceneObject && ImGui::BeginTabItem("Boundingbox"))
+							if (e == selectedSceneObject && ImGui::BeginTabItem("Physics Bounds"))
 							{
 								glm::vec3 min = b.GetMin();
 								glm::vec3 max = b.GetMax();

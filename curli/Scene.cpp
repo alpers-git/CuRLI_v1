@@ -84,10 +84,10 @@ void rigidBodyRemoved(entt::registry& registry, entt::entity e)
 	}
 }
 
-void synchEnvMap(entt::registry& registry, entt::entity e)
+void synchSkyBox(entt::registry& registry, entt::entity e)
 {
-	//------ensure single environment map in scene------//
-	//check if scene has another environment map
+	//------ensure single skybox in scene------//
+	//check if scene has another skybox
 	const auto view = registry.view<CSkyBox>();
 	if (view.size()>1)
 	{
@@ -109,6 +109,18 @@ void synchEnvMap(entt::registry& registry, entt::entity e)
 	GLFWHandler::GetInstance().QueueEvent(event2);
 }
 
+void synchPhysicsBounds(entt::registry& registry, entt::entity e)
+{
+	//------ensure single skybox in scene------//
+	//check if scene has another skybox
+	const auto view = registry.view<CPhysicsBounds>();
+	if (view.size() > 1)
+	{
+		//then remove it
+		registry.destroy(view.front());
+	}
+}
+
 //==============================
 Scene::Scene()
 {
@@ -126,8 +138,11 @@ Scene::Scene()
 	registry.on_destroy<CRigidBody>().connect<&rigidBodyRemoved>();
 
 
-	registry.on_construct<CSkyBox>().connect<&synchEnvMap>();
-	registry.on_update<CSkyBox>().connect<&synchEnvMap>();
+	registry.on_construct<CSkyBox>().connect<&synchSkyBox>();
+	registry.on_update<CSkyBox>().connect<&synchSkyBox>();
+
+	registry.on_construct<CPhysicsBounds>().connect<&synchPhysicsBounds>();
+	registry.on_update<CPhysicsBounds>().connect<&synchPhysicsBounds>();
 	
 }
 
@@ -303,7 +318,7 @@ void CRigidBody::ApplyAngularImpulse(glm::vec3 imp)
 void CForceField2D::Update()
 {
 }
-void CBoundingBox::Update()
+void CPhysicsBounds::Update()
 {
 }
 
@@ -398,11 +413,6 @@ void Scene::Update()
 	registry.view<CTriMesh>().each([&](CTriMesh& mesh) { mesh.Update(); });
 	registry.view<CLight>().each([&](CLight& light) { light.Update(); });
 
-	registry.view<CBoundingBox>().each([&](const entt::entity& entity, CBoundingBox& bb) 
-		{
-			bb.dirty = false;
-		});
-
 	registry.view<CImageMaps>().each([&](const entt::entity& entity, CImageMaps& maps)
 		{
 			if (maps.dirty)
@@ -416,7 +426,11 @@ void Scene::Update()
 				maps.dirty = false;
 			}
 		});
-	
+	registry.view<CBoxCollider, CTransform, CTriMesh>().each([&](const entt::entity& entity, CBoxCollider& collider, CTransform& transform, CTriMesh& mesh)
+		{
+			collider.SetBounds(transform.GetModelMatrix() * glm::vec4(mesh.GetBoundingBoxMin(), 1.0f),
+					transform.GetModelMatrix() * glm::vec4(mesh.GetBoundingBoxMax(), 1.0f));
+		});
 }
 
 bool Scene::EntityHas(entt::entity e, CType component)
@@ -435,8 +449,8 @@ bool Scene::EntityHas(entt::entity e, CType component)
 	case CType::Light:
 		return registry.all_of<CLight>(e);
 		break;
-	case CType::BoundingBox:
-		return registry.all_of<CBoundingBox>(e);
+	case CType::PhysicsBounds:
+		return registry.all_of<CPhysicsBounds>(e);
 		break;
 	case CType::VelocityField2D:
 		return registry.all_of<CVelocityField2D>(e);
@@ -462,54 +476,48 @@ bool Scene::EntityHas(entt::entity e, CType component)
 	return false;
 }
 
-entt::entity Scene::CreateBoundingBox(glm::vec3 min, glm::vec3 max, GLuint programID)
+std::vector<glm::vec3> CPhysicsBounds::GenerateVertices()
 {
-	auto entity = CreateSceneObject("boundingbox");
-	registry.emplace<CBoundingBox>(entity, min, max);
-	if (programID != -1)
+	glm::vec3 vertexData[24]
 	{
-		glm::vec3 vertexData[24]
-		{
-			min,
-			{max.x, min.y, min.z},
+		min,
+		{max.x, min.y, min.z},
 		
-			{max.x, min.y, min.z},
-			{max.x, max.y, min.z},
+		{max.x, min.y, min.z},
+		{max.x, max.y, min.z},
 		
-			{max.x, max.y, min.z},
-			{min.x, max.y, min.z},
+		{max.x, max.y, min.z},
+		{min.x, max.y, min.z},
 		
-			{min.x, max.y, min.z},
-			min,
+		{min.x, max.y, min.z},
+		min,
 
-			{min.x, max.y, min.z},
-			{min.x, max.y, max.z},
+		{min.x, max.y, min.z},
+		{min.x, max.y, max.z},
 		
-			{min.x, max.y, max.z},
-			{min.x, min.y, max.z},
+		{min.x, max.y, max.z},
+		{min.x, min.y, max.z},
 		
-			{min.x, min.y, max.z},
-			min,
+		{min.x, min.y, max.z},
+		min,
 		
-			{min.x, min.y, max.z},
-			{max.x, min.y, max.z},
+		{min.x, min.y, max.z},
+		{max.x, min.y, max.z},
 
-			{max.x, min.y, max.z},
-			{max.x, min.y, min.z},
+		{max.x, min.y, max.z},
+		{max.x, min.y, min.z},
 
-			{max.x, min.y, max.z},
-			max,
+		{max.x, min.y, max.z},
+		max,
 
-			max,
-			{max.x, max.y, min.z},
+		max,
+		{max.x, max.y, min.z},
 
-			max,
-			{min.x, max.y, max.z}
-		};
-	}
-
-	return entity;
-	
+		max,
+		{min.x, max.y, max.z}
+	};
+	std::vector<glm::vec3> vertices = std::vector<glm::vec3>(vertexData, vertexData + 24);
+	return vertices;
 }
 
 entt::entity Scene::CreatePointLight(glm::vec3 pos, float intesity, glm::vec3 color)
@@ -581,7 +589,7 @@ entt::entity Scene::CreateModelObject(cy::TriMesh& mesh, glm::vec3 position, glm
 }
 
 
-void CBoundingBox::Rebound(CRigidBody& rigidBody)
+void CPhysicsBounds::Rebound(CRigidBody& rigidBody)
 {
 	/*glm::vec3 reboundNormal = glm::normalize(glm::vec3(
 		(rigidBody.position.x < min.x ? 1.0f : (rigidBody.position.x > max.x ? -1.0f : 0.0f)),
@@ -665,4 +673,9 @@ std::vector<unsigned char> CSkyBox::GetSideImagesFlat()
 		flattenedImages.insert(flattenedImages.end(), img.GetImage().begin(), img.GetImage().end());
 	}
 	return flattenedImages;
+}
+
+bool CBoxCollider::CollidingWith(CBoxCollider* other)
+{
+	return false;//TODO
 }

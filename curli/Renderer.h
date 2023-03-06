@@ -158,7 +158,25 @@ protected:
 		auto* mesh = scene->registry.try_get<CTriMesh>(e);
 		auto* envMap = scene->registry.try_get<CSkyBox>(e);
 		auto* light = scene->registry.try_get<CLight>(e);
-		if (mesh)
+		auto* pBounds = scene->registry.try_get<CPhysicsBounds>(e);
+		
+		if (pBounds)
+		{
+			program->vaos.push_back(VertexArrayObject());
+			entity2VAOIndex[e] = program->vaos.size() - 1;
+			VertexBufferObject vertexVBO(
+				pBounds->GenerateVertices().data(),
+				24,
+				GL_FLOAT,
+				"pos",
+				3,
+				program->GetID());
+			program->vaos.back().AddVBO(vertexVBO);
+			program->vaos.back().SetDrawMode(GL_LINES);
+
+			mesh->SetShadingMode(ShadingMode::EDITOR);
+		}
+		else if (mesh)
 		{
 			program->vaos.push_back(VertexArrayObject());
 			entity2VAOIndex[e] = program->vaos.size() - 1;
@@ -1271,7 +1289,7 @@ public:
 				shaderName = std::string("p_lights[" + std::to_string(p) + "].color");
 				program->SetUniform(shaderName.c_str(), light.color);
 				p++;
-				if (light.show)
+				if (light.show)//Display light
 				{
 					program->SetUniform("shading_mode", 1);
 					program->SetUniform("to_screen_space",
