@@ -97,7 +97,7 @@ private:
 					}
 				}
 				if (hasRB)
-					scene->registry.emplace<CRigidBody>(scene->CreateModelObject(path), 1.0f, glm::vec3(0), glm::vec3(0));
+					scene->registry.emplace<CRigidBody>(scene->CreateModelObject(path), .5f);
 				else
 					scene->CreateModelObject(path), 1.0f, glm::vec3(0), glm::vec3(0);
 			}

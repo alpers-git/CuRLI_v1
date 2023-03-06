@@ -1,6 +1,7 @@
 #include <Scene.h>
 #include <GLFWHandler.h>
 #include <Eigen/Eigenvalues>
+#include <glm/gtx/quaternion.hpp>
 
 
 //===============Sinks for entity management===============
@@ -64,10 +65,23 @@ void synchTransformAndRigidBody(entt::registry& registry, entt::entity e)
 			CRigidBody& rigidBody = registry.get<CRigidBody>(e);
 			rigidBody.position = transform.GetPosition();
 			rigidBody.rotation = transform.GetRotation();
+			transform.useRotationMatrix = true;
 			CTriMesh& mesh = registry.get<CTriMesh>(e);
-			rigidBody.SetInteriaMatrix(&mesh, &transform);
+			rigidBody.initializeInertiaMatrix(&mesh, &transform);
 			rigidBody.SetMassMatrix();
-			transform.SetPivot({ 0, 0, 0 });
+		}
+	}
+}
+
+void rigidBodyRemoved(entt::registry& registry, entt::entity e)
+{
+	if (registry.any_of<CRigidBody>(e))
+	{
+		//check if entity has a transform
+		if (registry.any_of<CTransform>(e))
+		{
+			CTransform& transform = registry.get<CTransform>(e);
+			transform.useRotationMatrix = false;
 		}
 	}
 }
@@ -109,6 +123,9 @@ Scene::Scene()
 	registry.on_construct<CRigidBody>().connect<&synchTransformAndRigidBody>();
 	registry.on_update<CRigidBody>().connect<&synchTransformAndRigidBody>();
 	registry.on_construct<CTransform>().connect<&synchTransformAndRigidBody>();//Untested!
+	registry.on_update<CTransform>().connect<&synchTransformAndRigidBody>();//Untested!
+	
+	registry.on_destroy<CRigidBody>().connect<&rigidBodyRemoved>();
 
 
 	registry.on_construct<CSkyBox>().connect<&synchEnvMap>();
@@ -221,7 +238,7 @@ void CRigidBody::Update()
 {
 }
 
-void CRigidBody::SetInteriaMatrix(const CTriMesh* mesh, CTransform* transform)
+void CRigidBody::initializeInertiaMatrix(const CTriMesh* mesh, CTransform* transform)
 {
 	//Assuming the object is uniform density
 	Eigen::Matrix3f mat = Eigen::Matrix3f::Zero();
@@ -229,7 +246,7 @@ void CRigidBody::SetInteriaMatrix(const CTriMesh* mesh, CTransform* transform)
 	//go over all the vertices, calculate the inertia tensor and sum
 	for (size_t i = 0; i < mesh->GetNumVertices(); i++)
 	{
-		const glm::vec3 v = transform->GetModelMatrix() *
+		const glm::vec3 v = /*transform->GetModelMatrix() */
 			glm::vec4(mesh->GetVertex(i), 1.0f);
 		if (glm::all(glm::isnan(v)))
 			continue;
@@ -241,23 +258,44 @@ void CRigidBody::SetInteriaMatrix(const CTriMesh* mesh, CTransform* transform)
 		mat(1,2) = mat(1,2) - v.y * v.z;
 	}
 	mat = mat * mass;
-	
 	Eigen::EigenSolver<Eigen::Matrix3f> solver(mat, false);
 	auto& eigenValues = solver.eigenvalues();
 
-	inertiaMatrix = glm::mat3(0.0f);
-	inertiaMatrix[0][0] = eigenValues(0).real();
-	inertiaMatrix[1][1] = eigenValues(1).real();
-	inertiaMatrix[2][2] = eigenValues(2).real();
+	inertiaAtRest = glm::mat3(0.0f);
+	inertiaAtRest[0][0] = eigenValues(0).real();
+	inertiaAtRest[1][1] = eigenValues(1).real();
+	inertiaAtRest[2][2] = eigenValues(2).real();
+}
+
+void CRigidBody::TakeFwEulerStep(float dt)
+{
+	//linear
+	const glm::vec3 _v = GetVelocity();
+	const float mag = glm::length(_v);
+	ApplyLinearImpulse(-0.5f * drag * mag * _v * dt);
+	const glm::vec3 v = GetVelocity();
+	position += v * dt;
+
+	//angular
+	const glm::vec3 _w = GetAngularVelocity();
+	const float magw = glm::length(_w);
+	ApplyAngularImpulse(-0.5f * drag * magw * _w * 800.f * dt);
+	const glm::vec3 w = GetAngularVelocity();
+	orientationQuat += (0.5f * dt) * glm::quat(0.0f, w) * orientationQuat;
+	orientationQuat = glm::normalize(orientationQuat);
+
+	orientationMatrix = glm::toMat3(orientationQuat);
 }
 
 void CRigidBody::SetMassMatrix()
 {
-	massMatrix = glm::mat3(1.0f) * mass;
+	invMassMatrix = glm::inverse(glm::mat3(1.0f) * mass);
 }
 
 void CRigidBody::ApplyLinearImpulse(glm::vec3 imp)
 {
+	if (glm::any(glm::isnan(imp)))
+		printf("NAN imp\n");
 	linearMomentum += imp;
 }
 
@@ -358,7 +396,7 @@ void Scene::Update()
 				bbox.Rebound(rigidBody);
 			});*/
 			transform.SetPosition(rigidBody.position);
-			transform.SetEulerRotation(rigidBody.rotation);
+			transform.SetEulerRotation(rigidBody.orientationMatrix);
 			transform.Update();
 		});
 	registry.view<CTriMesh>().each([&](CTriMesh& mesh) { mesh.Update(); });
@@ -549,7 +587,7 @@ entt::entity Scene::CreateModelObject(cy::TriMesh& mesh, glm::vec3 position, glm
 
 void CBoundingBox::Rebound(CRigidBody& rigidBody)
 {
-	glm::vec3 reboundNormal = glm::normalize(glm::vec3(
+	/*glm::vec3 reboundNormal = glm::normalize(glm::vec3(
 		(rigidBody.position.x < min.x ? 1.0f : (rigidBody.position.x > max.x ? -1.0f : 0.0f)),
 		(rigidBody.position.y < min.y ? 1.0f : (rigidBody.position.y > max.y ? -1.0f : 0.0f)),
 		(rigidBody.position.z < min.z ? 1.0f : (rigidBody.position.z > max.z ? -1.0f : 0.0f))
@@ -560,7 +598,7 @@ void CBoundingBox::Rebound(CRigidBody& rigidBody)
 		rigidBody.position += reboundNormal * 0.01f;
 		rigidBody.velocity = glm::reflect(rigidBody.velocity, reboundNormal);
 		rigidBody.acceleration = glm::reflect(rigidBody.acceleration, reboundNormal);
-	}
+	}*/
 }
 
 void CImageMaps::AddImageMap(ImageMap::BindingSlot slot, std::string path)

@@ -484,7 +484,7 @@ namespace gui
 								{
 									auto* rb = scene->registry.try_get<CRigidBody>(e);
 									if (rb)
-										rb->Reset();
+										rb->ResetToRest();
 									t.Reset();
 								}
 								ImGui::EndTabItem();
@@ -582,7 +582,7 @@ namespace gui
 									if (tr && mesh)
 									{
 										r.SetMassMatrix();
-										r.SetInteriaMatrix(mesh, tr);
+										//r.SetInteriaMatrix(mesh, tr);
 									}
 								}
 								ImGui::DragFloat("Drag", &r.drag, 0.01f, 0.0f);

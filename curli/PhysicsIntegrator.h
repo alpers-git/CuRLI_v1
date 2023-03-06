@@ -59,8 +59,8 @@ public:
 		{
 			Camera cam = scene->camera;
 			glm::vec3 forward = glm::normalize(cam.GetCenter() - cam.GetLookAtEye());
-			glm::vec3 right = glm::cross(forward, cam.GetLookAtUp());
-			glm::vec3 up = glm::cross(forward, -right);
+			glm::vec3 right = glm::normalize(glm::cross(forward, {0,1,0}));
+			glm::vec3 up = glm::normalize(glm::cross(forward, -right));
 			if (m1Down && shiftDown)
 			{
 				ApplicationState::GetInstance().physicsInteraction = true;
@@ -69,7 +69,7 @@ public:
 			if (m2Down && shiftDown)
 			{
 				ApplicationState::GetInstance().physicsInteraction = true;
-				rb->ApplyAngularImpulse((deltaPos.x * right + deltaPos.y * up) * 1000.f);
+				rb->ApplyAngularImpulse((deltaPos.x * -up + deltaPos.y * -right) * 800.1f);
 			}
 		}
 
@@ -112,7 +112,7 @@ protected:
 	}
 	
 	std::shared_ptr<Scene> scene;
-	const float tStepSize = 0.00001f;
+	const float tStepSize = 0.0001f;
 	float t = 0.0f;
 	
 	bool m1Down = false;
@@ -154,14 +154,14 @@ public:
 				glm::vec3 fFromField = AccumilateForceFields(rb.position);
 				if (rb.mass > 0.0000001f)
 					rb.ApplyLinearImpulse(fFromField*dt);
-				glm::vec3 v = rb.GetVelocity();
+				/*glm::vec3 v = rb.GetVelocity();
 				rb.ApplyLinearImpulse(-0.5f * rb.drag * v * v * dt);
 				rb.position += v * dt;
 
 				glm::vec3 w = rb.GetAngularVelocity();
-				rb.ApplyAngularImpulse(glm::vec3(100.2f, 0, 0) * dt);
 				rb.ApplyAngularImpulse(-0.5f * rb.drag * w  * w * dt);
-				rb.rotation += w * dt;
+				rb.rotation += w * dt;*/
+				rb.TakeFwEulerStep(dt);
 			}
 		});
 	}

@@ -9,6 +9,7 @@
 #include <entt/entt.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/matrix_cross_product.hpp>
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -18,6 +19,7 @@
 #include <stdarg.h>
 #include <string>
 #include <unordered_map>
+#include <glm/gtx/matrix_operation.hpp>
 
 //define a macro that takes a function calls it and ctaches opengl errors
 #define GL_CALL(func) \
@@ -283,15 +285,9 @@ public:
 			CalculateModelMatrix();
 		modelDirty = !recalculate;
 	}
-	void SetEulerRotation(glm::mat3 rotationMat, bool recalculate = false)
+	void SetEulerRotation(glm::mat4 rotationMat, bool recalculate = false)
 	{
-		glm::vec3 rotation;
-		rotation.x = atan2(-rotationMat[1][2], rotationMat[2][2]);
-		rotation.y = atan2(rotationMat[0][2], sqrt(1.0f - rotationMat[0][2]));
-		float sinZ = cos(rotation.x) * rotationMat[1][0] + sin(rotation.x) * rotationMat[2][0];
-		float cosZ = cos(rotation.x) * rotationMat[1][1] + sin(rotation.x) * rotationMat[2][1];
-		rotation.z = atan2(sinZ, cosZ);
-		this->rotation = rotation;
+		this->rotationMatrix = rotationMat;
 		if (recalculate)
 			CalculateModelMatrix();
 		modelDirty = !recalculate;
@@ -389,7 +385,10 @@ public:
 	{
 		modelMatrix = glm::mat4(1.f);
 		modelMatrix = glm::translate(modelMatrix, position);
-		modelMatrix = modelMatrix * glm::eulerAngleXYZ(rotation.x, rotation.y, rotation.z);
+		if (useRotationMatrix)
+			modelMatrix = modelMatrix * glm::mat4(rotationMatrix);
+		else
+			modelMatrix = modelMatrix * glm::eulerAngleXYZ(rotation.x, rotation.y, rotation.z);
 		modelMatrix = glm::scale(modelMatrix, scale);
 		modelMatrix = glm::translate(modelMatrix, -pivot);//everything happens with respect to pivot
 		if (parent != nullptr)
@@ -402,6 +401,8 @@ public:
 		}
 	}
 
+	bool useRotationMatrix = false;
+	
 	void Update();
 	std::string entityName;
 private:
@@ -409,6 +410,8 @@ private:
 	glm::vec3 rotation = glm::vec3(0.f);
 	glm::vec3 scale = glm::vec3(1.f);
 	glm::vec3 pivot = glm::vec3(0.f);//rotation and scaling pivot point
+	
+	glm::mat3 rotationMatrix = glm::mat3(1.f);
 
 	glm::mat4 modelMatrix = glm::mat4(1.f);
 	bool modelDirty = false;
@@ -852,13 +855,14 @@ struct CRigidBody : Component
 {
 public:
 	static constexpr CType type = CType::RigidBody;
-	CRigidBody(float mass = 1.0f, glm::vec3 position = glm::vec3(0.0f),
-		glm::vec3 rotation= glm::vec3(0.0f), float drag = 0.0f)
+	CRigidBody(float mass = 1.0f, 
+		glm::vec3 position = glm::vec3(0.0f), glm::vec3 rotation= glm::vec3(0.0f),
+		float drag = 0.0f)
 	{
 		this->mass = mass;
 		this->position = position;
 		this->rotation = rotation;//glm::eulerAngleXYZ(rotation.x, rotation.y, rotation.z);
-		drag = drag;
+		this->drag = drag;
 	}
 
 	float mass = 0.0f;
@@ -868,40 +872,43 @@ public:
 
 	glm::vec3 linearMomentum = glm::vec3(0, 0, 0);
 	glm::vec3 angularMomentum = glm::vec3(0, 0, 0);
-	
-	glm::vec3 velocity = glm::vec3(0, 0, 0);
-	glm::vec3 acceleration = glm::vec3(0, 0, 0);
 
 	void Update();
 
-	void SetInteriaMatrix(const CTriMesh* mesh, CTransform* transform);
+	void initializeInertiaMatrix(const CTriMesh* mesh, CTransform* transform);
 	void SetMassMatrix();
-
-	void Reset()
+	
+	void TakeFwEulerStep(float dt);
+	void ResetToRest()
 	{
 		linearMomentum = glm::vec3(0, 0, 0);
 		angularMomentum = glm::vec3(0, 0, 0);
 		
 		position = glm::vec3(0, 0, 0);
-		rotation = glm::vec3(0, 0, 0);
 	}
 
 	inline glm::vec3 GetVelocity()
 	{
-		return glm::inverse(massMatrix) * linearMomentum;
+		return linearMomentum / mass;
 	}
-	
+	//w =  R * I_rest^{-1} * R^T * L
 	inline glm::vec3 GetAngularVelocity()
 	{
-		return glm::inverse(inertiaMatrix) * angularMomentum;
+		return orientationMatrix * 
+			glm::inverse(inertiaAtRest) *
+			(glm::transpose(orientationMatrix) * angularMomentum);
 	}
 
 	void ApplyLinearImpulse(glm::vec3 imp);
 	void ApplyAngularImpulse(glm::vec3 imp);
 	
+	glm::mat3 orientationMatrix;
 private:
-	glm::mat3 inertiaMatrix;
-	glm::mat3 massMatrix;
+	glm::mat3 inertiaAtRest;
+	
+	glm::quat orientationQuat;
+	
+	glm::mat3 invMassMatrix;
 };
 
 struct CBoxCollider : Component
