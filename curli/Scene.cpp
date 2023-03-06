@@ -1,8 +1,6 @@
 #include <Scene.h>
 #include <GLFWHandler.h>
 #include <Eigen/Eigenvalues>
-#include <glm/gtx/quaternion.hpp>
-
 
 //===============Sinks for entity management===============
 void scheduleSynchForAddedGeom(entt::registry& registry, entt::entity e)
@@ -64,10 +62,10 @@ void synchTransformAndRigidBody(entt::registry& registry, entt::entity e)
 			CTransform& transform = registry.get<CTransform>(e);
 			CRigidBody& rigidBody = registry.get<CRigidBody>(e);
 			rigidBody.position = transform.GetPosition();
-			rigidBody.rotation = transform.GetRotation();
+			rigidBody.SetRotation(transform.GetRotation());
 			transform.useRotationMatrix = true;
 			CTriMesh& mesh = registry.get<CTriMesh>(e);
-			rigidBody.initializeInertiaMatrix(&mesh, &transform);
+			rigidBody.initializeInertiaTensor(&mesh, &transform);
 			rigidBody.SetMassMatrix();
 		}
 	}
@@ -238,7 +236,7 @@ void CRigidBody::Update()
 {
 }
 
-void CRigidBody::initializeInertiaMatrix(const CTriMesh* mesh, CTransform* transform)
+void CRigidBody::initializeInertiaTensor(const CTriMesh* mesh, CTransform* transform)
 {
 	//Assuming the object is uniform density
 	Eigen::Matrix3f mat = Eigen::Matrix3f::Zero();
@@ -294,8 +292,6 @@ void CRigidBody::SetMassMatrix()
 
 void CRigidBody::ApplyLinearImpulse(glm::vec3 imp)
 {
-	if (glm::any(glm::isnan(imp)))
-		printf("NAN imp\n");
 	linearMomentum += imp;
 }
 
@@ -396,7 +392,7 @@ void Scene::Update()
 				bbox.Rebound(rigidBody);
 			});*/
 			transform.SetPosition(rigidBody.position);
-			transform.SetEulerRotation(rigidBody.orientationMatrix);
+			transform.SetEulerRotation(rigidBody.GetOrientationMatrix());
 			transform.Update();
 		});
 	registry.view<CTriMesh>().each([&](CTriMesh& mesh) { mesh.Update(); });

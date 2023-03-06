@@ -10,16 +10,17 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/matrix_cross_product.hpp>
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/log_base.hpp>
 #include <glm/gtc/matrix_access.hpp>
+#include <glm/gtx/matrix_operation.hpp>
 #include <lodepng.h>
 #include <stdarg.h>
 #include <string>
 #include <unordered_map>
-#include <glm/gtx/matrix_operation.hpp>
 
 //define a macro that takes a function calls it and ctaches opengl errors
 #define GL_CALL(func) \
@@ -861,21 +862,20 @@ public:
 	{
 		this->mass = mass;
 		this->position = position;
-		this->rotation = rotation;//glm::eulerAngleXYZ(rotation.x, rotation.y, rotation.z);
 		this->drag = drag;
+		SetRotation(rotation);
 	}
 
 	float mass = 0.0f;
 	float drag = 0.0f;
 	glm::vec3 position = glm::vec3(0, 0, 0);
-	glm::vec3 rotation = glm::vec3(0.0f);
 
 	glm::vec3 linearMomentum = glm::vec3(0, 0, 0);
 	glm::vec3 angularMomentum = glm::vec3(0, 0, 0);
 
 	void Update();
 
-	void initializeInertiaMatrix(const CTriMesh* mesh, CTransform* transform);
+	void initializeInertiaTensor(const CTriMesh* mesh, CTransform* transform);
 	void SetMassMatrix();
 	
 	void TakeFwEulerStep(float dt);
@@ -898,15 +898,26 @@ public:
 			glm::inverse(inertiaAtRest) *
 			(glm::transpose(orientationMatrix) * angularMomentum);
 	}
+	inline glm::mat3 GetOrientationMatrix()
+	{
+		return orientationMatrix;
+	}
+	
+	inline void SetRotation(glm::vec3 rotation)
+	{
+		orientationQuat = glm::quat(rotation);
+		orientationMatrix = glm::toMat3(orientationQuat);
+	}
+	
 
 	void ApplyLinearImpulse(glm::vec3 imp);
 	void ApplyAngularImpulse(glm::vec3 imp);
 	
-	glm::mat3 orientationMatrix;
 private:
 	glm::mat3 inertiaAtRest;
 	
 	glm::quat orientationQuat;
+	glm::mat3 orientationMatrix;
 	
 	glm::mat3 invMassMatrix;
 };
