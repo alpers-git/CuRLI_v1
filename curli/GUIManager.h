@@ -374,6 +374,9 @@ namespace gui
 							case CType::RigidBody:
 								scene->registry.erase<CRigidBody>(selectedSceneObject);
 								break;
+							case CType::BoxCollider:
+								scene->registry.erase<CBoxCollider>(selectedSceneObject);
+								break;
 							case CType::Count:
 								break;
 							default:
@@ -818,6 +821,21 @@ namespace gui
 							{
 								ImGui::Text("Yeah I exist");
 								
+								ImGui::EndTabItem();
+							}
+						});
+
+				//Draw CBoxCollider tab
+				scene->registry.view<CBoxCollider>()
+					.each([&](auto e, auto& c)
+						{
+							if (e == selectedSceneObject && ImGui::BeginTabItem("Box Collider"))
+							{
+								glm::vec3 min = c.GetMin();
+								glm::vec3 max = c.GetMax();
+								if (ImGui::DragFloat3("Min", &min[0], 0.01f)) c.SetMin(min);
+								if (ImGui::DragFloat3("Max", &max[0], 0.01f)) c.SetMax(max);
+								ImGui::DragFloat("Elasticity", &c.elasticity, 0.0001f, 0.0f);
 								ImGui::EndTabItem();
 							}
 						});

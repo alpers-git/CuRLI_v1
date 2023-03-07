@@ -77,7 +77,8 @@ private:
 			if (std::string(argv[i]).compare("-model")==0)
 			{
 				i++;
-				bool hasRB = false;
+				bool hasRB = false; //Rigidbody
+				bool hasBC = false; //BoxCollider
 				std::string path;
 				for (; i < argc; i++)
 				{
@@ -90,16 +91,23 @@ private:
 						i++;
 						path = argv[i];
 					}
+					else if (std::string(argv[i]).compare("--bc") == 0)
+					{
+						i++;
+						hasBC = true;
+					}
 					else
 					{
 						i--;
 						break;
 					}
 				}
+				entt::entity modelObj = scene->CreateModelObject(path);
 				if (hasRB)
-					scene->registry.emplace<CRigidBody>(scene->CreateModelObject(path), .5f);
-				else
-					scene->CreateModelObject(path), 1.0f, glm::vec3(0), glm::vec3(0);
+					scene->registry.emplace<CRigidBody>(modelObj, .5f);
+				if (hasBC)
+					scene->registry.emplace<CBoxCollider>(modelObj, glm::vec3(0), glm::vec3(1));
+					
 			}
 			else if (std::string(argv[i]).compare("-skybox") == 0)
 			{

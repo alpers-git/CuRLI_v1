@@ -926,10 +926,11 @@ struct CBoxCollider : Component
 {
 public:
 	static constexpr CType type = CType::BoxCollider;
-	CBoxCollider(glm::vec3 min, glm::vec3 max)
+	CBoxCollider(glm::vec3 min, glm::vec3 max, float elasticity = 1.0f)
 	{
 		this->min = glm::min(min, max);
 		this->max = glm::max(min, max);
+		this->elasticity = elasticity;
 	}
 	
 	//bool MoveAndCollide(glm::vec3 motion) {};
@@ -947,6 +948,8 @@ public:
 		this->min = glm::min(min, max);
 		this->max = glm::max(min, max);
 	}
+
+	float elasticity;
 	
 private:
 	glm::vec3 min;

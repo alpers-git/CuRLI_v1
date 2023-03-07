@@ -173,33 +173,30 @@ public:
 							const glm::vec3 cMin = boxcollider->GetMin();
 							const glm::vec3 cMax = boxcollider->GetMax();
 
-							const glm::bvec3 collisionsToMax = glm::greaterThan(cMax, max);
-							const glm::bvec3 collisionsToMin = glm::lessThan(cMax, max);
-							
-							for (int i = 0; i < 3; i++)
-							{
-								if (collisionsToMax[i])
-								{
-									const glm::vec3 collisionNormal(collisionsToMax);
-									const glm::vec3 reflectedMomentum = glm::reflect(rb.linearMomentum,
-										-collisionNormal);
-									rb.linearMomentum = reflectedMomentum;
-									printf("%f %f %f\n", collisionNormal.x, collisionNormal.y, collisionNormal.z);
-									break;
-								}
-							}
+							const glm::vec3 collisionsToMax = glm::greaterThan(cMax, max);
+							const glm::vec3 collisionsToMin = glm::lessThan(cMin, min);
 
-							for (int i = 0; i < 3; i++)
+							//Max bounds
+							if (glm::length(collisionsToMax) > 0.0001f)
 							{
-								if (collisionsToMin[i])
-								{
-									/*const glm::vec3 collisionNormal(collisionsToMin);
-									const glm::vec3 reflectedMomentum = glm::reflect(rb.linearMomentum,
-										collisionNormal);
-									rb.linearMomentum = reflectedMomentum;*/
-									break;
-								}
+								const glm::vec3 collisionNormal(glm::normalize(- collisionsToMax));
+								const glm::vec3 reflectedMomentum = glm::reflect(rb.linearMomentum,
+									collisionNormal);
+								//rb.linearMomentum = reflectedMomentum;
+								rb.ApplyLinearImpulse(collisionNormal * rb.linearMomentum * 2.0f * boxcollider->elasticity);
+								rb.position += collisionNormal * 0.001f;
 							}
+							
+							//Min bounds
+							if (glm::length(collisionsToMin) > 0.0001f)
+							{
+								const glm::vec3 collisionNormal(glm::normalize(collisionsToMin));
+								const glm::vec3 reflectedMomentum = glm::reflect(rb.linearMomentum,
+									collisionNormal);
+								rb.ApplyLinearImpulse(collisionNormal * -rb.linearMomentum * 2.0f * boxcollider->elasticity);
+								rb.position += collisionNormal * 0.001f;
+							}
+							//rb.position = glm::clamp(rb.position, min+cMin, max-cMax);
 							
 						}
 					}	
