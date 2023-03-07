@@ -327,7 +327,14 @@ namespace gui
 								scene->registry.emplace_or_replace<CRigidBody>(selectedSceneObject);
 								break;
 							case CType::BoxCollider:
-								scene->registry.emplace_or_replace<CBoxCollider>(selectedSceneObject, glm::vec3(0.0f), glm::vec3(0.0f));
+							{
+								auto* mesh = scene->registry.try_get<CTriMesh>(selectedSceneObject);
+								if (mesh)
+									scene->registry.emplace_or_replace<CBoxCollider>(selectedSceneObject, 
+															mesh->GetBoundingBoxMin(), mesh->GetBoundingBoxMax());
+								else
+									scene->registry.emplace_or_replace<CBoxCollider>(selectedSceneObject, glm::vec3(0.0f), glm::vec3(0.0f));
+							}
 								break;
 							case CType::Count:
 								break;
@@ -591,7 +598,12 @@ namespace gui
 										//r.SetInteriaMatrix(mesh, tr);
 									}
 								}
+								ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+								ImGui::PushItemWidth(viewportPanelSize.x/4);
 								ImGui::DragFloat("Drag", &r.drag, 0.01f, 0.0f);
+								ImGui::SameLine();
+								ImGui::DragFloat("Gravity", &r.gravity, 0.1f, 0.0f);
+								ImGui::PopItemWidth();
 								ImGui::BeginDisabled();
 								ImGui::DragFloat3("Position", &r.position[0]);
 								/*ImGui::DragFloat3("Velocity", &r.velocity[0]);

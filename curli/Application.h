@@ -106,7 +106,9 @@ private:
 				if (hasRB)
 					scene->registry.emplace<CRigidBody>(modelObj, .5f);
 				if (hasBC)
-					scene->registry.emplace<CBoxCollider>(modelObj, glm::vec3(0), glm::vec3(1));
+					scene->registry.emplace<CBoxCollider>( modelObj, 
+						scene->registry.get<CTriMesh>(modelObj).GetBoundingBoxMin(), 
+						scene->registry.get<CTriMesh>(modelObj).GetBoundingBoxMax() );
 					
 			}
 			else if (std::string(argv[i]).compare("-skybox") == 0)

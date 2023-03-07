@@ -239,6 +239,24 @@ void CTriMesh::Update()
 {
 }
 
+glm::vec3 CTriMesh::ApproximateTheClosestPointTo(glm::vec3 point, int stride)
+{
+	float minDist = std::numeric_limits<float>::max();
+	glm::vec3 closestPoint = glm::vec3(0.0f);
+	for (int i = 0; i < this->vertices.size(); i += stride)
+	{
+		glm::vec3 v = this->vertices[i];
+		if (glm::any(glm::isnan(v)))
+			continue;
+		if(glm::distance(point, v) < minDist)
+		{
+			minDist = glm::distance(point, v);
+			closestPoint = v;
+		}
+	}
+	return closestPoint;
+}
+
 void CLight::Update()
 {
 }
@@ -292,7 +310,7 @@ void CRigidBody::TakeFwEulerStep(float dt)
 	//angular
 	const glm::vec3 _w = GetAngularVelocity();
 	const float magw = glm::length(_w);
-	ApplyAngularImpulse(-0.5f * drag * magw * _w * 800.f * dt);
+	ApplyAngularImpulse(-0.5f * drag * magw * _w * dt);
 	const glm::vec3 w = GetAngularVelocity();
 	orientationQuat += (0.5f * dt) * glm::quat(0.0f, w) * orientationQuat;
 	orientationQuat = glm::normalize(orientationQuat);
@@ -428,8 +446,8 @@ void Scene::Update()
 		});
 	registry.view<CBoxCollider, CTransform, CTriMesh>().each([&](const entt::entity& entity, CBoxCollider& collider, CTransform& transform, CTriMesh& mesh)
 		{
-			collider.SetBounds(transform.GetModelMatrix() * glm::vec4(mesh.GetBoundingBoxMin(), 1.0f),
-					transform.GetModelMatrix() * glm::vec4(mesh.GetBoundingBoxMax(), 1.0f));
+			collider.SetBounds(transform.GetModelMatrix() * glm::vec4(mesh.GetBoundingBoxMin(), 1.0f), 
+						transform.GetModelMatrix() * glm::vec4(mesh.GetBoundingBoxMax(), 1.0f));
 		});
 }
 
@@ -589,20 +607,10 @@ entt::entity Scene::CreateModelObject(cy::TriMesh& mesh, glm::vec3 position, glm
 }
 
 
-void CPhysicsBounds::Rebound(CRigidBody& rigidBody)
+float CPhysicsBounds::MagImpulseCollistionFrom(float e, float m, glm::mat3 I, glm::vec3 v, glm::vec3 n, glm::vec3 r)
 {
-	/*glm::vec3 reboundNormal = glm::normalize(glm::vec3(
-		(rigidBody.position.x < min.x ? 1.0f : (rigidBody.position.x > max.x ? -1.0f : 0.0f)),
-		(rigidBody.position.y < min.y ? 1.0f : (rigidBody.position.y > max.y ? -1.0f : 0.0f)),
-		(rigidBody.position.z < min.z ? 1.0f : (rigidBody.position.z > max.z ? -1.0f : 0.0f))
-	));
-
-	if (!glm::any(glm::isnan(reboundNormal)) && reboundNormal != glm::vec3(0.0f))
-	{
-		rigidBody.position += reboundNormal * 0.01f;
-		rigidBody.velocity = glm::reflect(rigidBody.velocity, reboundNormal);
-		rigidBody.acceleration = glm::reflect(rigidBody.acceleration, reboundNormal);
-	}*/
+	//eq 5 from https://en.wikipedia.org/wiki/Collision_response
+	return glm::dot((-1.0f - e) * v, n) / (1.0f/m + glm::dot(glm::inverse(I) * glm::cross(r,n), n));
 }
 
 void CImageMaps::AddImageMap(ImageMap::BindingSlot slot, std::string path)

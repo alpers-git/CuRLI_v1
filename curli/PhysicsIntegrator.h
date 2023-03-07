@@ -112,7 +112,7 @@ protected:
 	}
 	
 	std::shared_ptr<Scene> scene;
-	const float tStepSize = 0.0001f;
+	const float tStepSize = 0.00001f;
 	float t = 0.0f;
 	
 	bool m1Down = false;
@@ -151,15 +151,16 @@ public:
 			}
 			else 
 			{
+
 				glm::vec3 fFromField = AccumilateForceFields(rb.position);
 				if (rb.mass > 0.0000001f)
-					rb.ApplyLinearImpulse(fFromField*dt);
+					rb.ApplyLinearImpulse(fFromField * dt);
 
 				rb.TakeFwEulerStep(dt);
-				
+
 				//check for collisions with world boundary
-				auto* boxcollider = scene->registry.try_get<CBoxCollider>(entity);
-				if (boxcollider)
+				auto* boxCollider = scene->registry.try_get<CBoxCollider>(entity);
+				if (boxCollider)
 				{
 					entt::entity e = scene->registry.view<CPhysicsBounds>().front();
 					//check if null entity
@@ -170,38 +171,72 @@ public:
 						{
 							const glm::vec3 min = bounds->GetMin();
 							const glm::vec3 max = bounds->GetMax();
-							const glm::vec3 cMin = boxcollider->GetMin();
-							const glm::vec3 cMax = boxcollider->GetMax();
-
-							const glm::vec3 collisionsToMax = glm::greaterThan(cMax, max);
-							const glm::vec3 collisionsToMin = glm::lessThan(cMin, min);
-
-							//Max bounds
-							if (glm::length(collisionsToMax) > 0.0001f)
-							{
-								const glm::vec3 collisionNormal(glm::normalize(- collisionsToMax));
-								const glm::vec3 reflectedMomentum = glm::reflect(rb.linearMomentum,
-									collisionNormal);
-								//rb.linearMomentum = reflectedMomentum;
-								rb.ApplyLinearImpulse(collisionNormal * rb.linearMomentum * 2.0f * boxcollider->elasticity);
-								rb.position += collisionNormal * 0.001f;
-							}
 							
-							//Min bounds
-							if (glm::length(collisionsToMin) > 0.0001f)
+							//Go over the vertices of the box collider and figure if any of them are outside the bounds
+							//if there is a collision init the collision normal to point inward to the bounds
+							glm::vec3 collisionNormal = glm::vec3(0.0f);
+							glm::vec3 collisionVert = glm::vec3(0.0f);
+							for (int i = 0; i < 8; i++)
 							{
-								const glm::vec3 collisionNormal(glm::normalize(collisionsToMin));
-								const glm::vec3 reflectedMomentum = glm::reflect(rb.linearMomentum,
-									collisionNormal);
-								rb.ApplyLinearImpulse(collisionNormal * -rb.linearMomentum * 2.0f * boxcollider->elasticity);
-								rb.position += collisionNormal * 0.001f;
+								const glm::vec3 v = boxCollider->vertices[i];
+								if (v.x < min.x)
+								{
+									collisionNormal.x = 1.0f;
+									collisionVert += v;
+									//break;
+								}
+								else if (v.x > max.x)
+								{
+									collisionNormal.x = -1.0f;
+									collisionVert += v;
+									//break;
+								}
+								if (v.y < min.y)
+								{
+									collisionNormal.y = 1.0f;
+									collisionVert += v;
+									//break;
+								}
+								else if (v.y > max.y)
+								{
+									collisionNormal.y = -1.0f;
+									collisionVert += v;
+									//break;
+								}
+								if (v.z < min.z)
+								{
+									collisionNormal.z = 1.0f;
+									collisionVert += v;
+									//break;
+								}
+								else if (v.z > max.z)
+								{
+									collisionNormal.z = -1.0f;
+									collisionVert += v;
+									//break;
+								}
 							}
-							//rb.position = glm::clamp(rb.position, min+cMin, max-cMax);
-							
+							if (glm::length(collisionNormal) > 0.0f) //Resolve the collision
+							{
+								collisionVert = collisionVert / glm::length(collisionNormal);
+								collisionNormal = glm::normalize(collisionNormal);
+								printf("v %f %f %f\nn %f %f %f\n", collisionVert.x, collisionVert.y, collisionVert.z,
+									collisionNormal.x, collisionNormal.y, collisionNormal.z);
+								const glm::vec3 r = collisionVert - rb.position;
+								float impulseMag = bounds->MagImpulseCollistionFrom(
+									boxCollider->elasticity, rb.mass,
+									rb.GetInertiaTensor(), rb.GetVelocity(),
+									collisionNormal, r);
+								
+								rb.linearMomentum = rb.GetVelocity() * rb.mass + (collisionNormal * impulseMag);
+								rb.position += collisionNormal * 0.001f;
+
+								rb.angularMomentum = rb.GetInertiaTensor() * rb.GetAngularVelocity() + impulseMag *
+									 glm::cross(r, collisionNormal);
+							}
 						}
 					}	
-				}
-				
+				}				
 			}
 		});
 	}

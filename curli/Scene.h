@@ -545,6 +545,8 @@ public:
 		faces.clear();
 	}
 
+	glm::vec3 ApproximateTheClosestPointTo(glm::vec3 point, int stride = 1);
+
 	
 	bool visible = true;
 private:
@@ -858,11 +860,12 @@ public:
 	static constexpr CType type = CType::RigidBody;
 	CRigidBody(float mass = 1.0f, 
 		glm::vec3 position = glm::vec3(0.0f), glm::vec3 rotation= glm::vec3(0.0f),
-		float drag = 0.0f)
+		float drag = 0.0f, float gravity = 0.f)
 	{
 		this->mass = mass;
 		this->position = position;
 		this->drag = drag;
+		this->gravity = gravity;
 		SetRotation(rotation);
 	}
 
@@ -903,16 +906,28 @@ public:
 		return orientationMatrix;
 	}
 	
+	inline glm::mat3 GetInertiaTensor()
+	{
+		return orientationMatrix * inertiaAtRest * glm::transpose(orientationMatrix);
+	}
+	
 	inline void SetRotation(glm::vec3 rotation)
 	{
 		orientationQuat = glm::quat(rotation);
 		orientationMatrix = glm::toMat3(orientationQuat);
 	}
+
+	inline glm::mat3 GetInertiaTensorAtRest()
+	{
+		return inertiaAtRest;
+	}
+	
 	
 
 	void ApplyLinearImpulse(glm::vec3 imp);
 	void ApplyAngularImpulse(glm::vec3 imp);
 	
+	float gravity;
 private:
 	glm::mat3 inertiaAtRest;
 	
@@ -931,6 +946,29 @@ public:
 		this->min = glm::min(min, max);
 		this->max = glm::max(min, max);
 		this->elasticity = elasticity;
+
+		//Generate vertices
+		vertices[0] = max;
+		vertices[1] = glm::vec3(max.x, max.y, min.z);
+		vertices[2] = glm::vec3(max.x, min.y, min.z);
+		vertices[3] = glm::vec3(max.x, min.y, max.z);
+		vertices[4] = glm::vec3(min.x, min.y, max.z);
+		vertices[5] = min;
+		vertices[6] = glm::vec3(min.x, max.y, min.z);
+		vertices[7] = glm::vec3(min.x, max.y, max.z);
+	}
+	
+	CBoxCollider(std::vector<glm::vec3> geometry, float elasticity = 1.0f)
+	{
+		//loop &find min and max over geometry
+		glm::vec3 min = geometry[0];
+		glm::vec3 max = geometry[0];
+		for (int i = 1; i < geometry.size(); i++)
+		{
+			min = glm::min(min, geometry[i]);
+			max = glm::max(max, geometry[i]);
+		}
+		CBoxCollider(min, max, elasticity);
 	}
 	
 	//bool MoveAndCollide(glm::vec3 motion) {};
@@ -947,10 +985,19 @@ public:
 	{
 		this->min = glm::min(min, max);
 		this->max = glm::max(min, max);
+		
+		vertices[0] = max;
+		vertices[1] = glm::vec3(max.x, max.y, min.z);
+		vertices[2] = glm::vec3(max.x, min.y, min.z);
+		vertices[3] = glm::vec3(max.x, min.y, max.z);
+		vertices[4] = glm::vec3(min.x, min.y, max.z);
+		vertices[5] = min;
+		vertices[6] = glm::vec3(min.x, max.y, min.z);
+		vertices[7] = glm::vec3(min.x, max.y, max.z);
 	}
 
 	float elasticity;
-	
+	glm::vec3 vertices[8];
 private:
 	glm::vec3 min;
 	glm::vec3 max;
@@ -978,7 +1025,8 @@ public:
 
 	void Update();
 	std::vector<glm::vec3> GenerateVertices();
-	void Rebound(CRigidBody& rigidBody);
+	float MagImpulseCollistionFrom(float e, float m, glm::mat3 I, glm::vec3 v, glm::vec3 n, glm::vec3 r);
+
 private:
 	glm::vec3 min;
 	glm::vec3 max;
