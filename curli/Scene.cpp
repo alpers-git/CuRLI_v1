@@ -304,13 +304,14 @@ void CRigidBody::TakeFwEulerStep(float dt)
 	const glm::vec3 _v = GetVelocity();
 	const float mag = glm::length(_v);
 	ApplyLinearImpulse(-0.5f * drag * mag * _v * dt);
+	ApplyLinearImpulse(glm::vec3(0,-1,0) * gravity * mass * dt);
 	const glm::vec3 v = GetVelocity();
 	position += v * dt;
 
 	//angular
 	const glm::vec3 _w = GetAngularVelocity();
 	const float magw = glm::length(_w);
-	ApplyAngularImpulse(-0.5f * drag * magw * _w * dt);
+	ApplyAngularImpulse(-0.5f * drag * magw * _w * dt * 100.f);
 	const glm::vec3 w = GetAngularVelocity();
 	orientationQuat += (0.5f * dt) * glm::quat(0.0f, w) * orientationQuat;
 	orientationQuat = glm::normalize(orientationQuat);
@@ -416,21 +417,6 @@ entt::entity Scene::CreateSceneObject(std::string name)
 
 void Scene::Update()
 {
-	//call update functions of every component
-	registry.view<CRigidBody, CTransform>().each([&](const entt::entity& entity, CRigidBody& rigidBody, CTransform& transform)
-		{
-			
-			
-			/*registry.view<CBoundingBox>().each([&](CBoundingBox bbox) {
-				bbox.Rebound(rigidBody);
-			});*/
-			transform.SetPosition(rigidBody.position);
-			transform.SetEulerRotation(rigidBody.GetOrientationMatrix());
-			transform.Update();
-		});
-	registry.view<CTriMesh>().each([&](CTriMesh& mesh) { mesh.Update(); });
-	registry.view<CLight>().each([&](CLight& light) { light.Update(); });
-
 	registry.view<CImageMaps>().each([&](const entt::entity& entity, CImageMaps& maps)
 		{
 			if (maps.dirty)
@@ -443,11 +429,6 @@ void Scene::Update()
 				GLFWHandler::GetInstance().QueueEvent(e);
 				maps.dirty = false;
 			}
-		});
-	registry.view<CBoxCollider, CTransform, CTriMesh>().each([&](const entt::entity& entity, CBoxCollider& collider, CTransform& transform, CTriMesh& mesh)
-		{
-			collider.SetBounds(transform.GetModelMatrix() * glm::vec4(mesh.GetBoundingBoxMin(), 1.0f), 
-						transform.GetModelMatrix() * glm::vec4(mesh.GetBoundingBoxMax(), 1.0f));
 		});
 }
 

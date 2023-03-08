@@ -289,6 +289,28 @@ public:
 	void SetEulerRotation(glm::mat4 rotationMat, bool recalculate = false)
 	{
 		this->rotationMatrix = rotationMat;
+		//set rotation using matrix
+		if (rotationMat[0][0] == 1.0f)
+		{
+			this->rotation.x = atan2f(rotationMat[0][2], rotationMat[2][3]);
+			this->rotation.y = 0;
+			this->rotation.z = 0;
+
+		}
+		else if (rotationMat[0][0] == -1.0f)
+		{
+			this->rotation.x = atan2f(rotationMat[0][2], rotationMat[2][3]);
+			this->rotation.y = 0;
+			this->rotation.z = 0;
+		}
+		else
+		{
+
+			this->rotation.x = atan2(-rotationMat[2][0], rotationMat[0][0]);
+			this->rotation.y = asin(rotationMat[1][0]);
+			this->rotation.z = atan2(-rotationMat[1][2], rotationMat[1][1]);
+		}
+		
 		if (recalculate)
 			CalculateModelMatrix();
 		modelDirty = !recalculate;

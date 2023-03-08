@@ -1,6 +1,7 @@
 #pragma once
 #include <Scene.h>
 #include <GLFWHandler.h>
+#include <glm/gtx/component_wise.hpp>
 #include <ApplicationState.h>
 
 template <typename T>
@@ -15,15 +16,38 @@ public:
 
 	void Update()
 	{
-		float deltaTime = GLFWHandler::GetInstance().GetTime() - t;//Time between two frames
+		float deltaTime = (GLFWHandler::GetInstance().GetTime() - t)*10.0f;//Time between two frames scaled up 10 times
 
 		for (float step = 0; step < deltaTime; step += tStepSize)
 		{
+			//Synchronize the physics objects before integration
+			static_cast<T*>(this)->Synchronize();
 			static_cast<T*>(this)->Integrate(tStepSize);
 		}
 
 		t = GLFWHandler::GetInstance().GetTime();
 	}
+
+	/*
+	* Prepares the physics objects before integration
+	*/
+	void Synchronize() 
+	{
+		scene->registry.view<CRigidBody, CTransform>()
+		.each([&](CRigidBody& rigidBody, CTransform& transform)
+		{
+			transform.SetPosition(rigidBody.position);
+			transform.SetEulerRotation(rigidBody.GetOrientationMatrix());
+			transform.Update();
+		});
+		
+		scene->registry.view<CBoxCollider, CTransform, CTriMesh>()
+		.each([&](CBoxCollider& collider, CTransform& transform, CTriMesh& mesh)
+		{
+			collider.SetBounds(transform.GetModelMatrix() * glm::vec4(mesh.GetBoundingBoxMin(), 1.0f),
+			transform.GetModelMatrix() * glm::vec4(mesh.GetBoundingBoxMax(), 1.0f));
+		});
+	};
 	
 	/*
 	* Integrates the scene forward in time by dt
@@ -43,6 +67,7 @@ public:
 		else if (button == GLFW_MOUSE_BUTTON_2 && action == GLFW_RELEASE)
 			m2Down = false;
 	};
+	
 	/*
 	* Called by DispatchEvent when mouse is moved
 	*/
@@ -112,7 +137,7 @@ protected:
 	}
 	
 	std::shared_ptr<Scene> scene;
-	const float tStepSize = 0.00001f;
+	const float tStepSize = 0.001f;
 	float t = 0.0f;
 	
 	bool m1Down = false;
@@ -176,63 +201,91 @@ public:
 							//if there is a collision init the collision normal to point inward to the bounds
 							glm::vec3 collisionNormal = glm::vec3(0.0f);
 							glm::vec3 collisionVert = glm::vec3(0.0f);
+							int numCollisions = 0;
+							glm::vec3 collidedBoundFace = glm::vec3(0.0f);
 							for (int i = 0; i < 8; i++)
 							{
 								const glm::vec3 v = boxCollider->vertices[i];
 								if (v.x < min.x)
 								{
-									collisionNormal.x = 1.0f;
+									collisionNormal.x += 1.0f;
 									collisionVert += v;
+									numCollisions++;
+									collidedBoundFace = glm::vec3(min.x, 0.0f, 0.0f);
 									//break;
 								}
 								else if (v.x > max.x)
 								{
-									collisionNormal.x = -1.0f;
+									collisionNormal.x += -1.0f;
 									collisionVert += v;
+									numCollisions++;
+									collidedBoundFace = glm::vec3(max.x, 0.0f, 0.0f);
 									//break;
 								}
 								if (v.y < min.y)
 								{
-									collisionNormal.y = 1.0f;
+									collisionNormal.y += 1.0f;
 									collisionVert += v;
+									numCollisions++;
+									collidedBoundFace = glm::vec3(0, min.y, 0);
 									//break;
 								}
 								else if (v.y > max.y)
 								{
-									collisionNormal.y = -1.0f;
+									collisionNormal.y += -1.0f;
 									collisionVert += v;
+									numCollisions++;
+									collidedBoundFace = glm::vec3(0, max.y, 0);
 									//break;
 								}
 								if (v.z < min.z)
 								{
-									collisionNormal.z = 1.0f;
+									collisionNormal.z += 1.0f;
 									collisionVert += v;
+									numCollisions++;
+									collidedBoundFace = glm::vec3(0, 0, min.z);
 									//break;
 								}
 								else if (v.z > max.z)
 								{
-									collisionNormal.z = -1.0f;
+									collisionNormal.z += -1.0f;
 									collisionVert += v;
+									numCollisions++;
+									collidedBoundFace = glm::vec3(0, 0, max.z);
 									//break;
 								}
 							}
 							if (glm::length(collisionNormal) > 0.0f) //Resolve the collision
 							{
-								collisionVert = collisionVert / glm::length(collisionNormal);
+								//Check if object has sufficient momentum to bounce of the object
+								if (glm::abs(glm::dot(collisionNormal, rb.linearMomentum)) < 0.001f )
+								{
+									//if not the object is residing the boundary dont test for collision
+									rb.linearMomentum -= collisionNormal * rb.linearMomentum;
+									return;
+								}
+
+								collisionVert = collisionVert /((float) numCollisions);//Avg box collision
+
+								//For more accurate collisions find the closest vertex on model
+								const glm::mat4 modelMat = scene->registry.get<CTransform>(entity).GetModelMatrix();
+								const glm::vec3 modelSpaceCollisionVert = 
+									glm::inverse(modelMat) * glm::vec4(collisionVert,1.f);
+								const glm::vec3 accurateCollisionVert = modelMat * glm::vec4(scene->registry.get<CTriMesh>(entity).
+									ApproximateTheClosestPointTo(collisionVert, 10), 1.0f);
+
 								collisionNormal = glm::normalize(collisionNormal);
-								printf("v %f %f %f\nn %f %f %f\n", collisionVert.x, collisionVert.y, collisionVert.z,
-									collisionNormal.x, collisionNormal.y, collisionNormal.z);
-								const glm::vec3 r = collisionVert - rb.position;
+								const glm::vec3 r = accurateCollisionVert - rb.position;
 								float impulseMag = bounds->MagImpulseCollistionFrom(
 									boxCollider->elasticity, rb.mass,
 									rb.GetInertiaTensor(), rb.GetVelocity(),
 									collisionNormal, r);
 								
-								rb.linearMomentum = rb.GetVelocity() * rb.mass + (collisionNormal * impulseMag);
-								rb.position += collisionNormal * 0.001f;
+								const float penetration = -glm::dot(collisionVert - collidedBoundFace, collisionNormal);
+								rb.ApplyLinearImpulse(collisionNormal * impulseMag);
 
-								rb.angularMomentum = rb.GetInertiaTensor() * rb.GetAngularVelocity() + impulseMag *
-									 glm::cross(r, collisionNormal);
+								rb.ApplyAngularImpulse(impulseMag * glm::cross(r, collisionNormal) * 100.f);
+								rb.position += penetration * collisionNormal * 2.5f;//Apply perturbation
 							}
 						}
 					}	

@@ -1321,7 +1321,8 @@ public:
 				program->vaos[entity2VAOIndex[entity]].visible = mesh.visible;
 			CPhongMaterial* material = scene->registry.try_get<CPhongMaterial>(entity);
 			CTransform* transform = scene->registry.try_get<CTransform>(entity);
-				
+			
+			const glm::mat4 m = transform ? transform->GetModelMatrix() : glm::mat4(1.0f);
 			const glm::mat4 mv =  scene->camera.GetViewMatrix() * (transform ? 
 				transform->GetModelMatrix() : glm::mat4(1.0f));
 			const glm::mat4 mvp = scene->camera.GetProjectionMatrix() * mv;
@@ -1333,8 +1334,8 @@ public:
 				
 			program->SetUniform("to_screen_space", mvp);
 			program->SetUniform("to_view_space", mv);
-			program->SetUniform("to_world_space", transform->GetModelMatrix());
-			program->SetUniform("normals_to_world_space", glm::transpose(glm::inverse(glm::mat3(transform->GetModelMatrix()))));
+			program->SetUniform("to_world_space", m);
+			program->SetUniform("normals_to_world_space", glm::transpose(glm::inverse(glm::mat3(m))));
 			program->SetUniform("normals_to_view_space",
 				glm::transpose(glm::inverse(glm::mat3(mv))));
 			program->SetUniform("camera_pos", scene->camera.GetLookAtEye());

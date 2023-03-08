@@ -84,6 +84,7 @@ private:
 				{
 					if (std::string(argv[i]).compare("--rb") == 0)
 					{
+						i++;
 						hasRB = true;
 					}
 					else if (std::string(argv[i]).compare("--path") == 0)
