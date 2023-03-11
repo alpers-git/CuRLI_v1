@@ -1363,6 +1363,10 @@ public:
 						//bind texture
 						if (texIndex >= 0)
 						{
+							if (it->second.IsRenderedImage())
+								program->SetUniform("mirror_reflection", 1);
+							else
+								program->SetUniform("mirror_reflection", 0);
 							program->textures[texIndex].Bind();
 							//set uniform
 							const std::string uniformName = std::string("has_texture[") + std::to_string(((int)it->first)) + std::string("]");

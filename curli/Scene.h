@@ -60,7 +60,27 @@ public:
 		this->CalculateProjectionMatrix();
 	}
 	
-	static Camera Reflect(glm::vec3 point, glm::vec3 normal, Camera& camera)
+	Camera(Camera& other)
+		: center(other.center), eye(other.eye), up(other.up),
+		fov(other.fov), nearPlane(other.nearPlane), farPlane(other.farPlane),
+		aspectRatio(other.aspectRatio), perspective(other.perspective)
+	{
+		this->CalculateViewMatrix();
+		this->CalculateProjectionMatrix();
+	}
+
+
+	static glm::mat3 tensorProduct(const glm::vec3& a, const glm::vec3& b) {
+		glm::mat3 result;
+		for (int i = 0; i < 3; i++) {
+			for (int j = 0; j < 3; j++) {
+				result[i][j] = a[i] * b[j];
+			}
+		}
+		return result;
+	}
+	
+	static Camera& Reflect(glm::vec3 point, glm::vec3 normal, Camera& camera)
 	{
 		glm::vec3 center = camera.GetCenter();
 		glm::vec3 eye = camera.GetLookAtEye();
@@ -75,15 +95,43 @@ public:
 		const glm::vec3 centerToPoint = center - point;
 		const glm::vec3 upToPoint = up - point;
 
-		//reflect eye by the plane define by point and normal
-		const glm::vec3 reflectedEye = eye - 2.f * glm::dot(eyeToPoint, normal) * normal;
-		//reflect center by the plane define by point and normal
-		const glm::vec3 reflectedCenter = center - 2.f * glm::dot(centerToPoint, normal) * normal;
-		//reflect up by the plane define by point and normal
-		const glm::vec3 reflectedUp = up - 2.f * glm::dot(upToPoint, normal) * normal;
-		
+		////reflect eye by the plane define by point and normal
+		//const glm::vec3 reflectedEye = eye - 2.f * glm::dot(eyeToPoint, normal) * normal;
+		////reflect center by the plane define by point and normal
+		//const glm::vec3 reflectedCenter = center - 2.f * glm::dot(centerToPoint, normal) * normal;
+		////reflect up by the plane define by point and normal
+		//const glm::vec3 reflectedUp = up - 2.f * glm::dot(upToPoint, normal) * normal;
+		//
 
-		return Camera(reflectedCenter, reflectedEye, glm::normalize(reflectedUp), 90, near, far, -1.0, perspective);
+		//return Camera(reflectedCenter, reflectedEye, glm::normalize(reflectedUp), 90, near, far, -1.0, perspective);
+
+		//generate a transformation matrix that reflects the camera
+		//1. move to the point
+		//scale by -1 * normal
+		//move back
+		Camera copyCamera(camera);
+
+		/*glm::mat3 t = glm::mat3(1.f) - 2.f * glm::outerProduct(normal, normal);
+
+		glm::mat4 R(1.f);
+		R[0] = glm::vec4(t[0], 0.f);
+		R[1] = glm::vec4(t[1], 0.f);
+		R[2] = glm::vec4(t[2], 0.f);
+
+		glm::mat4 T(1.f);
+		T[3] = glm::vec4(point, 1.0);
+
+		R[3] = glm::vec4((glm::mat3(1.f) - t) * point, 1.f);*/
+
+		glm::vec3 V = glm::vec3(-copyCamera.viewMatrix[2][0], -copyCamera.viewMatrix[2][1], -copyCamera.viewMatrix[2][2]);
+		glm::vec3 R = glm::reflect(V, normal);
+		copyCamera.viewMatrix = glm::lookAt(point, point + R, glm::vec3(0, 1, 0));
+		copyCamera.viewMatrix = glm::scale(copyCamera.viewMatrix, glm::vec3(1, -1, 1));
+		
+		/*copyCamera.viewMatrix = R * copyCamera.viewMatrix;*/
+		
+		return copyCamera;
+		
 	}
 	
 	glm::vec3 GetCenter() { return center; }

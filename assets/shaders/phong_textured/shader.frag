@@ -40,6 +40,7 @@ uniform samplerCube env_map;
 uniform int has_env_map = 0;
 uniform vec3 camera_pos;
 
+uniform int mirror_reflection = 0;
 
 out vec4 color;
 
@@ -53,14 +54,14 @@ void main() {
                vec3 l = vec3(0,0,0);
                float intensity = 0;
                vec3 light_color = vec3(0,0,0);
-               if(i < p_light_count)
+               if(i < p_light_count) //point light soures
                {
                     float l_length = length(p_lights[i].position - v_space_pos);
                     l =  normalize(p_lights[i].position - v_space_pos);
                     intensity = p_lights[i].intensity / (0.01*l_length * l_length + 0.01*l_length);
                     light_color = p_lights[i].color;
                }
-               else
+               else //directional light sources
                {
                     l =  normalize(d_lights[i-p_light_count].direction);
                     intensity = d_lights[i-p_light_count].intensity;
@@ -69,8 +70,9 @@ void main() {
                vec3 h = normalize(l + vec3(0,0,1)); //half vector
 
                float cos_theta = dot(l, v_space_norm);
-               if(cos_theta >= 0)
-               {
+               if(cos_theta >= 0) //getting light from the front side of the surface
+               {    
+                    //Sample either texture or material color
                     vec3 diffuse =  (has_texture[1]==1 ? (texture(tex_list[1], tex_coord)).xyz :
                                                        material.kd) * max(cos_theta,0);
                     vec3 specular= (has_texture[2]==1 ? (texture(tex_list[2], tex_coord)).xyz :
@@ -78,13 +80,13 @@ void main() {
                     color += vec4(intensity * normalize(light_color) * (specular + diffuse), 1);
                }
           }
-          
+          //sample ambient once
           color = color + 0.5 * vec4( (has_texture[0]==1 ? (texture(tex_list[0], tex_coord)).xyz :
                                                              material.ka), 1);
-          if(has_env_map != 0)
+          if(has_env_map != 0)//sample environment map if it exists
           {
                vec3 env_color = texture(env_map, reflect(-camera_pos+w_space_pos, normalize(w_space_norm))).xyz;
-               color = mix(color, vec4(env_color, 1), 0.6);
+               color = mix(color, vec4(env_color, 1), 0.6); //mix it with material color
           }
           color = clamp(color, 0, 1);                                                
      }
