@@ -1043,6 +1043,7 @@ public:
 	void SetMax(glm::vec3 max) { this->max = max; dirty = true; }
 
 	inline bool IsDirty() { return dirty; }
+	bool IsCollidingWith(const CBoxCollider& collider, glm::vec3& normal, glm::vec3& contanctPoint, float& penetration);
 
 
 	void Update();

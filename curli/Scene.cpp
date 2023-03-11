@@ -273,6 +273,7 @@ void CRigidBody::initializeInertiaTensor(const CTriMesh* mesh, CTransform* trans
 {
 	//Assuming the object is uniform density
 	Eigen::Matrix3f mat = Eigen::Matrix3f::Zero();
+	inertiaAtRest = glm::mat3(0.f);
 	
 	//go over all the vertices, calculate the inertia tensor and sum
 	for (size_t i = 0; i < mesh->GetNumVertices(); i++)
@@ -281,21 +282,21 @@ void CRigidBody::initializeInertiaTensor(const CTriMesh* mesh, CTransform* trans
 			glm::vec4(mesh->GetVertex(i), 1.0f);
 		if (glm::all(glm::isnan(v)))
 			continue;
-		mat(0,0) = mat(0,0) + v.y * v.y + v.z * v.z;
-		mat(1,1) = mat(1,1) + v.x * v.x + v.z * v.z;
-		mat(2,2) = mat(2,2) + v.x * v.x + v.y * v.y;
-		mat(0,1) = mat(0,1) - v.x * v.y;
-		mat(0,2) = mat(0,2) - v.x * v.z;
-		mat(1,2) = mat(1,2) - v.y * v.z;
+		inertiaAtRest[0][0] = inertiaAtRest[0][0] + v.y * v.y + v.z * v.z;
+		inertiaAtRest[1][1] = inertiaAtRest[1][1] + v.x * v.x + v.z * v.z;
+		inertiaAtRest[2][2] = inertiaAtRest[2][2] + v.x * v.x + v.y * v.y;
+		inertiaAtRest[0][1] = inertiaAtRest[0][1] - v.x * v.y;
+		inertiaAtRest[0][2] = inertiaAtRest[0][2] - v.x * v.z;
+		inertiaAtRest[1][2] = inertiaAtRest[1][2] - v.y * v.z;
 	}
-	mat = mat * mass;
-	Eigen::EigenSolver<Eigen::Matrix3f> solver(mat, false);
+	inertiaAtRest = inertiaAtRest * mass;
+	/*Eigen::EigenSolver<Eigen::Matrix3f> solver(mat, false);
 	auto& eigenValues = solver.eigenvalues();
 
 	inertiaAtRest = glm::mat3(0.0f);
 	inertiaAtRest[0][0] = eigenValues(0).real();
 	inertiaAtRest[1][1] = eigenValues(1).real();
-	inertiaAtRest[2][2] = eigenValues(2).real();
+	inertiaAtRest[2][2] = eigenValues(2).real();*/
 }
 
 void CRigidBody::TakeFwEulerStep(float dt)
@@ -592,6 +593,80 @@ float CPhysicsBounds::MagImpulseCollistionFrom(float e, float m, glm::mat3 I, gl
 {
 	//eq 5 from https://en.wikipedia.org/wiki/Collision_response
 	return glm::dot((-1.0f - e) * v, n) / (1.0f/m + glm::dot(glm::inverse(I) * glm::cross(r,n), n));
+}
+
+bool CPhysicsBounds::IsCollidingWith(const CBoxCollider& collider, glm::vec3& normal, glm::vec3& contanctPoint, float& penetration)
+{
+	//Go over the vertices of the box collider and figure if any of them are outside the bounds
+	//if there is a collision init the collision normal to point inward to the bounds
+	normal = glm::vec3(0.0f);
+	contanctPoint = glm::vec3(0.0f);
+	int numCollisions = 0;
+	glm::vec3 collidedBoundFace = glm::vec3(0.0f);
+	float maxPenetration = 0;
+	for (int i = 0; i < 8; i++)
+	{
+		const glm::vec3 v = collider.vertices[i];
+		if (v.x < min.x)
+		{
+			normal.x += 1.0f;
+			if(glm::abs(v.x - min.x) > maxPenetration)
+				contanctPoint = v;
+			numCollisions++;
+			collidedBoundFace += glm::vec3(min.x, 0.0f, 0.0f);
+			maxPenetration = glm::max(maxPenetration, glm::abs(v.x - min.x));
+		}
+		else if (v.x > max.x)
+		{
+			normal.x += -1.0f;
+			if (glm::abs(v.x - max.x) > maxPenetration)
+				contanctPoint = v;
+			numCollisions++;
+			collidedBoundFace += glm::vec3(max.x, 0.0f, 0.0f);
+			maxPenetration = glm::max(maxPenetration, glm::abs(v.x - max.x));
+		}
+		if (v.y < min.y)
+		{
+			normal.y += 1.0f;
+			if (glm::abs(v.y - min.y) > maxPenetration)
+				contanctPoint = v;
+			numCollisions++;
+			collidedBoundFace += glm::vec3(0, min.y, 0);
+			maxPenetration = glm::max(maxPenetration, glm::abs(v.y - min.y));
+		}
+		else if (v.y > max.y)
+		{
+			normal.y += -1.0f;
+			if (glm::abs(v.y - max.y) > maxPenetration)
+				contanctPoint = v;
+			numCollisions++;
+			collidedBoundFace += glm::vec3(0, max.y, 0);
+			maxPenetration = glm::max(maxPenetration, glm::abs(v.y - max.y));
+		}
+		if (v.z < min.z)
+		{
+			normal.z += 1.0f;
+			if (glm::abs(v.z - min.z) > maxPenetration)
+				contanctPoint = v;
+			numCollisions++;
+			collidedBoundFace += glm::vec3(0, 0, min.z);
+			maxPenetration = glm::max(maxPenetration, glm::abs(v.z - min.z));
+		}
+		else if (v.z > max.z)
+		{
+			normal.z += -1.0f;
+			if (glm::abs(v.z - max.z) > maxPenetration)
+			contanctPoint = v;
+			numCollisions++;
+			collidedBoundFace += glm::vec3(0, 0, max.z);
+			maxPenetration = glm::max(maxPenetration, glm::abs(v.z - max.z));
+		}
+	}
+	normal = glm::normalize(normal);
+	//contanctPoint = contanctPoint;
+	collidedBoundFace = collidedBoundFace/ ((float)numCollisions);
+	penetration = glm::dot(contanctPoint - collidedBoundFace, normal);
+	return glm::length(normal) > 0.0f;
 }
 
 void CImageMaps::AddImageMap(ImageMap::BindingSlot slot, std::string path)

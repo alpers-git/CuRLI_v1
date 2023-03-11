@@ -94,7 +94,7 @@ public:
 			if (m2Down && shiftDown)
 			{
 				ApplicationState::GetInstance().physicsInteraction = true;
-				rb->ApplyAngularImpulse((deltaPos.x * -up + deltaPos.y * -right) * 800.1f);
+				rb->ApplyAngularImpulse((deltaPos.x * -up + deltaPos.y * -right) * 80.1f);
 			}
 		}
 
@@ -137,7 +137,7 @@ protected:
 	}
 	
 	std::shared_ptr<Scene> scene;
-	const float tStepSize = 0.001f;
+	const float tStepSize = 0.0001f;
 	float t = 0.0f;
 	
 	bool m1Down = false;
@@ -193,99 +193,47 @@ public:
 					{
 						auto* bounds = scene->registry.try_get<CPhysicsBounds>(e);
 						if (bounds)
-						{
-							const glm::vec3 min = bounds->GetMin();
-							const glm::vec3 max = bounds->GetMax();
-							
-							//Go over the vertices of the box collider and figure if any of them are outside the bounds
-							//if there is a collision init the collision normal to point inward to the bounds
-							glm::vec3 collisionNormal = glm::vec3(0.0f);
-							glm::vec3 collisionVert = glm::vec3(0.0f);
-							int numCollisions = 0;
-							glm::vec3 collidedBoundFace = glm::vec3(0.0f);
-							for (int i = 0; i < 8; i++)
-							{
-								const glm::vec3 v = boxCollider->vertices[i];
-								if (v.x < min.x)
-								{
-									collisionNormal.x += 1.0f;
-									collisionVert += v;
-									numCollisions++;
-									collidedBoundFace = glm::vec3(min.x, 0.0f, 0.0f);
-									//break;
-								}
-								else if (v.x > max.x)
-								{
-									collisionNormal.x += -1.0f;
-									collisionVert += v;
-									numCollisions++;
-									collidedBoundFace = glm::vec3(max.x, 0.0f, 0.0f);
-									//break;
-								}
-								if (v.y < min.y)
-								{
-									collisionNormal.y += 1.0f;
-									collisionVert += v;
-									numCollisions++;
-									collidedBoundFace = glm::vec3(0, min.y, 0);
-									//break;
-								}
-								else if (v.y > max.y)
-								{
-									collisionNormal.y += -1.0f;
-									collisionVert += v;
-									numCollisions++;
-									collidedBoundFace = glm::vec3(0, max.y, 0);
-									//break;
-								}
-								if (v.z < min.z)
-								{
-									collisionNormal.z += 1.0f;
-									collisionVert += v;
-									numCollisions++;
-									collidedBoundFace = glm::vec3(0, 0, min.z);
-									//break;
-								}
-								else if (v.z > max.z)
-								{
-									collisionNormal.z += -1.0f;
-									collisionVert += v;
-									numCollisions++;
-									collidedBoundFace = glm::vec3(0, 0, max.z);
-									//break;
-								}
-							}
-							if (glm::length(collisionNormal) > 0.0f) //Resolve the collision
+						{	
+							glm::vec3 collisionNormal(0.0f);
+							glm::vec3 collisionVert(0.0f);
+							float penetration = 0;
+							if ( bounds->IsCollidingWith(*boxCollider, collisionNormal, collisionVert, penetration) ) //Resolve the collision
 							{
 								//Check if object has sufficient momentum to bounce of the object
 								if (glm::abs(glm::dot(collisionNormal, rb.linearMomentum)) < 0.001f )
 								{
 									//if not the object is residing the boundary dont test for collision
 									rb.linearMomentum -= collisionNormal * rb.linearMomentum;
-									return;
+									//rb.angularMomentum = glm::vec3(0);
+									//return;
 								}
-
-								collisionVert = collisionVert /((float) numCollisions);//Avg box collision
 
 								//For more accurate collisions find the closest vertex on model
 								const glm::mat4 modelMat = scene->registry.get<CTransform>(entity).GetModelMatrix();
 								const glm::vec3 modelSpaceCollisionVert = 
 									glm::inverse(modelMat) * glm::vec4(collisionVert,1.f);
 								const glm::vec3 accurateCollisionVert = modelMat * glm::vec4(scene->registry.get<CTriMesh>(entity).
-									ApproximateTheClosestPointTo(collisionVert, 10), 1.0f);
+									ApproximateTheClosestPointTo(modelSpaceCollisionVert, max(1, scene->registry.get<CTriMesh>(entity).GetNumVertices()/10)), 1.0f);
 
-								collisionNormal = glm::normalize(collisionNormal);
-								const glm::vec3 r = accurateCollisionVert - rb.position;
+								const glm::vec3 r = collisionVert - rb.position;
 								float impulseMag = bounds->MagImpulseCollistionFrom(
 									boxCollider->elasticity, rb.mass,
 									rb.GetInertiaTensor(), rb.GetVelocity(),
 									collisionNormal, r);
 								
-								const float penetration = -glm::dot(collisionVert - collidedBoundFace, collisionNormal);
 								rb.ApplyLinearImpulse(collisionNormal * impulseMag);
-
-								rb.ApplyAngularImpulse(impulseMag * glm::cross(r, collisionNormal) * 100.f);
-								rb.position += penetration * collisionNormal * 2.5f;//Apply perturbation
+								const auto angImp = impulseMag * glm::cross(r, collisionNormal) *1.f;
+								rb.ApplyAngularImpulse(angImp);
+								int colCounter = 0;
+								do
+								{
+									rb.position -= penetration * collisionNormal;//Apply perturbation until no longer colliding
+									rb.linearMomentum -= penetration * collisionNormal;
+									this->Synchronize();
+									if (colCounter++ > 5)
+										break;
+									
+								} while (bounds->IsCollidingWith(*boxCollider, collisionNormal, collisionVert, penetration));
 							}
 						}
 					}	
