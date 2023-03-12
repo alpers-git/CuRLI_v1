@@ -1,16 +1,22 @@
 #version 450
-precision mediump float;
+precision highp float;
+
 //------------ Structs ------------
 struct PLight{
-     vec3 position;
-     vec3 color;
-     float intensity;
+    vec3 position;
+    vec3 color;
+    float intensity;
 };
 struct DLight{
-     vec3 direction;
-     vec3 color;
-     float intensity;
+    vec3 direction;
+    vec3 color;
+    float intensity;
+    int casting_shadows;
+    sampler2DShadow shadow_map;
+    mat4 to_light_view_space;
 };
+
+uniform sampler2DShadow shadow_map;
 
 //------------ Variying ------------
 layout (location = 3) in vec3 v_space_norm;
@@ -18,13 +24,14 @@ layout (location = 4) in vec3 v_space_pos;
 layout (location = 5) in vec2 tex_coord;
 layout (location = 6) in vec3 w_space_pos;
 layout (location = 7) in vec3 w_space_norm;
+layout (location = 8) in vec4 lv_space_pos;
 
 //------------ Uniforms ------------
 uniform mat4 to_view_space; //mv
 uniform int p_light_count;
-uniform PLight p_lights[8];
+uniform PLight p_lights[5];
 uniform int d_light_count;
-uniform DLight d_lights[8];
+uniform DLight d_lights[5];
 
 uniform struct Material {
      vec3 ka;
@@ -39,7 +46,6 @@ uniform sampler2D tex_list[5];
 uniform samplerCube env_map;
 uniform int has_env_map = 0;
 uniform vec3 camera_pos;
-
 uniform int mirror_reflection = 0;
 
 out vec4 color;
@@ -48,6 +54,7 @@ void main() {
      if(shading_mode == 0)//phong shading textures and environment maps
      {
           color = vec4(0,0,0,1);
+          float shadow = 0;
           vec3 v_space_norm = normalize(v_space_norm);
           for(int i = 0; i < p_light_count + d_light_count; i++)
           {
@@ -63,9 +70,16 @@ void main() {
                }
                else //directional light sources
                {
-                    l =  normalize(d_lights[i-p_light_count].direction);
-                    intensity = d_lights[i-p_light_count].intensity;
-                    light_color = d_lights[i-p_light_count].color;
+                    int d_light_index = i - p_light_count;
+                    l = -normalize(d_lights[d_light_index].direction);
+                    intensity = d_lights[d_light_index].intensity;
+                    light_color = d_lights[d_light_index].color;
+
+                    if(d_lights[d_light_index].casting_shadows == 1)
+                    {
+                        vec4 lv_space_pos = d_lights[d_light_index].to_light_view_space * vec4(w_space_pos, 1.0);
+                        intensity *= textureProj(shadow_map, lv_space_pos);
+                    }
                }
                vec3 h = normalize(l + vec3(0,0,1)); //half vector
 
@@ -80,9 +94,9 @@ void main() {
                     color += vec4(intensity * normalize(light_color) * (specular + diffuse), 1);
                }
           }
-          //sample ambient once
+          
           color = color + 0.5 * vec4( (has_texture[0]==1 ? (texture(tex_list[0], tex_coord)).xyz :
-                                                             material.ka), 1);
+                                                            material.ka), 1);
           if(has_env_map != 0)//sample environment map if it exists
           {
                vec3 env_color = texture(env_map, reflect(-camera_pos+w_space_pos, normalize(w_space_norm))).xyz;

@@ -122,11 +122,6 @@ public:
 		T[3] = glm::vec4(point, 1.0);
 
 		R[3] = glm::vec4((glm::mat3(1.f) - t) * point, 1.f);*/
-
-		glm::vec3 V = glm::vec3(-copyCamera.viewMatrix[2][0], -copyCamera.viewMatrix[2][1], -copyCamera.viewMatrix[2][2]);
-		glm::vec3 R = glm::reflect(V, normal);
-		copyCamera.viewMatrix = glm::lookAt(point, point + R, glm::vec3(0, 1, 0));
-		copyCamera.viewMatrix = glm::scale(copyCamera.viewMatrix, glm::vec3(1, -1, 1));
 		
 		/*copyCamera.viewMatrix = R * copyCamera.viewMatrix;*/
 		
@@ -788,7 +783,7 @@ public:
 	std::unordered_map<ImageMap::BindingSlot, ImageMap>::iterator mapsBegin() { return imgMaps.begin(); }
 	std::unordered_map<ImageMap::BindingSlot, ImageMap>::iterator mapsEnd() { return imgMaps.end(); }
 
-	bool dirty = false;
+	bool scheduledTextureUpdate = false;
 private:
 	std::unordered_map<ImageMap::BindingSlot, ImageMap> imgMaps;
 };
@@ -841,7 +836,28 @@ public:
 
 	}
 
+	glm::mat4 GetShadowMatrix()
+	{
+		if (lightType == LightType::POINT)
+			return glm::mat4(1.0f);
+		else if (lightType == LightType::DIRECTIONAL)
+		{
+			glm::mat4 lightProjection = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 0.1f, 70.f);
+			glm::mat4 lightView = glm::lookAt(-glm::normalize(direction),
+				glm::vec3(0.0f, 0.0f, 0.0f),
+				glm::vec3(0.0f, 1.0f, 0.0f));
+			return lightProjection * lightView;
+		}
+		else
+			return glm::mat4(1.0f);
+	}
 	LightType GetLightType() { return lightType; }
+	bool IsCastingShadows() { return castingShadow; }
+
+	void SetCastingShadows(bool castShadow) { 
+		this->scheduledTextureUpdate = true;
+		this->castingShadow = castShadow; 
+	}
 
 	glm::vec3 color;
 	float intensity;
@@ -850,13 +866,14 @@ public:
 	glm::vec3 direction;
 	glm::vec3 position;
 	bool show = false;
-	bool castShadow = false;
 
 	void Update();
 
+	bool scheduledTextureUpdate = false;
+	GLuint glID;
 private:
 	LightType lightType;
-
+	bool castingShadow = false;
 };
 
 struct CSkyBox : Component

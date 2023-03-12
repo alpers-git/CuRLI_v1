@@ -67,7 +67,6 @@ public:
 	}
 	
 protected:
-	//unsigned int VBO, VAO, EBO;
 	std::unique_ptr<OpenGLProgram> program;
 	std::shared_ptr<Scene> scene;
 	long int frameCounter = 0;
@@ -286,7 +285,7 @@ protected:
 			return;
 		}
 		
-		//--------------ImageMap changed----------------//
+		//----------------ImageMap changed--------------//
 		auto* imgMaps = scene->registry.try_get<CImageMaps>(e);
 		if (imgMaps)
 		{
@@ -298,13 +297,7 @@ protected:
 				entity2TextureIndices.erase(e);
 			}
 			
-			if (entity2EnvMapIndex.find(e) != entity2EnvMapIndex.end())
-			{
-				program->cubeMaps[entity2EnvMapIndex[e]].Delete();
-				entity2EnvMapIndex.erase(e);
-			}
-			
-			imgMaps->dirty = false;
+			imgMaps->scheduledTextureUpdate = false;
 			if (toBeRemoved)
 				return;
 			
@@ -367,6 +360,26 @@ protected:
 					}
 				}
 			}
+			return;
+		}
+		
+		//----------Light shadow status changed---------//
+		auto* light = scene->registry.try_get<CLight>(e);
+		if (light)
+		{
+			if (entity2ShadowMapIndex.find(e) != entity2ShadowMapIndex.end())
+			{
+				program->shadowTextures[entity2ShadowMapIndex[e]].Delete();
+				entity2ShadowMapIndex.erase(e);
+			}
+
+			if (toBeRemoved)
+				return;
+
+			ShadowTexture sMap({ 500,500 }, GL_TEXTURE15);
+			program->shadowTextures.push_back(sMap);
+			entity2ShadowMapIndex[e] = program->shadowTextures.size() - 1;
+			light->glID = sMap.GetGLID();
 		}
 	}
 };
@@ -1168,10 +1181,18 @@ public:
 		printf("Initializing Renderer\n");
 		program->SetGLClearFlags(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-
+		//load shaders to the shadow program
+		shadowProgram = std::make_unique<OpenGLProgram>();
+		shadowProgram->CreatePipelineFromFiles("../assets/shaders/shadow/shadow.vert",
+			"../assets/shaders/shadow/shadow.frag");
+		program->SetClearColor({ 0.0f,0.0f,0.0f,1.f });
+		
+		//load shaders to the main program 
 		program->CreatePipelineFromFiles("../assets/shaders/phong_textured/shader.vert",
 			"../assets/shaders/phong_textured/shader.frag");
 		program->SetClearColor({ 0.01f,0.f,0.09f,1.f });
+
+		
 		
 		scene->registry.view<CTriMesh>()
 			.each([&](const auto entity, auto& mesh)
@@ -1211,25 +1232,41 @@ public:
 	};
 	void PreUpdate()
 	{	
+		//=======StackPush=======
+		glm::vec4 clearColor = program->GetClearColor();
+		Camera origCam = scene->camera;
+		//render shadow textures
+		scene->registry.view<CLight>()
+			.each([&](const auto& entity, auto& light)
+			{
+				if (!light.scheduledTextureUpdate && light.IsCastingShadows() &&
+					light.GetLightType() == LightType::DIRECTIONAL)//for now
+				{
+					//Create Orthographic camera at 500 units away from 0,0,0 in the direction of light
+
+					if(entity2ShadowMapIndex.find(entity) != entity2ShadowMapIndex.end())
+						program->shadowTextures[entity2ShadowMapIndex[entity]]
+							.Render(std::bind(&MultiTargetRenderer::UpdateShadows, this, light.GetShadowMatrix()));
+				}
+			});
+
 		//render renderedTextures
 		scene->registry.view<CImageMaps>()
 			.each([&](const auto& entity, auto& maps)
 			{
-				//=======StackPush=======
-				//Set the object's visibility to false
 				auto* mesh = scene->registry.try_get<CTriMesh>(entity);
 				auto* transform = scene->registry.try_get<CTransform>(entity);
 				bool meshVisibility = true;
-				Camera tmp = scene->camera;
-				glm::vec4 clearColor = program->GetClearColor();
+				//Set the object's visibility to false
 				if (mesh)
 				{
 					meshVisibility = mesh->visible;
 					mesh->visible = false;
 				}
 
+
 				//iterate over each imagemap of maps
-				if (!maps.dirty && meshVisibility)
+				if (!maps.scheduledTextureUpdate && meshVisibility)
 				{
 					for (auto it = maps.mapsBegin(); it != maps.mapsEnd(); ++it)
 					{
@@ -1265,12 +1302,34 @@ public:
 					}
 				}
 
-				//=======StackPop=======
-				program->SetClearColor(clearColor);
-				scene->camera = tmp;
 				if(mesh)
 					mesh->visible = meshVisibility;
+			});
 
+		//=======StackPop=======
+		program->SetClearColor(clearColor);
+		scene->camera = origCam;
+	}
+	//Gets called from PreUpdate
+	void UpdateShadows(glm::mat4 shadowMatrix)
+	{
+		//bind shadow program
+		shadowProgram->Use();
+
+		//only render meshes
+		scene->registry.view<CTriMesh>()
+			.each([&](const auto& entity, auto& mesh)
+			{
+				if (entity2VAOIndex.find(entity) != entity2VAOIndex.end())
+					program->vaos[entity2VAOIndex[entity]].visible = mesh.visible;
+				CTransform* transform = scene->registry.try_get<CTransform>(entity);
+
+				const glm::mat4 mlp = shadowMatrix *(transform ?
+					transform->GetModelMatrix() : glm::mat4(1.0f));
+				shadowProgram->SetUniform("to_screen_space", mlp);
+
+				if (entity2VAOIndex.find(entity) != entity2VAOIndex.end() && mesh.GetShadingMode() == ShadingMode::PHONG)
+					program->vaos[entity2VAOIndex[entity]].Draw();
 			});
 	}
 
@@ -1287,12 +1346,12 @@ public:
 		{
 			if (light.GetLightType() == LightType::POINT)
 			{
-				std::string shaderName("p_lights[" + std::to_string(p) + "].position");
-				program->SetUniform(shaderName.c_str(), glm::vec3(scene->camera.GetViewMatrix() * glm::vec4(light.position, 1)));
-				shaderName = std::string("p_lights[" + std::to_string(p) + "].intensity");
-				program->SetUniform(shaderName.c_str(), light.intensity);
-				shaderName = std::string("p_lights[" + std::to_string(p) + "].color");
-				program->SetUniform(shaderName.c_str(), light.color);
+				std::string varName("p_lights[" + std::to_string(p) + "].position");
+				program->SetUniform(varName.c_str(), glm::vec3(scene->camera.GetViewMatrix() * glm::vec4(light.position, 1)));
+				varName = std::string("p_lights[" + std::to_string(p) + "].intensity");
+				program->SetUniform(varName.c_str(), light.intensity);
+				varName = std::string("p_lights[" + std::to_string(p) + "].color");
+				program->SetUniform(varName.c_str(), light.color);
 				p++;
 				if (light.show)//Display light
 				{
@@ -1306,12 +1365,36 @@ public:
 			}
 			else if (light.GetLightType() == LightType::DIRECTIONAL)
 			{
-				std::string shaderName("d_lights[" + std::to_string(d) + "].direction");
-				program->SetUniform(shaderName.c_str(), glm::vec3(scene->camera.GetViewMatrix() * glm::vec4(light.direction, 0)));
-				shaderName = std::string("d_lights[" + std::to_string(d) + "].intensity");
-				program->SetUniform(shaderName.c_str(), light.intensity);
-				shaderName = std::string("d_lights[" + std::to_string(d) + "].color");
-				program->SetUniform(shaderName.c_str(), light.color);
+				std::string varName("d_lights[" + std::to_string(d) + "].direction");
+				program->SetUniform(varName.c_str(), glm::vec3(scene->camera.GetViewMatrix() * glm::vec4(light.direction, 0)));
+				varName = std::string("d_lights[" + std::to_string(d) + "].intensity");
+				program->SetUniform(varName.c_str(), light.intensity);
+				varName = std::string("d_lights[" + std::to_string(d) + "].color");
+				program->SetUniform(varName.c_str(), light.color);
+				varName = std::string("d_lights[" + std::to_string(d) + "].casting_shadows");
+				if (!light.scheduledTextureUpdate && light.IsCastingShadows() &&
+					entity2ShadowMapIndex.find(entity) != entity2ShadowMapIndex.end())
+				{
+					program->SetUniform(varName.c_str(), 1);
+
+					varName = std::string("d_lights[" + std::to_string(d) + "].to_light_view_space");
+					
+					const glm::mat4 shadowMatrix = glm::mat4(
+						0.5, 0.0, 0.0, 0.0,
+						0.0, 0.5, 0.0, 0.0,
+						0.0, 0.0, 0.5, 0.0,
+						0.5+0.1, 0.5+0.1, 0.5 + 0.1, 1.0
+					) * light.GetShadowMatrix();
+					program->SetUniform(varName.c_str(), shadowMatrix);
+
+					program->shadowTextures[entity2ShadowMapIndex[entity]].Bind();
+					varName = std::string("shadow_map");
+					program->SetUniform(varName.c_str(), 15 + d);//todo
+				}
+				else
+				{
+					//program->SetUniform(varName.c_str(), -1);
+				}
 				d++;
 			}
 		});
@@ -1346,7 +1429,7 @@ public:
 			program->SetUniform("camera_pos", scene->camera.GetLookAtEye());
 				
 			CImageMaps* imgMaps = scene->registry.try_get<CImageMaps>(entity);
-			if (imgMaps && !imgMaps->dirty)
+			if (imgMaps && !imgMaps->scheduledTextureUpdate)
 			{
 				//iterate over all imagemaps
 				for (auto it = imgMaps->mapsBegin(); it != imgMaps->mapsEnd(); ++it)
@@ -1522,7 +1605,7 @@ public:
 			scene->registry.view<CImageMaps>()
 				.each([&](auto& maps)
 					{
-						if (!maps.dirty)
+						if (!maps.scheduledTextureUpdate)
 						{
 							for (auto it = maps.mapsBegin(); it != maps.mapsEnd(); ++it)
 							{
@@ -1580,7 +1663,7 @@ public:
 			scene->registry.view<CImageMaps>()
 				.each([&](auto& maps)
 					{
-						if (!maps.dirty)
+						if (!maps.scheduledTextureUpdate)
 						{
 							for (auto it = maps.mapsBegin(); it != maps.mapsEnd(); ++it)
 							{
@@ -1603,6 +1686,8 @@ public:
 	}
 
 private:
+	std::unique_ptr<OpenGLProgram> shadowProgram;
+	
 	//--orbit controls--//
 	bool m1Down = false;
 	bool m2Down = false;

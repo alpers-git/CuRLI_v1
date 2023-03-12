@@ -557,13 +557,23 @@ namespace gui
 									event.geometryChange.e = e;
 									event.geometryChange.toBeRemoved = !l.show;
 									GLFWHandler::GetInstance().QueueEvent(event);
+									ImGui::SameLine();
 								}
+								ImGui::Text("Casts Shadow"); ImGui::SameLine();
+								bool shadow = l.IsCastingShadows();
+								if(ImGui::ToggleButton("shadow", &shadow))
+									l.SetCastingShadows(shadow);
+								if (shadow)
+								{
+									ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+									ImGui::Image((void*)(intptr_t) l.glID,
+										ImVec2(viewportPanelSize.x / 2, viewportPanelSize.x / 2));
+								}
+								
 								ImGui::Text(l.GetLightType() == LightType::POINT ? "Point" :
 									(l.GetLightType() == LightType::DIRECTIONAL ? "Directional" : "Spot"));
 								ImGui::DragFloat("Intensity", &l.intensity, 0.01f, 0.0f, 1.0f);
 								ImGui::ColorEdit3("Color", &(l.color[0]));
-								ImGui::Text("Casts Shadow"); ImGui::SameLine();
-								ImGui::ToggleButton("shadow", &l.castShadow);
 								if (l.GetLightType() == LightType::POINT ||
 									l.GetLightType() == LightType::SPOT)
 								{

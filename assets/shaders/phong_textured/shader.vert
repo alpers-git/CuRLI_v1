@@ -10,15 +10,16 @@ layout (location = 4) out vec3 v_space_pos;
 layout (location = 5) out vec2 tex_coord;
 layout (location = 6) out vec3 w_space_pos;
 layout (location = 7) out vec3 w_space_norm;
+layout (location = 8) out vec4 lv_space_pos;
 
 
 uniform mat4 to_screen_space; // mvp
 uniform mat4 to_view_space; //mv
 uniform mat4 to_world_space; //m
+
 uniform mat3 normals_to_world_space;
 uniform mat3 normals_to_view_space;
 uniform vec3 camera_pos;
-
 uniform int mirror_reflection = 0;
 
 const mat4 scale_bias = mat4(vec4(0.5, 0.0, 0.0, 0.0), vec4(0.0, 0.5, 0.0, 0.0), vec4(0.0, 0.0, 0.5, 0.0), vec4(0.5, 0.5, 0.5, 1.0));

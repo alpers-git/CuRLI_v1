@@ -420,7 +420,7 @@ void Scene::Update()
 {
 	registry.view<CImageMaps>().each([&](const entt::entity& entity, CImageMaps& maps)
 		{
-			if (maps.dirty)
+			if (maps.scheduledTextureUpdate)
 			{
 				Event e;
 				e.type = Event::Type::TextureChange;
@@ -428,7 +428,21 @@ void Scene::Update()
 				e.textureChange.toBeRemoved = false;
 			
 				GLFWHandler::GetInstance().QueueEvent(e);
-				maps.dirty = false;
+				maps.scheduledTextureUpdate = false;
+			}
+		});
+
+	registry.view<CLight>().each([&](const entt::entity& entity, CLight& light)
+		{
+			if (light.scheduledTextureUpdate)
+			{
+				Event e;
+				e.type = Event::Type::TextureChange;
+				e.textureChange.e = entity;
+				e.textureChange.toBeRemoved = !light.IsCastingShadows();
+
+				GLFWHandler::GetInstance().QueueEvent(e);
+				light.scheduledTextureUpdate = false;
 			}
 		});
 }
@@ -674,7 +688,7 @@ void CImageMaps::AddImageMap(ImageMap::BindingSlot slot, std::string path)
 	imgMaps.insert({ slot, ImageMap(path, slot) });
 	
 	//TODO::Schedule texture synch with renderer
-	dirty = true;
+	scheduledTextureUpdate = true;
 }
 
 void CImageMaps::AddImageMap(ImageMap::BindingSlot slot, glm::uvec2 dims, 
@@ -683,13 +697,13 @@ void CImageMaps::AddImageMap(ImageMap::BindingSlot slot, glm::uvec2 dims,
 	imgMaps.insert({ slot, ImageMap(dims, slot, mode, camera) });
 
 	//TODO::Schedule texture synch with renderer
-	dirty = true;
+	scheduledTextureUpdate = true;
 }
 
 void CImageMaps::AddImageMap(ImageMap::BindingSlot slot, std::string path[6])
 {
 	imgMaps.insert({ slot, ImageMap(path, slot) });
-	dirty = true;
+	scheduledTextureUpdate = true;
 }
 
 void CImageMaps::RemoveImageMap(ImageMap::BindingSlot slot)
@@ -697,7 +711,7 @@ void CImageMaps::RemoveImageMap(ImageMap::BindingSlot slot)
 	imgMaps.erase(slot);
 	
 	//TODO::Schedule texture synch with renderer
-	dirty = true;
+	scheduledTextureUpdate = true;
 }
 
 std::string ImageMap::GetSlotName()

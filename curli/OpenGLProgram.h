@@ -17,7 +17,7 @@ do { \
     if (error != GL_NO_ERROR) { \
         const char* errorString = (const char*)glad_glGetString(GL_VERSION); \
         const char* description = (const char*)glfwGetError(NULL); \
-        printf("OpenGL error %d (%s) at %s:%d - %s\n", error, errorString, __FILE__, __LINE__, description); \
+        printf("OpenGL error 0x%08x (%s) at %s:%d - %s\n", error, errorString, __FILE__, __LINE__, description); \
     } \
 } while (false)
 
@@ -508,7 +508,8 @@ struct RenderedTexture2D
 
 struct ShadowTexture
 {
-	ShadowTexture(glm::uvec2 dims, GLenum textUnit)
+	ShadowTexture(glm::uvec2 dims, GLenum texUnit = GL_TEXTURE10)
+		:dims(dims), texUnit(texUnit)
 	{
 		//configure depth texture
 		GL_CALL(glGenTextures(1, &glID));
@@ -517,11 +518,13 @@ struct ShadowTexture
 		GL_CALL(glTexImage2D(GL_TEXTURE_2D, 
 			0, GL_DEPTH_COMPONENT24,
 			dims.x, dims.y,
-			0, GL_DEPTH_COMPONENT24,
+			0, GL_DEPTH_COMPONENT,
 			GL_FLOAT, 0));
 
 		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
 		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
 		
 		//save the renderer state
 		GLint origFB;
@@ -530,21 +533,10 @@ struct ShadowTexture
 		//configure framebuffer
 		GL_CALL(glGenFramebuffers(1, &frameBufferID));
 		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID));
-		GL_CALL(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, glID, 0));//different
+		GL_CALL(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, glID, 0););//different
 		
 		GL_CALL(glDrawBuffer(GL_NONE));
 		GL_CALL(glReadBuffer(GL_NONE));
-
-		GL_CALL(glGenRenderbuffers(1, &depthBufferID));
-		GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, depthBufferID));
-		GL_CALL(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, dims.x, dims.y));
-
-		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID)); //For safety
-		GL_CALL(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-			GL_RENDERBUFFER, depthBufferID));
-
-		/*GLenum drawBuffers[1] = { GL_NONE };
-		GL_CALL(glDrawBuffers(1, drawBuffers));*/
 
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
@@ -568,12 +560,20 @@ struct ShadowTexture
 		GL_CALL(glViewport(0, 0, dims.x, dims.y));
 		auto mask = GL_DEPTH_BUFFER_BIT;
 		GL_CALL(glClear(mask));
+		//glCullFace(GL_FRONT);
 		renderFunc();//Tell how the scene is going to be rendered
+		//glCullFace(GL_BACK);
 
 		//Restore the renderer
 		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, origFB));
 		GL_CALL(glViewport(origViewport[0], origViewport[1], origViewport[2], origViewport[3]));
 		GL_CALL(glClear(mask));
+	}
+
+	void Bind()
+	{
+		GL_CALL(glActiveTexture(texUnit));
+		GL_CALL(glBindTexture(GL_TEXTURE_2D, glID));
 	}
 
 	void Delete()
@@ -582,6 +582,12 @@ struct ShadowTexture
 		GL_CALL(glDeleteRenderbuffers(1, &depthBufferID));
 	}
 
+	GLuint GetGLID()
+	{
+		return glID;
+	}
+
+private:
 	GLuint frameBufferID;
 	GLuint depthBufferID;
 	GLuint glID;
@@ -789,6 +795,7 @@ public:
 	std::vector<VertexArrayObject> vaos;
 	std::vector<Texture2D> textures;
 	std::vector<RenderedTexture2D> renderedTextures;
+	std::vector<ShadowTexture> shadowTextures;
 	std::vector<CubeMappedTexture> cubeMaps;
 	
 	OpenGLProgram()
