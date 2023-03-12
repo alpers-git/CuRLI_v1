@@ -79,6 +79,7 @@ protected:
 	std::unordered_map<entt::entity, unsigned int> entity2VAOIndex;
 	std::unordered_map<entt::entity,vec5> entity2TextureIndices;
 	std::unordered_map<entt::entity, unsigned int> entity2EnvMapIndex;
+	std::unordered_map<entt::entity, unsigned int> entity2ShadowMapIndex;
 
 	/*
 	* Parses arguments called when application starts
@@ -264,7 +265,8 @@ protected:
 	* Handles texture updates
 	*/
 	void OnTextureChange(entt::entity e, bool toBeRemoved)
-	{
+	{	
+		//--------------Skybox changed----------------//
 		auto* skybox = scene->registry.try_get<CSkyBox>(e);
 		if (skybox)
 		{
@@ -273,7 +275,7 @@ protected:
 				program->cubeMaps[entity2EnvMapIndex[e]].Delete();
 				entity2EnvMapIndex.erase(e);
 			}
-
+			
 			if (toBeRemoved)
 				return;
 
@@ -283,85 +285,89 @@ protected:
 
 			return;
 		}
-		if (entity2TextureIndices.find(e) != entity2TextureIndices.end())
-		{
-			for (int i = 0; i < 5; ++i)
-				if (entity2TextureIndices[e].v[i] != -1)
-					program->textures[entity2TextureIndices[e].v[i]].Delete();
-			entity2TextureIndices.erase(e);
-		}
 		
-		if (toBeRemoved)
-		{
-			auto* imgMaps = scene->registry.try_get<CImageMaps>(e);
-			if(imgMaps)
-				imgMaps->dirty = false;
-			return;
-		}
-		
-		
+		//--------------ImageMap changed----------------//
 		auto* imgMaps = scene->registry.try_get<CImageMaps>(e);
-		
-		//create an array of 5 ints to store the texture ids
-		vec5 textureIDs;
-		//iterate over all the image maps create texture objects for them
-		for (auto it = imgMaps->mapsBegin(); it != imgMaps->mapsEnd(); ++it)
+		if (imgMaps)
 		{
-			if (it->second.IsRenderedImage())
+			if (entity2TextureIndices.find(e) != entity2TextureIndices.end())
 			{
-				if (it->second.GetBindingSlot() == ImageMap::BindingSlot::ENV_MAP)
-				{
-					CubeMappedTexture cMap(it->second.GetDims(), true,
-						GL_TEXTURE0 + (int)it->second.GetBindingSlot());//Rendered variant
-					program->cubeMaps.push_back(cMap);
-					entity2EnvMapIndex[e] = program->cubeMaps.size() - 1;
-					it->second.glID = cMap.GetGLID();
-				}
-				else
-				{
-					RenderedTexture2D renderedTexture(it->second.GetDims(), 
-						GL_TEXTURE0 + (int)it->second.GetBindingSlot(), true, 
-						GL_REPEAT, GL_REPEAT, GL_UNSIGNED_BYTE, GL_RGB, 0);
-					renderedTexture.GetTexture().SetParami(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-					renderedTexture.GetTexture().SetParami(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-					renderedTexture.GetTexture().SetParamf(GL_TEXTURE_MAX_ANISOTROPY, 4.0f);
-					
-					//add the texture to the program
-					program->textures.push_back(renderedTexture.GetTexture());
-					program->renderedTextures.push_back(renderedTexture);
-					
-					it->second.glID = renderedTexture.GetTexture().GetGLID();
-					//Needed for mapping between textures and CImageMaps
-					it->second.SetProgramRenderedTexIndex(program->renderedTextures.size() - 1);
-					textureIDs.v[(int)it->second.GetBindingSlot()] = program->textures.size() - 1;
-					//add the texture ids to the entity2TextureIndex map
-					entity2TextureIndices[e] = textureIDs;
-				}
+				for (int i = 0; i < 5; ++i)
+					if (entity2TextureIndices[e].v[i] != -1)
+						program->textures[entity2TextureIndices[e].v[i]].Delete();
+				entity2TextureIndices.erase(e);
 			}
-			else
+			
+			if (entity2EnvMapIndex.find(e) != entity2EnvMapIndex.end())
 			{
-				if (it->second.GetBindingSlot() == ImageMap::BindingSlot::ENV_MAP)
+				program->cubeMaps[entity2EnvMapIndex[e]].Delete();
+				entity2EnvMapIndex.erase(e);
+			}
+			
+			imgMaps->dirty = false;
+			if (toBeRemoved)
+				return;
+			
+			//create an array of 5 ints to store the texture ids
+			vec5 textureIDs;
+			//iterate over all the image maps create texture objects for them
+			for (auto it = imgMaps->mapsBegin(); it != imgMaps->mapsEnd(); ++it)
+			{
+				if (it->second.IsRenderedImage())
 				{
-					CubeMappedTexture cMap((void*)&it->second.GetImage()[0], it->second.GetDims(),
-						GL_TEXTURE0 + (int)it->second.GetBindingSlot());//Static image variant TODO::Send 6 flat image as GetImage
-					program->cubeMaps.push_back(cMap);
-					entity2EnvMapIndex[e] = program->cubeMaps.size() - 1;
-					it->second.glID = cMap.GetGLID();
+					if (it->second.GetBindingSlot() == ImageMap::BindingSlot::ENV_MAP)
+					{
+						CubeMappedTexture cMap(it->second.GetDims(), true,
+							GL_TEXTURE0 + (int)it->second.GetBindingSlot());//Rendered variant
+						program->cubeMaps.push_back(cMap);
+						entity2EnvMapIndex[e] = program->cubeMaps.size() - 1;
+						it->second.glID = cMap.GetGLID();
+					}
+					else
+					{
+						RenderedTexture2D renderedTexture(it->second.GetDims(),
+							GL_TEXTURE0 + (int)it->second.GetBindingSlot(), true,
+							GL_REPEAT, GL_REPEAT, GL_UNSIGNED_BYTE, GL_RGB, 0);
+						renderedTexture.GetTexture().SetParami(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+						renderedTexture.GetTexture().SetParami(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+						renderedTexture.GetTexture().SetParamf(GL_TEXTURE_MAX_ANISOTROPY, 4.0f);
+
+						//add the texture to the program
+						program->textures.push_back(renderedTexture.GetTexture());
+						program->renderedTextures.push_back(renderedTexture);
+
+						it->second.glID = renderedTexture.GetTexture().GetGLID();
+						//Needed for mapping between textures and CImageMaps
+						it->second.SetProgramRenderedTexIndex(program->renderedTextures.size() - 1);
+						textureIDs.v[(int)it->second.GetBindingSlot()] = program->textures.size() - 1;
+						//add the texture ids to the entity2TextureIndex map
+						entity2TextureIndices[e] = textureIDs;
+					}
 				}
 				else
 				{
-					Texture2D texture ((void*)&it->second.GetImage()[0], it->second.GetDims(),
-						GL_TEXTURE0 + (int)it->second.GetBindingSlot());
-					//add the texture to the program
-					program->textures.push_back(texture);
-					it->second.glID = texture.GetGLID();
-					textureIDs.v[(int)it->second.GetBindingSlot()] = program->textures.size() - 1;
-					//add the texture ids to the entity2TextureIndex map
-					entity2TextureIndices[e] = textureIDs;
+					if (it->second.GetBindingSlot() == ImageMap::BindingSlot::ENV_MAP)
+					{
+						CubeMappedTexture cMap((void*)&it->second.GetImage()[0], it->second.GetDims(),
+							GL_TEXTURE0 + (int)it->second.GetBindingSlot());//Static image variant TODO::Send 6 flat image as GetImage
+						program->cubeMaps.push_back(cMap);
+						entity2EnvMapIndex[e] = program->cubeMaps.size() - 1;
+						it->second.glID = cMap.GetGLID();
+					}
+					else
+					{
+						Texture2D texture((void*)&it->second.GetImage()[0], it->second.GetDims(),
+							GL_TEXTURE0 + (int)it->second.GetBindingSlot());
+						//add the texture to the program
+						program->textures.push_back(texture);
+						it->second.glID = texture.GetGLID();
+						textureIDs.v[(int)it->second.GetBindingSlot()] = program->textures.size() - 1;
+						//add the texture ids to the entity2TextureIndex map
+						entity2TextureIndices[e] = textureIDs;
+					}
 				}
 			}
 		}
-		imgMaps->dirty = false;
 	}
 };
 

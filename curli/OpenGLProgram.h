@@ -506,6 +506,91 @@ struct RenderedTexture2D
 	bool hasDepth;
 };
 
+struct ShadowTexture
+{
+	ShadowTexture(glm::uvec2 dims, GLenum textUnit)
+	{
+		//configure depth texture
+		GL_CALL(glGenTextures(1, &glID));
+		GL_CALL(glBindTexture(GL_TEXTURE_2D, glID));
+		
+		GL_CALL(glTexImage2D(GL_TEXTURE_2D, 
+			0, GL_DEPTH_COMPONENT24,
+			dims.x, dims.y,
+			0, GL_DEPTH_COMPONENT24,
+			GL_FLOAT, 0));
+
+		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
+		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+		
+		//save the renderer state
+		GLint origFB;
+		GL_CALL(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &origFB));
+
+		//configure framebuffer
+		GL_CALL(glGenFramebuffers(1, &frameBufferID));
+		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID));
+		GL_CALL(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, glID, 0));//different
+		
+		GL_CALL(glDrawBuffer(GL_NONE));
+		GL_CALL(glReadBuffer(GL_NONE));
+
+		GL_CALL(glGenRenderbuffers(1, &depthBufferID));
+		GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, depthBufferID));
+		GL_CALL(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, dims.x, dims.y));
+
+		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID)); //For safety
+		GL_CALL(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+			GL_RENDERBUFFER, depthBufferID));
+
+		/*GLenum drawBuffers[1] = { GL_NONE };
+		GL_CALL(glDrawBuffers(1, drawBuffers));*/
+
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+		//preserve render state
+		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, origFB));
+	}
+	
+	~ShadowTexture()
+	{}
+	
+	void Render(std::function <void()> renderFunc)
+	{
+		//Get the renderer state
+		GLint origFB;
+		GL_CALL(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &origFB));
+		GLint origViewport[4];
+		GL_CALL(glGetIntegerv(GL_VIEWPORT, origViewport));
+
+		//Render the scene
+		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID));
+		GL_CALL(glViewport(0, 0, dims.x, dims.y));
+		auto mask = GL_DEPTH_BUFFER_BIT;
+		GL_CALL(glClear(mask));
+		renderFunc();//Tell how the scene is going to be rendered
+
+		//Restore the renderer
+		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, origFB));
+		GL_CALL(glViewport(origViewport[0], origViewport[1], origViewport[2], origViewport[3]));
+		GL_CALL(glClear(mask));
+	}
+
+	void Delete()
+	{
+		GL_CALL(glDeleteFramebuffers(1, &frameBufferID));
+		GL_CALL(glDeleteRenderbuffers(1, &depthBufferID));
+	}
+
+	GLuint frameBufferID;
+	GLuint depthBufferID;
+	GLuint glID;
+	glm::uvec2 dims;
+	
+	GLuint texUnit;
+	
+};
+
 struct CubeMappedTexture
 {
 	CubeMappedTexture(void* data, glm::uvec2 dims, bool seamless = true,

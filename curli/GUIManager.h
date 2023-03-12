@@ -562,6 +562,8 @@ namespace gui
 									(l.GetLightType() == LightType::DIRECTIONAL ? "Directional" : "Spot"));
 								ImGui::DragFloat("Intensity", &l.intensity, 0.01f, 0.0f, 1.0f);
 								ImGui::ColorEdit3("Color", &(l.color[0]));
+								ImGui::Text("Casts Shadow"); ImGui::SameLine();
+								ImGui::ToggleButton("shadow", &l.castShadow);
 								if (l.GetLightType() == LightType::POINT ||
 									l.GetLightType() == LightType::SPOT)
 								{

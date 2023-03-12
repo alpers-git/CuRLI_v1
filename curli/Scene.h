@@ -850,6 +850,7 @@ public:
 	glm::vec3 direction;
 	glm::vec3 position;
 	bool show = false;
+	bool castShadow = false;
 
 	void Update();
 
