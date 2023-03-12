@@ -716,7 +716,7 @@ namespace gui
 									}
 									ImGui::EndCombo();
 								}
-								ImGui::SameLine();
+								//ImGui::SameLine();
 								if (ImGui::Button(textureBinding == ImageMap::BindingSlot::ENV_MAP ?
 									"from Img. 6 files" : "from img") && current_item != NULL)
 								{
@@ -764,27 +764,16 @@ namespace gui
 									}
 								}
 								
-								static ImageMap::RenderImageMode mode;
-								if (textureBinding == ImageMap::BindingSlot::ENV_MAP)
-									ImGui::BeginDisabled();
-								ImGui::BeginGroup();
-								ImGui::RadioButton("Reflection", &(int)mode, 0);
-								ImGui::RadioButton("Shadow", &(int)mode, 1);
-								ImGui::EndGroup();
-								if (textureBinding == ImageMap::BindingSlot::ENV_MAP)
-									ImGui::EndDisabled();
-								
 								ImGui::SameLine();
-								if (ImGui::Button("from render") && current_item != NULL)
+								if (ImGui::Button("from reflections") && current_item != NULL)
 								{
-									printf("mode %d\n", mode);
 									auto* mesh = scene->registry.try_get<CTriMesh>(e);
 									if (mesh);
 									//TODO: find a way to extract dims from mesh
 									if (textureBinding == ImageMap::BindingSlot::ENV_MAP)
 										t.AddImageMap(textureBinding, glm::uvec2(1000, 1000), ImageMap::RenderImageMode::CUSTOM);
 									else
-										t.AddImageMap(textureBinding, glm::uvec2(1000,1000), (ImageMap::RenderImageMode)mode);
+										t.AddImageMap(textureBinding, glm::uvec2(1000,1000), ImageMap::RenderImageMode::REFLECTION );
 								}
 								
 								ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();

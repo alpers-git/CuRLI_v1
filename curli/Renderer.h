@@ -311,12 +311,11 @@ protected:
 			{
 				if (it->second.GetBindingSlot() == ImageMap::BindingSlot::ENV_MAP)
 				{
-					CubeMappedTexture cMap(it->second.GetDims(),
+					CubeMappedTexture cMap(it->second.GetDims(), true,
 						GL_TEXTURE0 + (int)it->second.GetBindingSlot());//Rendered variant
 					program->cubeMaps.push_back(cMap);
 					entity2EnvMapIndex[e] = program->cubeMaps.size() - 1;
 					it->second.glID = cMap.GetGLID();
-					printf("Env map created with %d\n", cMap.GetGLID());
 				}
 				else
 				{
@@ -1354,7 +1353,7 @@ public:
 						{
 							program->cubeMaps[texIndex].Bind();
 							program->SetUniform("has_env_map", 1);
-							program->SetUniform("env_map", 30);
+							program->SetUniform("env_map", (int)it->second.GetBindingSlot());
 						}
 					}
 					else
@@ -1410,7 +1409,7 @@ public:
 							glm::mat4(1.0f));//hmmmm
 						program->SetUniform("to_view_space", 
 							glm::inverse(scene->camera.GetProjectionMatrix() * scene->camera.GetViewMatrix()));
-						program->SetUniform("shading_mode", 2);//envmap shading mode
+						program->SetUniform("shading_mode", 2);//skybox shading mode
 						program->cubeMaps[cubemapIndex].Bind();
 						program->SetUniform("env_map", 30);
 						program->vaos[entity2VAOIndex[entity]].Draw();

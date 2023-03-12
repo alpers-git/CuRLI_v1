@@ -124,7 +124,7 @@ public:
 				eventQueue.pop();
 			}
 			eventQueue = tempQueue;
-			return;
+			//return;
 		}
 		if (io.WantCaptureKeyboard) {
 			//go through the queue and remove all keyboard events
@@ -138,7 +138,7 @@ public:
 				eventQueue.pop();
 			}
 			eventQueue = tempQueue;
-			return;
+			//return;
 		}
 
 		//while loop over events

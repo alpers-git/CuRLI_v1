@@ -692,7 +692,7 @@ private:
 
 	bool seamless;
 
-	GLenum textUnit = GL_TEXTURE0;
+	GLenum textUnit;
 
 	GLuint frameBufferID = 0;
 	GLuint depthBufferID = 0;
