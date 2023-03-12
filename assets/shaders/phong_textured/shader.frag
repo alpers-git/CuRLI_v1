@@ -12,11 +12,9 @@ struct DLight{
     vec3 color;
     float intensity;
     int casting_shadows;
-    sampler2DShadow shadow_map;
     mat4 to_light_view_space;
 };
 
-uniform sampler2DShadow shadow_map;
 
 //------------ Variying ------------
 layout (location = 3) in vec3 v_space_norm;
@@ -32,6 +30,7 @@ uniform int p_light_count;
 uniform PLight p_lights[5];
 uniform int d_light_count;
 uniform DLight d_lights[5];
+uniform sampler2DShadow d_shadow_maps[5];
 
 uniform struct Material {
      vec3 ka;
@@ -78,7 +77,7 @@ void main() {
                     if(d_lights[d_light_index].casting_shadows == 1)
                     {
                         vec4 lv_space_pos = d_lights[d_light_index].to_light_view_space * vec4(w_space_pos, 1.0);
-                        intensity *= textureProj(shadow_map, lv_space_pos);
+                        intensity *= textureProj(d_shadow_maps[d_light_index], lv_space_pos, 0.01f);
                     }
                }
                vec3 h = normalize(l + vec3(0,0,1)); //half vector

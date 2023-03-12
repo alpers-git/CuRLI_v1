@@ -1383,12 +1383,12 @@ public:
 						0.5, 0.0, 0.0, 0.0,
 						0.0, 0.5, 0.0, 0.0,
 						0.0, 0.0, 0.5, 0.0,
-						0.5+0.1, 0.5+0.1, 0.5 + 0.1, 1.0
+						0.5-0.01, 0.5-0.01, 0.5 - 0.01, 1.0
 					) * light.GetShadowMatrix();
 					program->SetUniform(varName.c_str(), shadowMatrix);
 
 					program->shadowTextures[entity2ShadowMapIndex[entity]].Bind();
-					varName = std::string("shadow_map");
+					varName = std::string("d_shadow_maps[" + std::to_string(d) + "]");
 					program->SetUniform(varName.c_str(), 15 + d);//todo
 				}
 				else
