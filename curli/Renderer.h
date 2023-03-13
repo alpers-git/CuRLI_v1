@@ -375,8 +375,8 @@ protected:
 
 			if (toBeRemoved)
 				return;
-
-			ShadowTexture sMap({ 500,500 }, GL_TEXTURE15);
+			static int counter = 0;
+			ShadowTexture sMap({ 500,500 }, GL_TEXTURE15 + counter++);
 			program->shadowTextures.push_back(sMap);
 			entity2ShadowMapIndex[e] = program->shadowTextures.size() - 1;
 			light->glID = sMap.GetGLID();
@@ -1240,10 +1240,15 @@ public:
 			.each([&](const auto& entity, auto& light)
 			{
 				if (!light.scheduledTextureUpdate && light.IsCastingShadows() &&
+				light.GetLightType() == LightType::POINT)
+				{
+					/*if (entity2ShadowMapIndex.find(entity) != entity2ShadowMapIndex.end())
+						program->shadowCubeTextures[entity2ShadowMapIndex[entity]]
+							.RenderSide(std::bind(&MultiTargetRenderer::UpdateShadows, this, light.GetShadowMatrix()));*/
+				}
+				else if (!light.scheduledTextureUpdate && light.IsCastingShadows() &&
 					light.GetLightType() == LightType::DIRECTIONAL)//for now
 				{
-					//Create Orthographic camera at 500 units away from 0,0,0 in the direction of light
-
 					if(entity2ShadowMapIndex.find(entity) != entity2ShadowMapIndex.end())
 						program->shadowTextures[entity2ShadowMapIndex[entity]]
 							.Render(std::bind(&MultiTargetRenderer::UpdateShadows, this, light.GetShadowMatrix()));
@@ -1383,7 +1388,7 @@ public:
 						0.5, 0.0, 0.0, 0.0,
 						0.0, 0.5, 0.0, 0.0,
 						0.0, 0.0, 0.5, 0.0,
-						0.5-0.01, 0.5-0.01, 0.5 - 0.01, 1.0
+						0.5, 0.5, 0.47, 1.0
 					) * light.GetShadowMatrix();
 					program->SetUniform(varName.c_str(), shadowMatrix);
 
@@ -1393,7 +1398,7 @@ public:
 				}
 				else
 				{
-					//program->SetUniform(varName.c_str(), -1);
+					program->SetUniform(varName.c_str(), 0);
 				}
 				d++;
 			}

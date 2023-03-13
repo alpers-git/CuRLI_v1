@@ -49,6 +49,13 @@ uniform int mirror_reflection = 0;
 
 out vec4 color;
 
+vec2 poissonDisk[4] = vec2[](
+  vec2( -0.94201624, -0.39906216 ),
+  vec2( 0.94558609, -0.76890725 ),
+  vec2( -0.094184101, -0.92938870 ),
+  vec2( 0.34495938, 0.29387760 )
+);
+
 void main() {
      if(shading_mode == 0)//phong shading textures and environment maps
      {
@@ -77,7 +84,12 @@ void main() {
                     if(d_lights[d_light_index].casting_shadows == 1)
                     {
                         vec4 lv_space_pos = d_lights[d_light_index].to_light_view_space * vec4(w_space_pos, 1.0);
-                        intensity *= textureProj(d_shadow_maps[d_light_index], lv_space_pos, 0.01f);
+                        float shadow = 0;
+                        for (int i=0;i<4;i++){
+                               shadow -= 0.2 * textureProj(d_shadow_maps[d_light_index], lv_space_pos + vec4(poissonDisk[i]/700, 0, 0));
+                         }
+                         intensity -= shadow;
+                        //intensity *= (textureProj(d_shadow_maps[d_light_index], lv_space_pos));
                     }
                }
                vec3 h = normalize(l + vec3(0,0,1)); //half vector
@@ -94,12 +106,12 @@ void main() {
                }
           }
           
-          color = color + 0.5 * vec4( (has_texture[0]==1 ? (texture(tex_list[0], tex_coord)).xyz :
+          color = color + 0.2 * vec4( (has_texture[0]==1 ? (texture(tex_list[0], tex_coord)).xyz :
                                                             material.ka), 1);
           if(has_env_map != 0)//sample environment map if it exists
           {
                vec3 env_color = texture(env_map, reflect(-camera_pos+w_space_pos, normalize(w_space_norm))).xyz;
-               color = mix(color, vec4(env_color, 1), 0.6); //mix it with material color
+               color = mix(color, vec4(env_color, 1), 0.50); //mix it with material color
           }
           color = clamp(color, 0, 1);                                                
      }

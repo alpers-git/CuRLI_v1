@@ -521,10 +521,12 @@ struct ShadowTexture
 			0, GL_DEPTH_COMPONENT,
 			GL_FLOAT, 0));
 
-		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
-		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
 		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
 		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE));
+		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL));
+		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+		GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
 		
 		//save the renderer state
 		GLint origFB;
@@ -560,9 +562,9 @@ struct ShadowTexture
 		GL_CALL(glViewport(0, 0, dims.x, dims.y));
 		auto mask = GL_DEPTH_BUFFER_BIT;
 		GL_CALL(glClear(mask));
-		//glCullFace(GL_FRONT);
+		glCullFace(GL_FRONT);
 		renderFunc();//Tell how the scene is going to be rendered
-		//glCullFace(GL_BACK);
+		glCullFace(GL_BACK);
 
 		//Restore the renderer
 		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, origFB));

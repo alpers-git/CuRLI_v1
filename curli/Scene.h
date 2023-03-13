@@ -798,6 +798,9 @@ struct CLight : Component
 {
 public:
 	static constexpr CType type = CType::Light;
+	/*static int numPLight;
+	static int numDLight;
+	static int numSLight;*/
 	CLight(LightType ltype, glm::vec3 color, float intensity, glm::vec3 position,
 		glm::vec3 direction, float iCutoff, float oCutoff)
 		:lightType(ltype)
@@ -812,6 +815,7 @@ public:
 			direction = glm::vec3(NAN, NAN, NAN);
 			innerCutOff = -1;
 			outerCutoff = -1;
+			//numPLight++;
 		}
 		//Directional light constructor
 		else if (ltype == LightType::DIRECTIONAL)
@@ -823,6 +827,7 @@ public:
 			position = glm::vec3(NAN, NAN, NAN);
 			innerCutOff = -1;
 			outerCutoff = -1;
+			//numDLight++;
 		}
 		//Spot light constructor
 		else if (ltype == LightType::SPOT)
@@ -832,9 +837,20 @@ public:
 
 			innerCutOff = iCutoff;
 			outerCutoff = oCutoff;
+			//numSLight++;
 		}
 
 	}
+
+	/*~CLight()
+	{
+		if (lightType == LightType::POINT)
+			numPLight--;
+		else if (lightType == LightType::DIRECTIONAL)
+			numDLight--;
+		else if (lightType == LightType::SPOT)
+			numSLight--;
+	}*/
 
 	glm::mat4 GetShadowMatrix()
 	{
@@ -842,8 +858,8 @@ public:
 			return glm::mat4(1.0f);
 		else if (lightType == LightType::DIRECTIONAL)
 		{
-			glm::mat4 lightProjection = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 0.1f, 70.f);
-			glm::mat4 lightView = glm::lookAt(-glm::normalize(direction),
+			glm::mat4 lightProjection = glm::ortho(-15.0f, 15.0f, -15.0f, 15.0f, 0.01f, 50.f);
+			glm::mat4 lightView = glm::lookAt(-glm::normalize(direction) * 35.f,
 				glm::vec3(0.0f, 0.0f, 0.0f),
 				glm::vec3(0.0f, 1.0f, 0.0f));
 			return lightProjection * lightView;
