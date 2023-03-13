@@ -222,7 +222,7 @@ public:
 									collisionNormal, r);
 								
 								rb.ApplyLinearImpulse(-collisionNormal * impulseMag);
-								const auto angImp = impulseMag * glm::cross(r, collisionNormal) *1.f;
+								const auto angImp = impulseMag * glm::cross(r, collisionNormal) *1000.f;
 								rb.ApplyAngularImpulse(angImp);
 								int colCounter = 0;
 								do
@@ -230,7 +230,7 @@ public:
 									rb.position -= penetration * collisionNormal;//Apply perturbation until no longer colliding
 									rb.linearMomentum -= penetration * collisionNormal;
 									this->Synchronize();
-									if (colCounter++ > 5)
+									if (colCounter++ > 1)
 										break;
 									
 								} while (bounds->IsCollidingWith(*boxCollider, collisionNormal, collisionVert, penetration));
