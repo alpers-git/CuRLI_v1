@@ -200,13 +200,13 @@ public:
 							if ( bounds->IsCollidingWith(*boxCollider, collisionNormal, collisionVert, penetration) ) //Resolve the collision
 							{
 								//Check if object has sufficient momentum to bounce of the object
-								if (glm::abs(glm::dot(collisionNormal, rb.linearMomentum)) < 0.001f )
-								{
-									//if not the object is residing the boundary dont test for collision
-									rb.linearMomentum -= collisionNormal * rb.linearMomentum;
-									//rb.angularMomentum = glm::vec3(0);
-									//return;
-								}
+								//if (glm::abs(glm::dot(collisionNormal, rb.linearMomentum)) < 0.001f )
+								//{
+								//	//if not the object is residing the boundary dont test for collision
+								//	rb.linearMomentum -= collisionNormal * rb.linearMomentum;
+								//	//rb.angularMomentum = glm::vec3(0);
+								//	//return;
+								//}
 
 								//For more accurate collisions find the closest vertex on model
 								const glm::mat4 modelMat = scene->registry.get<CTransform>(entity).GetModelMatrix();
@@ -215,13 +215,13 @@ public:
 								const glm::vec3 accurateCollisionVert = modelMat * glm::vec4(scene->registry.get<CTriMesh>(entity).
 									ApproximateTheClosestPointTo(modelSpaceCollisionVert, max(1, scene->registry.get<CTriMesh>(entity).GetNumVertices()/10)), 1.0f);
 
-								const glm::vec3 r = collisionVert - rb.position;
+								const glm::vec3 r = accurateCollisionVert - rb.position;
 								float impulseMag = bounds->MagImpulseCollistionFrom(
 									boxCollider->elasticity, rb.mass,
-									rb.GetInertiaTensor(), rb.GetVelocity(),
+									rb.GetInertiaTensor(), -rb.GetVelocity(),
 									collisionNormal, r);
 								
-								rb.ApplyLinearImpulse(collisionNormal * impulseMag);
+								rb.ApplyLinearImpulse(-collisionNormal * impulseMag);
 								const auto angImp = impulseMag * glm::cross(r, collisionNormal) *1.f;
 								rb.ApplyAngularImpulse(angImp);
 								int colCounter = 0;

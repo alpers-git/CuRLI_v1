@@ -927,7 +927,7 @@ public:
 	{
 		return orientationMatrix;
 	}
-	
+	// R * I_rest * R^T
 	inline glm::mat3 GetInertiaTensor()
 	{
 		return orientationMatrix * inertiaAtRest * glm::transpose(orientationMatrix);

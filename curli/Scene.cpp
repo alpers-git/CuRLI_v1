@@ -282,21 +282,21 @@ void CRigidBody::initializeInertiaTensor(const CTriMesh* mesh, CTransform* trans
 			glm::vec4(mesh->GetVertex(i), 1.0f);
 		if (glm::all(glm::isnan(v)))
 			continue;
-		inertiaAtRest[0][0] = inertiaAtRest[0][0] + v.y * v.y + v.z * v.z;
-		inertiaAtRest[1][1] = inertiaAtRest[1][1] + v.x * v.x + v.z * v.z;
-		inertiaAtRest[2][2] = inertiaAtRest[2][2] + v.x * v.x + v.y * v.y;
-		inertiaAtRest[0][1] = inertiaAtRest[0][1] - v.x * v.y;
-		inertiaAtRest[0][2] = inertiaAtRest[0][2] - v.x * v.z;
-		inertiaAtRest[1][2] = inertiaAtRest[1][2] - v.y * v.z;
+		mat(0,0) = mat(0,0) + v.y * v.y + v.z * v.z;
+		mat(1,1) = mat(1,1) + v.x * v.x + v.z * v.z;
+		mat(2,2) = mat(2,2) + v.x * v.x + v.y * v.y;
+		mat(0,1) = mat(0,1) - v.x * v.y;
+		mat(0,2) = mat(0,2) - v.x * v.z;
+		mat(1,2) = mat(1,2) - v.y * v.z;
 	}
-	inertiaAtRest = inertiaAtRest * mass;
-	/*Eigen::EigenSolver<Eigen::Matrix3f> solver(mat, false);
+	mat = mat * mass;
+	Eigen::EigenSolver<Eigen::Matrix3f> solver(mat, false);
 	auto& eigenValues = solver.eigenvalues();
 
-	inertiaAtRest = glm::mat3(0.0f);
+	//inertiaAtRest = glm::mat3(0.0f);
 	inertiaAtRest[0][0] = eigenValues(0).real();
 	inertiaAtRest[1][1] = eigenValues(1).real();
-	inertiaAtRest[2][2] = eigenValues(2).real();*/
+	inertiaAtRest[2][2] = eigenValues(2).real();
 }
 
 void CRigidBody::TakeFwEulerStep(float dt)
