@@ -1346,6 +1346,7 @@ public:
 		//Set up lights
 		int p = 0;
 		int d = 0;
+		int s = 0;
 		scene->registry.view<CLight>()
 			.each([&](const auto& entity, auto& light)
 		{
@@ -1402,9 +1403,26 @@ public:
 				}
 				d++;
 			}
+			else if (light.GetLightType() == LightType::SPOT)
+			{
+				std::string varName("s_lights[" + std::to_string(s) + "].position");
+				program->SetUniform(varName.c_str(), glm::vec3(scene->camera.GetViewMatrix() * glm::vec4(light.position, 1)));
+				varName = std::string("s_lights[" + std::to_string(s) + "].direction");
+				program->SetUniform(varName.c_str(), glm::vec3(scene->camera.GetViewMatrix() * glm::vec4(light.direction, 0)));
+				varName = std::string("s_lights[" + std::to_string(s) + "].intensity");
+				program->SetUniform(varName.c_str(), light.intensity);
+				varName = std::string("s_lights[" + std::to_string(s) + "].color");
+				program->SetUniform(varName.c_str(), light.color);
+				varName = std::string("s_lights[" + std::to_string(s) + "].cutoff");
+				program->SetUniform(varName.c_str(), light.cutoff);
+				varName = std::string("s_lights[" + std::to_string(s) + "].casting_shadows");
+
+				s++;
+			}
 		});
 		program->SetUniform("p_light_count", p);
 		program->SetUniform("d_light_count", d);
+		program->SetUniform("s_light_count", s);
 
 		//Render meshes
 		scene->registry.view<CTriMesh>()

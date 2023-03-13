@@ -172,6 +172,30 @@ namespace gui
 					{
 						scene->RemoveSceneObject(selectedSceneObject);
 					}
+					ImGui::Separator();
+					if (ImGui::BeginMenu("Create Light", ""))
+					{
+						if (ImGui::MenuItem("Point"))
+						{
+							auto light = scene->CreateSceneObject("Point Light");
+							scene->registry.emplace<CLight>(light, LightType::POINT, 
+								glm::vec3( 1,1,1 ), 1.0f, glm::vec3( 0,10,0), glm::vec3( 0,0,0 ), 0);
+						}
+						if (ImGui::MenuItem("Diretional"))
+						{
+							auto light = scene->CreateSceneObject("Directional Light");
+							scene->registry.emplace<CLight>(light, LightType::DIRECTIONAL,
+								glm::vec3(1, 1, 1), 1.0f, glm::vec3(0, 0, 0), glm::vec3(0, -10, 0), 0);
+						}
+						if (ImGui::MenuItem("Spot"))
+						{
+							auto light = scene->CreateSceneObject("Spot Light");
+							scene->registry.emplace<CLight>(light, LightType::SPOT,
+								glm::vec3(1, 1, 1), 1.0f, glm::vec3(0, 10, 0), glm::vec3(0, -10, 0), 1.57);
+						}
+						ImGui::EndMenu();
+					}
+					ImGui::Separator();
 					if (ImGui::MenuItem("Attach/Detach Component", "CTRL+Space")) 
 					{
 						openComponentsPopup = true;
@@ -298,7 +322,7 @@ namespace gui
 								break;
 							case CType::Light:
 								scene->registry.emplace_or_replace<CLight>(selectedSceneObject, LightType::POINT, 
-									glm::vec3(1.0f), 1.0f, glm::vec3(0.0f), glm::vec3(0.0f), 0.0f, 0.0f);
+									glm::vec3(1.0f), 1.0f, glm::vec3(0.0f), glm::vec3(0.0f), 0.0f);
 								break;
 							case CType::PhysicsBounds:
 								scene->registry.emplace_or_replace<CPhysicsBounds>(selectedSceneObject, glm::vec3(-10.0f), glm::vec3(10.0f));
@@ -469,9 +493,9 @@ namespace gui
 								glm::vec3 p = t.GetPosition();
 								if (ImGui::DragFloat3("Position", &p[0]))
 									t.SetPosition(p);
-								glm::vec3 r = t.GetRotation();
+								glm::vec3 r = glm::degrees(t.GetRotation());
 								if (ImGui::DragFloat3("Rotation", &r[0]))
-									t.SetEulerRotation(r);
+									t.SetEulerRotation(glm::radians(r));
 								glm::vec3 s = t.GetScale();
 								if (ImGui::DragFloat3("Scale", &s[0]))
 									t.SetScale(s);
@@ -587,8 +611,9 @@ namespace gui
 								}
 								if (l.GetLightType() == LightType::SPOT)
 								{
-									ImGui::DragFloat3("Inner Cutoff", &(l.innerCutOff));
-									ImGui::DragFloat3("Outter Cutoff", &(l.outerCutoff));
+									auto cutoff = glm::degrees(l.cutoff);
+									if (ImGui::DragFloat("cutoff", &cutoff))
+										l.cutoff = glm::radians(cutoff);
 								}
 								ImGui::EndTabItem();
 							}
@@ -618,6 +643,8 @@ namespace gui
 								ImGui::PopItemWidth();
 								ImGui::BeginDisabled();
 								ImGui::DragFloat3("Position", &r.position[0]);
+								ImGui::DragFloat3("Linear Momentum", &r.linearMomentum[0]);
+								ImGui::DragFloat3("Angular Momentum", &r.angularMomentum[0]);
 								/*ImGui::DragFloat3("Velocity", &r.velocity[0]);
 								ImGui::DragFloat3("Acceleration", &r.acceleration[0]);
 								ImGui::DragFloat3("Rotation", &r.rotation[0]);*/

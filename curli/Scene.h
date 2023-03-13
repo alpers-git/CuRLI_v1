@@ -802,7 +802,7 @@ public:
 	static int numDLight;
 	static int numSLight;*/
 	CLight(LightType ltype, glm::vec3 color, float intensity, glm::vec3 position,
-		glm::vec3 direction, float iCutoff, float oCutoff)
+		glm::vec3 direction, float cutoff)
 		:lightType(ltype)
 	{
 		this->color = color;
@@ -812,9 +812,8 @@ public:
 		{
 			this->position = position;
 			//invalid values for safety
-			direction = glm::vec3(NAN, NAN, NAN);
-			innerCutOff = -1;
-			outerCutoff = -1;
+			this->direction = glm::vec3(NAN, NAN, NAN);
+			this->cutoff = -1;
 			//numPLight++;
 		}
 		//Directional light constructor
@@ -824,9 +823,8 @@ public:
 			lightType = LightType::DIRECTIONAL;
 
 			//invalid values for safety
-			position = glm::vec3(NAN, NAN, NAN);
-			innerCutOff = -1;
-			outerCutoff = -1;
+			this->position = glm::vec3(NAN, NAN, NAN);
+			this->cutoff = -1;
 			//numDLight++;
 		}
 		//Spot light constructor
@@ -835,8 +833,7 @@ public:
 			this->position = position;
 			this->direction = direction;
 
-			innerCutOff = iCutoff;
-			outerCutoff = oCutoff;
+			this->cutoff = cutoff;
 			//numSLight++;
 		}
 
@@ -877,8 +874,7 @@ public:
 
 	glm::vec3 color;
 	float intensity;
-	float innerCutOff;
-	float outerCutoff;
+	float cutoff;
 	glm::vec3 direction;
 	glm::vec3 position;
 	bool show = false;

@@ -538,7 +538,7 @@ entt::entity Scene::CreatePointLight(glm::vec3 pos, float intesity, glm::vec3 co
 {
 	auto entity = CreateSceneObject("light");
 	registry.emplace<CLight>(entity, LightType::POINT, color, glm::min(intesity, 1.0f), pos, 
-		glm::vec3(0, 0, 0), 0, 0);
+		glm::vec3(0, 0, 0), 0);
 	return entity;
 }
 
@@ -546,7 +546,7 @@ entt::entity Scene::CreateDirectionalLight(glm::vec3 dir, float intesity, glm::v
 {
 	auto entity = CreateSceneObject("light");
 	registry.emplace<CLight>(entity, LightType::DIRECTIONAL, color, glm::min(intesity, 1.0f), 
-		glm::vec3(0, 0, 0), dir, 0, 0);
+		glm::vec3(0, 0, 0), dir, 0);
 	return entity;
 }
 
