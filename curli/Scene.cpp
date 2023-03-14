@@ -257,6 +257,8 @@ glm::vec3 CTriMesh::ApproximateTheClosestPointTo(glm::vec3 point, int stride)
 	return closestPoint;
 }
 
+bool CLight::slotUsed[15];
+
 void CLight::Update()
 {
 }

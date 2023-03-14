@@ -375,8 +375,8 @@ protected:
 
 			if (toBeRemoved)
 				return;
-			static int counter = 0;
-			auto texUnit = light->GetLightType() == LightType::DIRECTIONAL ? GL_TEXTURE15 + counter++ : GL_TEXTURE20;
+			
+			auto texUnit = (light->GetLightType() == LightType::DIRECTIONAL ? GL_TEXTURE15 : GL_TEXTURE20) + light->slot;
 			ShadowTexture sMap({ 800,800 }, texUnit);
 			program->shadowTextures.push_back(sMap);
 			entity2ShadowMapIndex[e] = program->shadowTextures.size() - 1;
@@ -1388,7 +1388,6 @@ public:
 					program->SetUniform(varName.c_str(), 1);
 
 					varName = std::string("d_lights[" + std::to_string(d) + "].to_light_view_space");
-					
 					const glm::mat4 shadowMatrix = glm::mat4(
 						0.5, 0.0, 0.0, 0.0,
 						0.0, 0.5, 0.0, 0.0,
@@ -1399,7 +1398,7 @@ public:
 
 					program->shadowTextures[entity2ShadowMapIndex[entity]].Bind();
 					varName = std::string("d_shadow_maps[" + std::to_string(d) + "]");
-					program->SetUniform(varName.c_str(), 15 + d);//todo
+					program->SetUniform(varName.c_str(), 15 + light.slot);//todo
 				}
 				else
 				{
@@ -1421,24 +1420,38 @@ public:
 				program->SetUniform(varName.c_str(), light.cutoff);
 				varName = std::string("s_lights[" + std::to_string(s) + "].casting_shadows");
 
+				if (light.show)//Display light
+				{
+					program->SetUniform("shading_mode", 1);
+					program->SetUniform("to_screen_space",
+						scene->camera.GetProjectionMatrix() *
+						scene->camera.GetViewMatrix() * glm::translate(glm::mat4(1), light.position));
+					if (entity2VAOIndex.find(entity) != entity2VAOIndex.end())
+						program->vaos[entity2VAOIndex[entity]].Draw();
+				}
+
 				if (!light.scheduledTextureUpdate && light.IsCastingShadows() &&
 					entity2ShadowMapIndex.find(entity) != entity2ShadowMapIndex.end())
 				{
 					program->SetUniform(varName.c_str(), 1);
 
+					varName = std::string("s_lights[" + std::to_string(s) + "].to_light_view_space");
 					const glm::mat4 shadowMatrix = glm::mat4(
 						0.5, 0.0, 0.0, 0.0,
 						0.0, 0.5, 0.0, 0.0,
 						0.0, 0.0, 0.5, 0.0,
 						0.5, 0.5, 0.47, 1.0
 					) * light.CalculateShadowMatrix();
-					varName = std::string("s_lights[" + std::to_string(s) + "].to_light_view_space");
 					program->SetUniform(varName.c_str(), shadowMatrix);
-					
-					program->shadowTextures[entity2ShadowMapIndex[entity]].Bind();
-					varName = std::string("s_shadow_maps[" + std::to_string(20+s) + "]");
-				}
 
+					program->shadowTextures[entity2ShadowMapIndex[entity]].Bind();
+					varName = std::string("s_shadow_maps[" + std::to_string(s) + "]");
+					program->SetUniform(varName.c_str(), 20 + light.slot);
+				}
+				else
+				{
+					program->SetUniform(varName.c_str(), 0);
+				}
 				s++;
 			}
 		});

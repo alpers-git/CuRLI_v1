@@ -179,15 +179,15 @@ Some Screenshots:
 - [X] Program takes the name of the .obj file as its first command-line argument.
   - Same as the las assignments a obj can be imported into the scene by `-model --path ../path/to/your.obj`
 - [X] Computes shadows from a light onto the plane and the object.
-  -  Currently CuRLI *only* supports directional light shadow mapping.
+  -  Currently CuRLI supports both spot directional light shadow mapping.
 - [X] The object casts shadows onto itself.
 - [X] The light position can be controlled with the UI on the right panel.
-- [X] The point lights can be displayed by checking the `show` on the UI panel (See image 1 below).
+- [X] The point&spot lights can be displayed by checking the `show` on the UI panel (See image 1&3 below).
 
 ###### Additional Features:
 - Shadow depth textures can be displayed on the UI.
 - Multiple directional light sources can be added and they can cast multiple shadows
-- Shadows are calculated with poisson sampling.
+- Shadows are calculated with poisson samplingto reduce aliasing.
 - As an argument one can also give paths to skybox textures.
   - ex: `-skybox ../assets/images/cubemap/cubemap_posx.png ../assets/images/cubemap/cubemap_negx.png ../assets/images/cubemap/cubemap_posy.png ../assets/images/cubemap/cubemap_negy.png ../assets/images/cubemap/cubemap_posz.png ../assets/images/cubemap/cubemap_negz.png`
 
@@ -195,3 +195,4 @@ Some Screenshots:
 
 <img src="./images/pr7_1.png" width=80%>
 <img src="./images/pr7_2.png" width=80%>
+<img src="./images/pr7_3.png" width=80%>

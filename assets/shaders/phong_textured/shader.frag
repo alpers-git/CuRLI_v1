@@ -56,7 +56,7 @@ struct SLight{
     int casting_shadows;
     mat4 to_light_view_space;
 };
-vec3 illuminationAt(in SLight light, in vec3 pos, inout vec3 l)
+vec3 illuminationAt(in SLight light, in vec3 pos, in sampler2DShadow shadow_map, in vec3 w_space_pos, inout vec3 l)
 {
      l = light.position - pos;
      float l_length = length(light.position - pos);
@@ -68,9 +68,21 @@ vec3 illuminationAt(in SLight light, in vec3 pos, inout vec3 l)
      {
           intensity = light.intensity * 
                     (1.0 - (1.0 - spot_factor) * 1.0/(1.0 - light.cutoff));
+          if(light.casting_shadows == 1)
+          {
+               vec4 lv_space_pos = light.to_light_view_space * vec4(w_space_pos, 1.0);
+               float shadow = 0;
+               for (int i=0;i<4;i++){
+                    if(textureProj(shadow_map, lv_space_pos + vec4(poissonDisk[i]/700, 0, 0))>0.0)
+                         shadow += 0.25;
+               }
+               intensity += shadow;
+               //intensity *= textureProj(shadow_map, lv_space_pos);
+          }
      }
 
-     return intensity * normalize(light.color) / (0.0001*l_length * l_length + 0.0001*l_length);
+
+     return intensity * normalize(light.color) / (0.0005*l_length * l_length + 0.0001*l_length);
 }
 
 
@@ -136,18 +148,8 @@ void main() {
                }
                else
                {
-                    illumination = illuminationAt(s_lights[s_light_index], v_space_pos, l);
+                    illumination = illuminationAt(s_lights[s_light_index], v_space_pos, s_shadow_maps[s_light_index], w_space_pos, l);
                     //light_color = s_lights[s_light_index].color;
-                    if(s_lights[s_light_index].casting_shadows == 1)
-                    {
-                        vec4 lv_space_pos = s_lights[s_light_index].to_light_view_space * vec4(w_space_pos, 1.0);
-                        float shadow = 0;
-                        for (int i=0;i<4;i++){
-                              shadow -= 0.2 * textureProj(s_shadow_maps[s_light_index], lv_space_pos + vec4(poissonDisk[i]/700, 0, 0));
-                         }
-                         //illumination += shadow;
-                        illumination *= (textureProj(s_shadow_maps[s_light_index], lv_space_pos));
-                    }
                     
                }
 

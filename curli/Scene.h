@@ -797,10 +797,9 @@ enum class LightType
 struct CLight : Component
 {
 public:
+	static bool slotUsed[15];//for glsl shader locations
 	static constexpr CType type = CType::Light;
-	/*static int numPLight;
-	static int numDLight;
-	static int numSLight;*/
+	
 	CLight(LightType ltype, glm::vec3 color, float intensity, glm::vec3 position,
 		glm::vec3 direction, float cutoff)
 		:lightType(ltype)
@@ -815,7 +814,20 @@ public:
 			//invalid values for safety
 			this->direction = glm::vec3(NAN, NAN, NAN);
 			this->cutoff = -1;
-			//numPLight++;
+			for (int i = 0; i < 5; i++)
+			{
+				if (!CLight::slotUsed[i])
+				{
+					CLight::slotUsed[i] = true;
+					this->slot = i;
+					break;
+				}
+			}
+			if (this->slot == -1)
+			{
+				CLight::slotUsed[0] = true;
+				this->slot = 0;
+			}
 		}
 		//Directional light constructor
 		else if (ltype == LightType::DIRECTIONAL)
@@ -826,7 +838,21 @@ public:
 			//invalid values for safety
 			this->position = glm::vec3(NAN, NAN, NAN);
 			this->cutoff = -1;
-			//numDLight++;
+			for (int i = 0; i < 5; i++)
+			{
+				if (!CLight::slotUsed[i + 5])
+				{
+					CLight::slotUsed[i + 5] = true;
+					this->slot = i;
+					break;
+				}
+			}
+			if (this->slot == -1)
+			{
+				CLight::slotUsed[5] = true;
+				this->slot = 0;
+			}
+
 		}
 		//Spot light constructor
 		else if (ltype == LightType::SPOT)
@@ -835,20 +861,35 @@ public:
 			this->direction = direction;
 
 			this->cutoff = cutoff;
-			//numSLight++;
+
+			for (int i = 0; i < 5; i++)
+			{
+				if (!CLight::slotUsed[i + 10])
+				{
+					CLight::slotUsed[i + 10] = true;
+					this->slot = i;
+					break;
+				}
+			}
+			if (this->slot == -1)
+			{
+				CLight::slotUsed[10] = true;
+				this->slot = 0;
+			}
 		}
 
 	}
 
-	/*~CLight()
+	~CLight()
 	{
-		if (lightType == LightType::POINT)
-			numPLight--;
-		else if (lightType == LightType::DIRECTIONAL)
-			numDLight--;
+		
+		if (lightType == LightType::DIRECTIONAL)
+			this->slot = this->slot + 5;
 		else if (lightType == LightType::SPOT)
-			numSLight--;
-	}*/
+			this->slot = this->slot + 10;
+		
+		CLight::slotUsed[this->slot] = false;
+	}
 
 	glm::mat4 CalculateShadowMatrix()
 	{
@@ -857,17 +898,18 @@ public:
 		else if (lightType == LightType::DIRECTIONAL)
 		{
 			glm::mat4 lightProjection = glm::ortho(-15.0f, 15.0f, -15.0f, 15.0f, 0.01f, 50.f);
-			glm::mat4 lightView = glm::lookAt(-glm::normalize(direction) * 35.f,
+			glm::mat4 lightView = glm::lookAt(-glm::normalize(direction) * 38.f,
 				glm::vec3(0.0f, 0.0f, 0.0f),
 				glm::vec3(0.0f, 1.0f, 0.0f));
 			return lightProjection * lightView;
 		}
 		else
 		{
-			glm::mat4 lightProjection = glm::perspective(glm::radians(cutoff), 1.0f, 0.01f, 260.f);
+			//glm::mat4 lightProjection = glm::perspective(cutoff, 1.0f, 0.01f, 50.f);
+			glm::mat4 lightProjection = glm::ortho(-15.0f, 15.0f, -15.0f, 15.0f, 0.01f, 50.f);
 			glm::mat4 lightView = glm::lookAt(position,
 				position + glm::normalize(direction),
-				glm::vec3(0.0f, 1.0f, 0.0f));
+				glm::vec3(0.0f, .0f, 1.0f));
 			return lightProjection * lightView;
 		}
 	}
@@ -890,6 +932,7 @@ public:
 
 	bool scheduledTextureUpdate = false;
 	GLuint glID;
+	int slot = -1;
 private:
 	LightType lightType;
 	bool castingShadow = false;
