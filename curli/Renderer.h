@@ -376,7 +376,8 @@ protected:
 			if (toBeRemoved)
 				return;
 			static int counter = 0;
-			ShadowTexture sMap({ 500,500 }, GL_TEXTURE15 + counter++);
+			auto texUnit = light->GetLightType() == LightType::DIRECTIONAL ? GL_TEXTURE15 + counter++ : GL_TEXTURE20;
+			ShadowTexture sMap({ 800,800 }, texUnit);
 			program->shadowTextures.push_back(sMap);
 			entity2ShadowMapIndex[e] = program->shadowTextures.size() - 1;
 			light->glID = sMap.GetGLID();
@@ -1240,19 +1241,22 @@ public:
 			.each([&](const auto& entity, auto& light)
 			{
 				if (!light.scheduledTextureUpdate && light.IsCastingShadows() &&
-				light.GetLightType() == LightType::POINT)
+					(entity2ShadowMapIndex.find(entity) != entity2ShadowMapIndex.end()) )
 				{
-					/*if (entity2ShadowMapIndex.find(entity) != entity2ShadowMapIndex.end())
-						program->shadowCubeTextures[entity2ShadowMapIndex[entity]]
-							.RenderSide(std::bind(&MultiTargetRenderer::UpdateShadows, this, light.GetShadowMatrix()));*/
-				}
-				else if (!light.scheduledTextureUpdate && light.IsCastingShadows() &&
-					light.GetLightType() == LightType::DIRECTIONAL)//for now
-				{
-					if(entity2ShadowMapIndex.find(entity) != entity2ShadowMapIndex.end())
+					if(light.GetLightType() == LightType::POINT)
+					{
+						/*if (entity2ShadowMapIndex.find(entity) != entity2ShadowMapIndex.end())
+							program->shadowCubeTextures[entity2ShadowMapIndex[entity]]
+								.RenderSide(std::bind(&MultiTargetRenderer::UpdateShadows, this, light.CalculateShadowMatrix()));*/
+					}
+					else if (light.GetLightType() == LightType::DIRECTIONAL ||
+						light.GetLightType() == LightType::SPOT)//for now
+					{
 						program->shadowTextures[entity2ShadowMapIndex[entity]]
-							.Render(std::bind(&MultiTargetRenderer::UpdateShadows, this, light.GetShadowMatrix()));
+						.Render(std::bind(&MultiTargetRenderer::UpdateShadows, this, light.CalculateShadowMatrix()));
+					}
 				}
+				
 			});
 
 		//render renderedTextures
@@ -1390,7 +1394,7 @@ public:
 						0.0, 0.5, 0.0, 0.0,
 						0.0, 0.0, 0.5, 0.0,
 						0.5, 0.5, 0.47, 1.0
-					) * light.GetShadowMatrix();
+					) * light.CalculateShadowMatrix();
 					program->SetUniform(varName.c_str(), shadowMatrix);
 
 					program->shadowTextures[entity2ShadowMapIndex[entity]].Bind();
@@ -1416,6 +1420,24 @@ public:
 				varName = std::string("s_lights[" + std::to_string(s) + "].cutoff");
 				program->SetUniform(varName.c_str(), light.cutoff);
 				varName = std::string("s_lights[" + std::to_string(s) + "].casting_shadows");
+
+				if (!light.scheduledTextureUpdate && light.IsCastingShadows() &&
+					entity2ShadowMapIndex.find(entity) != entity2ShadowMapIndex.end())
+				{
+					program->SetUniform(varName.c_str(), 1);
+
+					const glm::mat4 shadowMatrix = glm::mat4(
+						0.5, 0.0, 0.0, 0.0,
+						0.0, 0.5, 0.0, 0.0,
+						0.0, 0.0, 0.5, 0.0,
+						0.5, 0.5, 0.47, 1.0
+					) * light.CalculateShadowMatrix();
+					varName = std::string("s_lights[" + std::to_string(s) + "].to_light_view_space");
+					program->SetUniform(varName.c_str(), shadowMatrix);
+					
+					program->shadowTextures[entity2ShadowMapIndex[entity]].Bind();
+					varName = std::string("s_shadow_maps[" + std::to_string(20+s) + "]");
+				}
 
 				s++;
 			}

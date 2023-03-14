@@ -849,7 +849,7 @@ public:
 			numSLight--;
 	}*/
 
-	glm::mat4 GetShadowMatrix()
+	glm::mat4 CalculateShadowMatrix()
 	{
 		if (lightType == LightType::POINT)
 			return glm::mat4(1.0f);
@@ -862,7 +862,13 @@ public:
 			return lightProjection * lightView;
 		}
 		else
-			return glm::mat4(1.0f);
+		{
+			glm::mat4 lightProjection = glm::perspective(glm::radians(cutoff), 1.0f, 0.01f, 260.f);
+			glm::mat4 lightView = glm::lookAt(position,
+				position + glm::normalize(direction),
+				glm::vec3(0.0f, 1.0f, 0.0f));
+			return lightProjection * lightView;
+		}
 	}
 	LightType GetLightType() { return lightType; }
 	bool IsCastingShadows() { return castingShadow; }

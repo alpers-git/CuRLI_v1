@@ -573,6 +573,11 @@ namespace gui
 						{
 							if (e == selectedSceneObject && ImGui::BeginTabItem("Light"))
 							{
+								ImGui::Text("Type: "); ImGui::SameLine();
+								ImGui::TextColored(ImVec4(0.84f, 0.58f, 1.0f, 1.0f),
+									l.GetLightType() == LightType::POINT ? "Point" :
+									(l.GetLightType() == LightType::DIRECTIONAL ? "Directional" : "Spot"));
+								
 								if ((l.GetLightType() == LightType::POINT ||
 									l.GetLightType() == LightType::SPOT) && ImGui::Checkbox("Show", &l.show))
 								{
@@ -593,9 +598,6 @@ namespace gui
 									ImGui::Image((void*)(intptr_t) l.glID,
 										ImVec2(viewportPanelSize.x / 2, viewportPanelSize.x / 2));
 								}
-								
-								ImGui::Text(l.GetLightType() == LightType::POINT ? "Point" :
-									(l.GetLightType() == LightType::DIRECTIONAL ? "Directional" : "Spot"));
 								ImGui::DragFloat("Intensity", &l.intensity, 0.01f, 0.0f, 1.0f);
 								ImGui::ColorEdit3("Color", &(l.color[0]));
 								if (l.GetLightType() == LightType::POINT ||

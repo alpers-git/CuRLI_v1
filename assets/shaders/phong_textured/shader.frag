@@ -7,6 +7,14 @@ struct PLight{
     vec3 color;
     float intensity;
 };
+float intensityAt(in PLight light, in vec3 pos, inout vec3 l)
+{
+     l = (light.position - pos);
+     float l_length = length(l);
+     l = normalize(l);
+     return light.intensity / (0.001*l_length * l_length + 0.001*l_length);
+}
+
 struct DLight{
     vec3 direction;
     vec3 color;
@@ -14,6 +22,12 @@ struct DLight{
     int casting_shadows;
     mat4 to_light_view_space;
 };
+
+float intensityAt(in DLight light, in vec3 pos, inout vec3 l)
+{
+     l = -normalize(light.direction);
+     return light.intensity;
+}
 struct SLight{
     vec3 position;
     vec3 direction;
@@ -23,6 +37,22 @@ struct SLight{
     int casting_shadows;
     mat4 to_light_view_space;
 };
+float intensityAt(in SLight light, in vec3 pos, inout vec3 l)
+{
+     l = light.position - pos;
+     float l_length = length(light.position - pos);
+     l = normalize(l);
+     const float spot_factor = dot(l, -normalize(light.direction));
+     float intensity = 0;
+
+     if (spot_factor > light.cutoff)
+     {
+          intensity = light.intensity * 
+                    (1.0 - (1.0 - spot_factor) * 1.0/(1.0 - light.cutoff));
+     }
+
+     return intensity / (0.0001*l_length * l_length + 0.0001*l_length);
+}
 
 
 //------------ Variying ------------
@@ -43,6 +73,7 @@ uniform DLight d_lights[5];
 uniform sampler2DShadow d_shadow_maps[5];
 uniform int s_light_count;
 uniform SLight s_lights[5];
+uniform sampler2DShadow s_shadow_maps[5];
 
 uniform struct Material {
      vec3 ka;
@@ -85,15 +116,12 @@ void main() {
                
                if(i < p_light_count) //point light soures
                {
-                    const float l_length = length(p_lights[i].position - v_space_pos);
-                    l =  normalize(p_lights[i].position - v_space_pos);
-                    intensity = p_lights[i].intensity / (0.01*l_length * l_length + 0.01*l_length);
+                    intensity = intensityAt(p_lights[i], v_space_pos, l);
                     light_color = p_lights[i].color;
                }
                else if(d_light_index < d_light_count) //directional light sources
                {
-                    l = -normalize(d_lights[d_light_index].direction);
-                    intensity = d_lights[d_light_index].intensity;
+                    intensity = intensityAt(d_lights[d_light_index], v_space_pos, l);
                     light_color = d_lights[d_light_index].color;
 
                     if(d_lights[d_light_index].casting_shadows == 1)
@@ -109,16 +137,18 @@ void main() {
                }
                else
                {
-                    l = normalize(s_lights[s_light_index].position - v_space_pos);
-                    float spot_factor = dot(l, -normalize(s_lights[s_light_index].direction));
-                    float l_length = length(p_lights[i].position - v_space_pos);
-
-                    if (spot_factor > s_lights[s_light_index].cutoff)
-                         intensity = s_lights[s_light_index].intensity * 
-                                   (1.0 - (1.0 - spot_factor) * 1.0/(1.0 - s_lights[s_light_index].cutoff));
-                    else
-                         intensity = 0;
+                    intensity = intensityAt(s_lights[s_light_index], v_space_pos, l);
                     light_color = s_lights[s_light_index].color;
+                    if(s_lights[s_light_index].casting_shadows == 1)
+                    {
+                        vec4 lv_space_pos = s_lights[s_light_index].to_light_view_space * vec4(w_space_pos, 1.0);
+                        float shadow = 0;
+                        for (int i=0;i<4;i++){
+                              shadow -= 0.2 * textureProj(s_shadow_maps[s_light_index], lv_space_pos + vec4(poissonDisk[i]/700, 0, 0));
+                         }
+                         //intensity += shadow;
+                        intensity *= (textureProj(s_shadow_maps[s_light_index], lv_space_pos));
+                    }
                     
                }
 
