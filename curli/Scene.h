@@ -905,11 +905,11 @@ public:
 		}
 		else
 		{
-			//glm::mat4 lightProjection = glm::perspective(cutoff, 1.0f, 0.01f, 50.f);
-			glm::mat4 lightProjection = glm::ortho(-15.0f, 15.0f, -15.0f, 15.0f, 0.01f, 50.f);
-			glm::mat4 lightView = glm::lookAt(position,
-				position + glm::normalize(direction),
-				glm::vec3(0.0f, .0f, 1.0f));
+			//glm::mat4 lightProjection = glm::perspective(glm::radians(45.f), 1.0f, 0.10f, 30.f);//todo
+			glm::mat4 lightProjection = glm::scale(glm::ortho(-15.0f, 15.0f, -15.0f, 15.0f, 0.01f, 50.f), glm::vec3(1/this->position.z));
+			glm::mat4 lightView = glm::lookAt(this->position,
+				this->position + glm::normalize(this->direction)*10.f,
+				glm::vec3(0.0f, 1.0f, 0.0f));
 			return lightProjection * lightView;
 		}
 	}

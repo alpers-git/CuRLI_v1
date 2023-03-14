@@ -73,11 +73,12 @@ vec3 illuminationAt(in SLight light, in vec3 pos, in sampler2DShadow shadow_map,
                vec4 lv_space_pos = light.to_light_view_space * vec4(w_space_pos, 1.0);
                float shadow = 0;
                for (int i=0;i<4;i++){
-                    if(textureProj(shadow_map, lv_space_pos + vec4(poissonDisk[i]/700, 0, 0))>0.0)
+                    if(textureProj(shadow_map, lv_space_pos + vec4(poissonDisk[i]/700, 0, 0)) < lv_space_pos.z)
                          shadow += 0.25;
                }
-               intensity += shadow;
+               intensity -= shadow;
                //intensity *= textureProj(shadow_map, lv_space_pos);
+               intensity = clamp(intensity, 0.0, 1.0); 
           }
      }
 
