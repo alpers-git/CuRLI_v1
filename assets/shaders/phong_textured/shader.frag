@@ -1,18 +1,25 @@
 #version 450
 precision highp float;
 
+const vec2 poissonDisk[4] = vec2[](
+  vec2( -0.94201624, -0.39906216 ),
+  vec2( 0.94558609, -0.76890725 ),
+  vec2( -0.094184101, -0.92938870 ),
+  vec2( 0.34495938, 0.29387760 )
+);
+
 //------------ Structs ------------
 struct PLight{
     vec3 position;
     vec3 color;
     float intensity;
 };
-float intensityAt(in PLight light, in vec3 pos, inout vec3 l)
+vec3 illuminationAt(in PLight light, in vec3 pos, inout vec3 l)
 {
      l = (light.position - pos);
      float l_length = length(l);
      l = normalize(l);
-     return light.intensity / (0.001*l_length * l_length + 0.001*l_length);
+     return light.intensity * normalize(light.color) / (0.001*l_length * l_length + 0.001*l_length);
 }
 
 struct DLight{
@@ -23,10 +30,22 @@ struct DLight{
     mat4 to_light_view_space;
 };
 
-float intensityAt(in DLight light, in vec3 pos, inout vec3 l)
+vec3 illuminationAt(in DLight light, in vec3 pos, in sampler2DShadow shadow_map, in vec3 w_space_pos, inout vec3 l)
 {
      l = -normalize(light.direction);
-     return light.intensity;
+     float intensity = light.intensity;
+
+     if(light.casting_shadows == 1)
+     {
+          vec4 lv_space_pos = light.to_light_view_space * vec4(w_space_pos, 1.0);
+          float shadow = 0;
+          for (int i=0;i<4;i++){
+                if(textureProj(shadow_map, lv_space_pos + vec4(poissonDisk[i]/700, 0, 0)) < lv_space_pos.z)
+                    shadow += 0.25;
+          }
+          intensity -= shadow;
+     }
+     return intensity * normalize(light.color);
 }
 struct SLight{
     vec3 position;
@@ -37,7 +56,7 @@ struct SLight{
     int casting_shadows;
     mat4 to_light_view_space;
 };
-float intensityAt(in SLight light, in vec3 pos, inout vec3 l)
+vec3 illuminationAt(in SLight light, in vec3 pos, inout vec3 l)
 {
      l = light.position - pos;
      float l_length = length(light.position - pos);
@@ -51,7 +70,7 @@ float intensityAt(in SLight light, in vec3 pos, inout vec3 l)
                     (1.0 - (1.0 - spot_factor) * 1.0/(1.0 - light.cutoff));
      }
 
-     return intensity / (0.0001*l_length * l_length + 0.0001*l_length);
+     return intensity * normalize(light.color) / (0.0001*l_length * l_length + 0.0001*l_length);
 }
 
 
@@ -92,13 +111,6 @@ uniform int mirror_reflection = 0;
 
 out vec4 color;
 
-vec2 poissonDisk[4] = vec2[](
-  vec2( -0.94201624, -0.39906216 ),
-  vec2( 0.94558609, -0.76890725 ),
-  vec2( -0.094184101, -0.92938870 ),
-  vec2( 0.34495938, 0.29387760 )
-);
-
 void main() {
      if(shading_mode == 0)//phong shading textures and environment maps
      {
@@ -108,37 +120,24 @@ void main() {
           for(int i = 0; i < p_light_count + d_light_count + s_light_count; i++)
           {
                vec3 l = vec3(0,0,0);
-               float intensity = 0;
-               vec3 light_color = vec3(0,0,0);
+               vec3 illumination = vec3(0,0,0); // light color * intensity
+               //vec3 light_color = vec3(0,0,0);
 
                const int d_light_index = i - p_light_count;
                const int s_light_index = i - p_light_count - d_light_count;
                
                if(i < p_light_count) //point light soures
                {
-                    intensity = intensityAt(p_lights[i], v_space_pos, l);
-                    light_color = p_lights[i].color;
+                    illumination = illuminationAt(p_lights[i], v_space_pos, l);
                }
                else if(d_light_index < d_light_count) //directional light sources
                {
-                    intensity = intensityAt(d_lights[d_light_index], v_space_pos, l);
-                    light_color = d_lights[d_light_index].color;
-
-                    if(d_lights[d_light_index].casting_shadows == 1)
-                    {
-                        vec4 lv_space_pos = d_lights[d_light_index].to_light_view_space * vec4(w_space_pos, 1.0);
-                        float shadow = 0;
-                        for (int i=0;i<4;i++){
-                              shadow -= 0.2 * textureProj(d_shadow_maps[d_light_index], lv_space_pos + vec4(poissonDisk[i]/700, 0, 0));
-                         }
-                         //intensity += shadow;
-                        intensity *= (textureProj(d_shadow_maps[d_light_index], lv_space_pos));
-                    }
+                    illumination = illuminationAt(d_lights[d_light_index], v_space_pos, d_shadow_maps[d_light_index], w_space_pos, l);
                }
                else
                {
-                    intensity = intensityAt(s_lights[s_light_index], v_space_pos, l);
-                    light_color = s_lights[s_light_index].color;
+                    illumination = illuminationAt(s_lights[s_light_index], v_space_pos, l);
+                    //light_color = s_lights[s_light_index].color;
                     if(s_lights[s_light_index].casting_shadows == 1)
                     {
                         vec4 lv_space_pos = s_lights[s_light_index].to_light_view_space * vec4(w_space_pos, 1.0);
@@ -146,8 +145,8 @@ void main() {
                         for (int i=0;i<4;i++){
                               shadow -= 0.2 * textureProj(s_shadow_maps[s_light_index], lv_space_pos + vec4(poissonDisk[i]/700, 0, 0));
                          }
-                         //intensity += shadow;
-                        intensity *= (textureProj(s_shadow_maps[s_light_index], lv_space_pos));
+                         //illumination += shadow;
+                        illumination *= (textureProj(s_shadow_maps[s_light_index], lv_space_pos));
                     }
                     
                }
@@ -162,7 +161,7 @@ void main() {
                                                        material.kd) * max(cos_theta,0);
                     vec3 specular= (has_texture[2]==1 ? (texture(tex_list[2], tex_coord)).xyz :
                                                        material.ks) * pow(max(dot(h, v_space_norm),0), material.shininess);
-                    color += vec4(intensity * normalize(light_color) * (specular + diffuse), 1);
+                    color += vec4(illumination * (specular + diffuse), 1);
                }
           }
           
@@ -183,8 +182,8 @@ void main() {
      {
           color = texture(env_map, normalize(v_space_pos));
      }
-     else
+     else//error
      {
-          color = vec4(0,0,0,1);
+          color = vec4(1,0,1,1);
      }
 }

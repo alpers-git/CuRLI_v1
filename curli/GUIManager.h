@@ -179,7 +179,7 @@ namespace gui
 						{
 							auto light = scene->CreateSceneObject("Point Light");
 							scene->registry.emplace<CLight>(light, LightType::POINT, 
-								glm::vec3( 1,1,1 ), 1.0f, glm::vec3( 0,10,0), glm::vec3( 0,0,0 ), 0);
+								glm::vec3( 1,1,1 ), 1.0f, glm::vec3( 0,30,0), glm::vec3( 0,0,0 ), 0);
 						}
 						if (ImGui::MenuItem("Diretional"))
 						{
@@ -191,7 +191,7 @@ namespace gui
 						{
 							auto light = scene->CreateSceneObject("Spot Light");
 							scene->registry.emplace<CLight>(light, LightType::SPOT,
-								glm::vec3(1, 1, 1), 1.0f, glm::vec3(0, 10, 0), glm::vec3(0, -10, 0), 1.57);
+								glm::vec3(1, 1, 1), 1.0f, glm::vec3(0, 20, 0), glm::vec3(0, -10, 0), glm::radians(50.f));
 						}
 						ImGui::EndMenu();
 					}
@@ -614,7 +614,7 @@ namespace gui
 								if (l.GetLightType() == LightType::SPOT)
 								{
 									auto cutoff = glm::degrees(l.cutoff);
-									if (ImGui::DragFloat("cutoff", &cutoff))
+									if (ImGui::DragFloat("cutoff", &cutoff, 0.01f, 0.0f, 90.0f))
 										l.cutoff = glm::radians(cutoff);
 								}
 								ImGui::EndTabItem();

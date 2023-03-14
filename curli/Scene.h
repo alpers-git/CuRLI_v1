@@ -807,6 +807,7 @@ public:
 	{
 		this->color = color;
 		this->intensity = intensity;
+		direction = glm::normalize(direction);
 		//Point light constructor
 		if (ltype == LightType::POINT)
 		{
