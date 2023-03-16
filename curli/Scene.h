@@ -905,10 +905,10 @@ public:
 		}
 		else
 		{
-			//glm::mat4 lightProjection = glm::perspective(glm::radians(45.f), 1.0f, 0.10f, 30.f);//todo
-			glm::mat4 lightProjection = glm::scale(glm::ortho(-15.0f, 15.0f, -15.0f, 15.0f, 0.01f, 50.f), glm::vec3(1/this->position.z));
+			glm::mat4 lightProjection = glm::scale(glm::perspective(glm::radians(45.f), 1280.f / 720.f, 0.10f, 100.f), glm::vec3(0.1f));//todo
+			//glm::mat4 lightProjection = glm::scale(glm::ortho(-15.0f, 15.0f, -15.0f, 15.0f, 0.01f, 50.f), glm::vec3(1/this->position.z));
 			glm::mat4 lightView = glm::lookAt(this->position,
-				this->position + glm::normalize(this->direction)*10.f,
+				{0,0,0},
 				glm::vec3(0.0f, 1.0f, 0.0f));
 			return lightProjection * lightView;
 		}
