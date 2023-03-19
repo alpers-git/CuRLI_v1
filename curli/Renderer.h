@@ -1440,7 +1440,7 @@ public:
 						0.5, 0.0, 0.0, 0.0,
 						0.0, 0.5, 0.0, 0.0,
 						0.0, 0.0, 0.5, 0.0,
-						0.5, 0.5, 0.47, 1.0
+						0.5, 0.5, 0.4998, 1.0
 					) * light.CalculateShadowMatrix();
 					program->SetUniform(varName.c_str(), shadowMatrix);
 

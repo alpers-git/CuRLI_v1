@@ -905,10 +905,11 @@ public:
 		}
 		else
 		{
-			glm::mat4 lightProjection = glm::scale(glm::perspective(glm::radians(45.f), 1280.f / 720.f, 0.10f, 100.f), glm::vec3(0.1f));//todo
+			glm::mat4 lightProjection = glm::scale(glm::perspective(cutoff, 1.0f, 0.10f, 1000.f), 
+				glm::vec3(glm::length(this->position/1000.f)));//todo
 			//glm::mat4 lightProjection = glm::scale(glm::ortho(-15.0f, 15.0f, -15.0f, 15.0f, 0.01f, 50.f), glm::vec3(1/this->position.z));
 			glm::mat4 lightView = glm::lookAt(this->position,
-				{0,0,0},
+				this->position + glm::normalize(direction),
 				glm::vec3(0.0f, 1.0f, 0.0f));
 			return lightProjection * lightView;
 		}
@@ -1225,6 +1226,11 @@ public:
 	* Creates a Directional light source
 	*/
 	entt::entity CreateDirectionalLight(glm::vec3 dir, float intesity, glm::vec3 color);
+
+	/*
+	* Creates a Spot light source
+	*/
+	entt::entity Scene::CreateSpotLight(glm::vec3 pos, glm::vec3 dir, float cutoff, float intesity, glm::vec3 color);
 	
 	/*
 	* Creates a bounding box that acts as a physics bound alongside with a VAO so it can be drawn

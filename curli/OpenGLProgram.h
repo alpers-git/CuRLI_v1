@@ -562,9 +562,11 @@ struct ShadowTexture
 		GL_CALL(glViewport(0, 0, dims.x, dims.y));
 		auto mask = GL_DEPTH_BUFFER_BIT;
 		GL_CALL(glClear(mask));
+		//glEnable(GL_CULL_FACE);
 		glCullFace(GL_FRONT);
 		renderFunc();//Tell how the scene is going to be rendered
 		glCullFace(GL_BACK);
+		glDisable(GL_CULL_FACE);
 
 		//Restore the renderer
 		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, origFB));

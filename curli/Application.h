@@ -131,8 +131,7 @@ private:
 				i++;
 				glm::vec3 pos(NAN);
 				glm::vec3 dir(NAN);
-				float innerAng = NAN;
-				float outerAng = NAN;
+				float cutoff = NAN;
 				glm::vec3 color;
 				float intensity;
 				for (; i < argc; i++)
@@ -160,15 +159,10 @@ private:
 						dir = glm::vec3(std::stof(argv[i]), std::stof(argv[i + 1]), std::stof(argv[i + 2]));
 						i += 2;
 					}
-					else if (std::string(argv[i]).compare("--innerAng") == 0)
+					else if (std::string(argv[i]).compare("--cutoff") == 0)
 					{
 						i++;
-						innerAng = std::stof(argv[i]);
-					}
-					else if (std::string(argv[i]).compare("--outerAng") == 0)
-					{
-						i++;
-						outerAng = std::stof(argv[i]);
+						cutoff = glm::radians(std::stof(argv[i]));
 					}
 					else
 					{
@@ -180,8 +174,8 @@ private:
 					scene->CreateDirectionalLight(dir, intensity, color);
 				else if (glm::any(glm::isnan(dir)))
 					scene->CreatePointLight(pos, intensity, color);
-				/*else
-					scene->CreateSpotLight(pos, dir, innerAng, outerAng, intensity, color);*/
+				else
+					scene->CreateSpotLight(pos, dir, cutoff, intensity, color);
 			}
 		}
 	}

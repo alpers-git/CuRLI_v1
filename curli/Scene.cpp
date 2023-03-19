@@ -538,7 +538,7 @@ std::vector<glm::vec3> CPhysicsBounds::GenerateVertices()
 
 entt::entity Scene::CreatePointLight(glm::vec3 pos, float intesity, glm::vec3 color)
 {
-	auto entity = CreateSceneObject("light");
+	auto entity = CreateSceneObject("Point Light");
 	registry.emplace<CLight>(entity, LightType::POINT, color, glm::min(intesity, 1.0f), pos, 
 		glm::vec3(0, 0, 0), 0);
 	return entity;
@@ -546,9 +546,15 @@ entt::entity Scene::CreatePointLight(glm::vec3 pos, float intesity, glm::vec3 co
 
 entt::entity Scene::CreateDirectionalLight(glm::vec3 dir, float intesity, glm::vec3 color)
 {
-	auto entity = CreateSceneObject("light");
+	auto entity = CreateSceneObject("Directional Light");
 	registry.emplace<CLight>(entity, LightType::DIRECTIONAL, color, glm::min(intesity, 1.0f), 
 		glm::vec3(0, 0, 0), dir, 0);
+	return entity;
+}
+entt::entity Scene::CreateSpotLight(glm::vec3 pos, glm::vec3 dir, float cutoff, float intesity, glm::vec3 color)
+{
+	auto entity = CreateSceneObject("Spot Light");
+	registry.emplace<CLight>(entity, LightType::SPOT, color, glm::min(intesity, 1.0f), pos, dir, cutoff);
 	return entity;
 }
 
