@@ -42,10 +42,10 @@ public:
 	void Render()
 	{
 		GLFWHandler::GetInstance().SwapBuffers();
-
+		
 		//Scene changes
 		static_cast<T*>(this)->PreUpdate();
-
+		
 		//glClear(clearFlags);
 		program->Clear();
 		//Rendering
@@ -368,13 +368,13 @@ protected:
 		auto* light = scene->registry.try_get<CLight>(e);
 		if (light)
 		{
-			bool point = false;//light->GetLightType() == LightType::POINT;
-			/*if ( point &&
+			bool point = light->GetLightType() == LightType::POINT;
+			if ( point &&
 				entity2ShadowCubeIndex.find(e) != entity2ShadowCubeIndex.end())
 			{
 				program->shadowCubeMaps[entity2ShadowCubeIndex[e]].Delete();
 				entity2ShadowCubeIndex.erase(e);
-			}*/
+			}
 			if (entity2ShadowMapIndex.find(e) != entity2ShadowMapIndex.end())
 			{
 				program->shadowTextures[entity2ShadowMapIndex[e]].Delete();
@@ -389,6 +389,7 @@ protected:
 				program->shadowCubeMaps.push_back(sMap);
 				entity2ShadowCubeIndex[e] = program->shadowCubeMaps.size() - 1;
 				light->glID = sMap.GetGLID();
+				printf("id %d\n", light->glID);
 			}
 			else
 			{
@@ -1375,7 +1376,7 @@ public:
 			if (light.GetLightType() == LightType::POINT)
 			{
 				std::string varName("p_lights[" + std::to_string(p) + "].position");
-				program->SetUniform(varName.c_str(), glm::vec3(scene->camera.GetViewMatrix() * glm::vec4(light.position, 1)));
+				program->SetUniform(varName.c_str(), glm::vec3(/*scene->camera.GetViewMatrix() **/ glm::vec4(light.position, 1)));
 				varName = std::string("p_lights[" + std::to_string(p) + "].intensity");
 				program->SetUniform(varName.c_str(), light.intensity);
 				varName = std::string("p_lights[" + std::to_string(p) + "].color");
@@ -1393,9 +1394,9 @@ public:
 				if (!light.scheduledTextureUpdate && light.IsCastingShadows() &&
 					entity2ShadowCubeIndex.find(entity) != entity2ShadowCubeIndex.end())
 				{
-					program->shadowTextures[entity2ShadowCubeIndex[entity]].Bind();
+					program->shadowCubeMaps[entity2ShadowCubeIndex[entity]].Bind();
 					varName = std::string("p_shadow_maps[" + std::to_string(p) + "]");
-					program->SetUniform(varName.c_str(), 10 + light.slot);//todo
+					program->SetUniform(varName.c_str(), 10 + light.slot);
 				}
 				else
 					program->SetUniform(varName.c_str(), 0);
@@ -1573,7 +1574,7 @@ public:
 		});
 
 		//Render skybox
-		glDepthMask(GL_FALSE);//TODO
+		GL_CALL(glDepthMask(GL_FALSE));//TODO
 		scene->registry.view<CSkyBox>()
 			.each([&](const auto& entity, auto& env)
 				{
@@ -1592,8 +1593,7 @@ public:
 						program->cubeMaps[cubemapIndex].Unbind();
 					}
 				});
-		glDepthMask(GL_TRUE);//TODO
-
+		GL_CALL(glDepthMask(GL_TRUE));//TODO
 	}
 
 	void End()

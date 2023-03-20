@@ -18,14 +18,14 @@ struct PLight{
 };
 vec3 illuminationAt(in PLight light, in vec3 pos, samplerCubeShadow shadow_map, in vec3 w_space_pos, inout vec3 l)
 {
-     l = (light.position - pos);
+     l = (light.position - w_space_pos);
      float l_length = length(l);
      l = normalize(l);
      float intensity = light.intensity;
      if(light.casting_shadows == 1)
      {
-          float distance = texture(shadow_map, vec4(l,0));
-          if(l_length > 10)
+          float distance = texture(shadow_map, vec4(l,1));
+          if(l_length > distance)
                intensity = 0;
      }
 
@@ -91,8 +91,6 @@ vec3 illuminationAt(in SLight light, in vec3 pos, in sampler2DShadow shadow_map,
                intensity = clamp(intensity, 0.0, 1.0); 
           }
      }
-
-
      return intensity * normalize(light.color) / (0.0005*l_length * l_length + 0.0001*l_length);
 }
 
@@ -107,6 +105,7 @@ layout (location = 8) in vec4 lv_space_pos;
 
 //------------ Uniforms ------------
 uniform mat4 to_view_space; //mv
+uniform mat4 to_world_space; //m
 
 uniform int p_light_count;
 uniform PLight p_lights[5];
@@ -153,6 +152,7 @@ void main() {
                if(i < p_light_count) //point light soures
                {
                     illumination = illuminationAt(p_lights[i], v_space_pos, p_shadow_maps[i], w_space_pos, l);
+                    l = (to_view_space * inverse(to_world_space) * vec4(l, 0)).xyz;
                }
                else if(d_light_index < d_light_count) //directional light sources
                {

@@ -803,7 +803,7 @@ public:
 		GL_CALL(glBindTexture(GL_TEXTURE_CUBE_MAP, glID));
 
 		for (unsigned int i = 0; i < 6; ++i)
-			GL_CALL(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT,
+			GL_CALL(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT24,
 				dims.x, dims.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL));
 
 		GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
@@ -815,14 +815,21 @@ public:
 		//Get the renderer state
 		GLint origFB;
 		GL_CALL(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &origFB));
+		
 		GL_CALL(glGenFramebuffers(1, &frameBufferID));
 		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID));
-		GL_CALL(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthBufferID, 0));
+
+		GL_CALL(glGenRenderbuffers(1, &depthBufferID));
+		GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, depthBufferID));
+		GL_CALL(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, dims.x, dims.y));
+		GL_CALL(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBufferID));
+
 		GL_CALL(glDrawBuffer(GL_NONE));
 		GL_CALL(glReadBuffer(GL_NONE));
-		
-		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+		}
 		//Rebind the scene FB
 		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, origFB));
 	}
@@ -852,16 +859,18 @@ public:
 		GL_CALL(glViewport(0, 0, dims.x, dims.y));
 		auto mask = GL_DEPTH_BUFFER_BIT;
 		
-		GL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, glID, 0));
+		GL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, 
+			GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, glID, 0));
 		/*if (!lastFace)
 			GL_CALL(glClear(mask));*/
 		renderFunc();//Tell how the scene is going to be rendered
 
 		//Restore the renderer
+		GL_CALL(glGenerateTextureMipmap(glID));
 		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, origFB));
 		GL_CALL(glViewport(origViewport[0], origViewport[1], origViewport[2], origViewport[3]));
-		/*if (lastFace)
-			GL_CALL(glClear(mask));*/
+		if (lastFace)
+			GL_CALL(glClear(mask));
 	}
 
 	void RenderAll(std::function <void()> renderFunc)
