@@ -24,9 +24,7 @@ vec3 illuminationAt(in PLight light, in vec3 pos, samplerCubeShadow shadow_map, 
      float intensity = light.intensity;
      if(light.casting_shadows == 1)
      {
-          float distance = texture(shadow_map, vec4(l,1));
-          if(l_length > distance)
-               intensity = 0;
+          intensity *= texture(shadow_map, vec4(light.position,1)).r;
      }
 
      return intensity * normalize(light.color) / (0.001*l_length * l_length + 0.001*l_length);

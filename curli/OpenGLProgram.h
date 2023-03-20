@@ -8,6 +8,65 @@
 #include <glm/glm.hpp>
 #include <vector>
 #include <Scene.h>
+#include <windows.h>
+
+//void APIENTRY GLDebugMessageCallback(
+//	GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length,
+//	const GLchar* msg, const void* data)
+//{
+//	std::string _source;
+//	switch (source) {
+//	case GL_DEBUG_SOURCE_API:               _source = "api"; break;
+//	case GL_DEBUG_SOURCE_WINDOW_SYSTEM:     _source = "window"; break;
+//	case GL_DEBUG_SOURCE_SHADER_COMPILER:   _source = "shader"; break;
+//	case GL_DEBUG_SOURCE_THIRD_PARTY:       _source = "3rd party"; break;
+//	case GL_DEBUG_SOURCE_APPLICATION:       _source = "app"; break;
+//	case GL_DEBUG_SOURCE_OTHER:             _source = "UNKNOWN"; break;
+//	default: _source = "UNKNOWN"; break;
+//	}
+//
+//	std::string _type;
+//	switch (type) {
+//	case GL_DEBUG_TYPE_ERROR:               _type = "error"; break;
+//	case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: _type = "deprecated"; break;
+//	case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:  _type = "undefined"; break;
+//	case GL_DEBUG_TYPE_PORTABILITY:         _type = "portability"; break;
+//	case GL_DEBUG_TYPE_PERFORMANCE:         _type = "performance"; break;
+//	case GL_DEBUG_TYPE_OTHER:               _type = "other"; break;
+//	case GL_DEBUG_TYPE_MARKER:              _type = "marker"; break;
+//	default: _type = "UNKNOWN"; break;
+//	}
+//
+//	std::string _severity;
+//	//console color char for plain printf
+//	
+//	switch (severity) {
+//	case GL_DEBUG_SEVERITY_HIGH:
+//		_severity = "high";
+//		system("color 4");
+//		break;
+//	case GL_DEBUG_SEVERITY_MEDIUM:
+//		_severity = "med";
+//		system("color 6");
+//		break;
+//	case GL_DEBUG_SEVERITY_LOW:
+//		_severity = "low";
+//		system("color 2");
+//		break;
+//	case GL_DEBUG_SEVERITY_NOTIFICATION:
+//		_severity = "notif";
+//		system("color 7");
+//		break;
+//	default:
+//		_severity = "UNKNOWN";
+//		system("color 1");
+//		break;
+//	}
+//
+//	if (severity != GL_DEBUG_SEVERITY_NOTIFICATION) {
+//		printf("GL Error type: %s severity: %s from: %s-\n\t %s", _type.c_str(), _severity.c_str(), _source.c_str(), msg);
+//	}
+//}
 
 //define a macro that takes a function calls it and ctaches opengl errors
 #define GL_CALL(func) \
@@ -30,7 +89,7 @@ struct Shader
 		:source(source)
 	{
 		//glID = 0;
-		glID = glCreateShader(shader_type);
+		GL_CALL(glID = glCreateShader(shader_type));
 	}
 
 	~Shader()
@@ -49,7 +108,7 @@ struct Shader
 		if (!success)
 		{
 			GLchar infoLog[512];
-			glGetShaderInfoLog(glID, 512, NULL, infoLog);
+			GL_CALL(glGetShaderInfoLog(glID, 512, NULL, infoLog));
 			std::cout << "ERROR::SHADER::COMPILATION_FAILED\n" << infoLog << std::endl;
 			return false;
 		}
@@ -65,7 +124,7 @@ struct Shader
 		if (!status)
 		{
 			char infoLog[512];
-			glGetProgramInfoLog(glID, 512, NULL, infoLog);
+			GL_CALL(glGetProgramInfoLog(glID, 512, NULL, infoLog));
 			std::cout << "ERROR::SHADER::ATTACH_FAILED\n" << infoLog << std::endl;
 			return false;
 		}
@@ -175,7 +234,8 @@ public:
 
 		GL_CALL(glBufferData(GL_ARRAY_BUFFER, dataSize * t_size * attribSize, data, usage));
 
-		GLuint loc = glGetAttribLocation(programID, attribName.c_str());
+		GLuint loc;
+		GL_CALL(loc = glGetAttribLocation(programID, attribName.c_str()));
 		GL_CALL(glEnableVertexAttribArray(loc));
 
 		GL_CALL(glVertexAttribPointer(loc, attribSize, type, normalized, stride, (void*)offset));
@@ -563,10 +623,10 @@ struct ShadowTexture
 		auto mask = GL_DEPTH_BUFFER_BIT;
 		GL_CALL(glClear(mask));
 		//glEnable(GL_CULL_FACE);
-		glCullFace(GL_FRONT);
+		GL_CALL(glCullFace(GL_FRONT));
 		renderFunc();//Tell how the scene is going to be rendered
-		glCullFace(GL_BACK);
-		glDisable(GL_CULL_FACE);
+		GL_CALL(glCullFace(GL_BACK));
+		GL_CALL(glDisable(GL_CULL_FACE));
 
 		//Restore the renderer
 		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, origFB));
@@ -802,31 +862,34 @@ public:
 		GL_CALL(glGenTextures(1, &glID));
 		GL_CALL(glBindTexture(GL_TEXTURE_CUBE_MAP, glID));
 
-		for (unsigned int i = 0; i < 6; ++i)
-			GL_CALL(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT24,
-				dims.x, dims.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL));
-
 		GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
 		GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+		GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE));
+		GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL));
 		GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
 		GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
 		GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE));
-
-		//Get the renderer state
+		
 		GLint origFB;
 		GL_CALL(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &origFB));
 		
 		GL_CALL(glGenFramebuffers(1, &frameBufferID));
 		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID));
 
-		GL_CALL(glGenRenderbuffers(1, &depthBufferID));
-		GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, depthBufferID));
-		GL_CALL(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, dims.x, dims.y));
-		GL_CALL(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBufferID));
-
 		GL_CALL(glDrawBuffer(GL_NONE));
 		GL_CALL(glReadBuffer(GL_NONE));
 
+		for (unsigned int i = 0; i < 6; ++i)
+		{
+			GL_CALL(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT24,
+				dims.x, dims.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL));
+			
+			GL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+				GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, glID, 0));
+		}
+
+
+		//Get the renderer state
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
 		}
@@ -861,12 +924,12 @@ public:
 		
 		GL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, 
 			GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, glID, 0));
-		/*if (!lastFace)
-			GL_CALL(glClear(mask));*/
+		/*if (!lastFace)*/
+			GL_CALL(glClear(mask));
 		renderFunc();//Tell how the scene is going to be rendered
 
 		//Restore the renderer
-		GL_CALL(glGenerateTextureMipmap(glID));
+		//GL_CALL(glGenerateTextureMipmap(glID));
 		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, origFB));
 		GL_CALL(glViewport(origViewport[0], origViewport[1], origViewport[2], origViewport[3]));
 		if (lastFace)
@@ -932,9 +995,67 @@ public:
 	
 	OpenGLProgram()
 	{
-		glID = glCreateProgram();
+		GL_CALL(glID = glCreateProgram());
 		GL_CALL(glEnable(GL_DEPTH_TEST));
 		GL_CALL(glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w));
+
+		glDebugMessageCallback(//create empty lambda here
+			[](GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
+			{
+				std::string _source;
+				switch (source) {
+				case GL_DEBUG_SOURCE_API:               _source = "api"; break;
+				case GL_DEBUG_SOURCE_WINDOW_SYSTEM:     _source = "window"; break;
+				case GL_DEBUG_SOURCE_SHADER_COMPILER:   _source = "shader"; break;
+				case GL_DEBUG_SOURCE_THIRD_PARTY:       _source = "3rd party"; break;
+				case GL_DEBUG_SOURCE_APPLICATION:       _source = "app"; break;
+				case GL_DEBUG_SOURCE_OTHER:             _source = "UNKNOWN"; break;
+				default: _source = "UNKNOWN"; break;
+				}
+
+				std::string _type;
+				switch (type) {
+				case GL_DEBUG_TYPE_ERROR:               _type = "error"; break;
+				case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: _type = "deprecated"; break;
+				case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:  _type = "undefined"; break;
+				case GL_DEBUG_TYPE_PORTABILITY:         _type = "portability"; break;
+				case GL_DEBUG_TYPE_PERFORMANCE:         _type = "performance"; break;
+				case GL_DEBUG_TYPE_OTHER:               _type = "other"; break;
+				case GL_DEBUG_TYPE_MARKER:              _type = "marker"; break;
+				default: _type = "UNKNOWN"; break;
+				}
+
+				std::string _severity;
+				//console color char for plain printf
+
+				switch (severity) {
+				case GL_DEBUG_SEVERITY_HIGH:
+					_severity = "high";
+					system("color 4");
+					break;
+				case GL_DEBUG_SEVERITY_MEDIUM:
+					_severity = "med";
+					system("color 6");
+					break;
+				case GL_DEBUG_SEVERITY_LOW:
+					_severity = "low";
+					system("color 2");
+					break;
+				case GL_DEBUG_SEVERITY_NOTIFICATION:
+					_severity = "notif";
+					system("color 7");
+					break;
+				default:
+					_severity = "UNKNOWN";
+					system("color 1");
+					break;
+				}
+
+				if (severity != GL_DEBUG_SEVERITY_NOTIFICATION) {
+					printf("GL Error type: %s severity: %s from: %s-\n\t %s", _type.c_str(), _severity.c_str(), _source.c_str(), message);
+				}
+				system("color 7");
+			}, 0);
 		
 		vertexShader = new Shader(GL_VERTEX_SHADER);
 		fragmentShader = new Shader(GL_FRAGMENT_SHADER);
@@ -996,7 +1117,8 @@ public:
 
 	inline void SetUniform(const char* name, int value)
 	{
-		GLint location = glGetUniformLocation(glID, name);
+		GLint location;
+		GL_CALL(location = glGetUniformLocation(glID, name));
 		if (location == -1)
 		{
 			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;
@@ -1006,7 +1128,8 @@ public:
 	}
 	inline void SetUniform(const char* name, float value)
 	{
-		GLint location = glGetUniformLocation(glID, name);
+		GLint location;
+		GL_CALL(location = glGetUniformLocation(glID, name));
 		if (location == -1)
 		{
 			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;
@@ -1017,7 +1140,8 @@ public:
 
 	inline void SetUniform(const char* name, glm::vec2 value)
 	{
-		GLint location = glGetUniformLocation(glID, name);
+		GLint location;
+		GL_CALL(location = glGetUniformLocation(glID, name));
 		if (location == -1)
 		{
 			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;
@@ -1027,7 +1151,8 @@ public:
 	}
 	inline void SetUniform(const char* name, glm::vec3 value)
 	{
-		GLint location = glGetUniformLocation(glID, name);
+		GLint location;
+		GL_CALL(location = glGetUniformLocation(glID, name));
 		if (location == -1)
 		{
 			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;
@@ -1037,7 +1162,8 @@ public:
 	}
 	inline void SetUniform(const char* name, glm::vec4 value)
 	{
-		GLint location = glGetUniformLocation(glID, name);
+		GLint location;
+		GL_CALL(location = glGetUniformLocation(glID, name));
 		if (location == -1)
 		{
 			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;
@@ -1048,7 +1174,8 @@ public:
 
 	inline void SetUniform(const char* name, glm::mat2 value)
 	{
-		GLint location = glGetUniformLocation(glID, name);
+		GLint location;
+		GL_CALL(location = glGetUniformLocation(glID, name));
 		if (location == -1)
 		{
 			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;
@@ -1059,7 +1186,8 @@ public:
 
 	inline void SetUniform(const char* name, glm::mat3 value)
 	{
-		GLint location = glGetUniformLocation(glID, name);
+		GLint location;
+		GL_CALL(location = glGetUniformLocation(glID, name));
 		if (location == -1)
 		{
 			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;
@@ -1070,7 +1198,8 @@ public:
 
 	inline void SetUniform(const char* name, glm::mat4 value)
 	{
-		GLint location = glGetUniformLocation(glID, name);
+		GLint location;
+		GL_CALL(location = glGetUniformLocation(glID, name));
 		if (location == -1)
 		{
 			std::cout << "ERROR::SHADER::UNIFORM::" << name << "::NOT_FOUND" << std::endl;

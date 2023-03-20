@@ -388,7 +388,7 @@ protected:
 				ShadowCubeTexture sMap({ 800,800 }, GL_TEXTURE10 + light->slot);
 				program->shadowCubeMaps.push_back(sMap);
 				entity2ShadowCubeIndex[e] = program->shadowCubeMaps.size() - 1;
-				light->glID = sMap.GetGLID();
+				//light->glID = sMap.GetGLID();
 				printf("id %d\n", light->glID);
 			}
 			else
@@ -1264,15 +1264,21 @@ public:
 						(entity2ShadowCubeIndex.find(entity) != entity2ShadowCubeIndex.end()))
 					{
 						int i = frameCounter % 6;
+						auto tmpCamera = Camera(light.position,
+							angles[i], 10.0, -90);
+						tmpCamera.SetFarPlane(100.f);
 						program->shadowCubeMaps[entity2ShadowCubeIndex[entity]]
-							.RenderSide(i, std::bind(&MultiTargetRenderer::UpdateShadows, this, light.CalculateShadowMatrix(i)), i==5);
+							.RenderSide(i, std::bind(&MultiTargetRenderer::UpdateShadows,
+								this, light.CalculateShadowMatrix(i)
+								/*tmpCamera.GetProjectionMatrix() * tmpCamera.GetViewMatrix()*/), i == 5);
 					}
 					else if ( (light.GetLightType() == LightType::DIRECTIONAL ||
 						light.GetLightType() == LightType::SPOT) && 
 						(entity2ShadowMapIndex.find(entity) != entity2ShadowMapIndex.end()) )
 					{
 						program->shadowTextures[entity2ShadowMapIndex[entity]]
-						.Render(std::bind(&MultiTargetRenderer::UpdateShadows, this, light.CalculateShadowMatrix()));
+						.Render(std::bind(&MultiTargetRenderer::UpdateShadows,
+							this, light.CalculateShadowMatrix()));
 					}
 				}
 				
@@ -1365,7 +1371,7 @@ public:
 	{	
 		//bind GLSL program
 		program->Use();
-
+		
 		//Set up lights
 		int p = 0;
 		int d = 0;
@@ -1394,6 +1400,7 @@ public:
 				if (!light.scheduledTextureUpdate && light.IsCastingShadows() &&
 					entity2ShadowCubeIndex.find(entity) != entity2ShadowCubeIndex.end())
 				{
+					program->SetUniform(varName.c_str(), 1);
 					program->shadowCubeMaps[entity2ShadowCubeIndex[entity]].Bind();
 					varName = std::string("p_shadow_maps[" + std::to_string(p) + "]");
 					program->SetUniform(varName.c_str(), 10 + light.slot);

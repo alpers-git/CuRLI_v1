@@ -2,13 +2,13 @@
 
 void OpenGLProgram::Use()
 {
-	glUseProgram(glID);
+	GL_CALL(glUseProgram(glID));
 }
 
 bool OpenGLProgram::AttachVertexShader()
 {
 	if (vertexShader->AttachShader(glID))
-		glDeleteShader(vertexShader->glID);//Lets drivers know we don't need this shader objects anymore.
+		GL_CALL(glDeleteShader(vertexShader->glID));//Lets drivers know we don't need this shader objects anymore.
 	else 
 		return false;
 	
@@ -18,7 +18,7 @@ bool OpenGLProgram::AttachVertexShader()
 bool OpenGLProgram::AttachFragmentShader()
 {
 	if (fragmentShader->AttachShader(glID))
-		glDeleteShader(fragmentShader->glID);//Lets drivers know we don't need this shader objects anymore.
+		GL_CALL(glDeleteShader(fragmentShader->glID));//Lets drivers know we don't need this shader objects anymore.
 	else
 		return false;
 	return true;
