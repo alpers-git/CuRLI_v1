@@ -79,6 +79,7 @@ protected:
 	std::unordered_map<entt::entity,vec5> entity2TextureIndices;
 	std::unordered_map<entt::entity, unsigned int> entity2EnvMapIndex;
 	std::unordered_map<entt::entity, unsigned int> entity2ShadowMapIndex;
+	std::unordered_map<entt::entity, unsigned int> entity2ShadowCubeIndex;
 
 	/*
 	* Parses arguments called when application starts
@@ -367,6 +368,13 @@ protected:
 		auto* light = scene->registry.try_get<CLight>(e);
 		if (light)
 		{
+			bool point = false;//light->GetLightType() == LightType::POINT;
+			/*if ( point &&
+				entity2ShadowCubeIndex.find(e) != entity2ShadowCubeIndex.end())
+			{
+				program->shadowCubeMaps[entity2ShadowCubeIndex[e]].Delete();
+				entity2ShadowCubeIndex.erase(e);
+			}*/
 			if (entity2ShadowMapIndex.find(e) != entity2ShadowMapIndex.end())
 			{
 				program->shadowTextures[entity2ShadowMapIndex[e]].Delete();
@@ -375,12 +383,21 @@ protected:
 
 			if (toBeRemoved)
 				return;
-			
-			auto texUnit = (light->GetLightType() == LightType::DIRECTIONAL ? GL_TEXTURE15 : GL_TEXTURE20) + light->slot;
-			ShadowTexture sMap({ 800,800 }, texUnit);
-			program->shadowTextures.push_back(sMap);
-			entity2ShadowMapIndex[e] = program->shadowTextures.size() - 1;
-			light->glID = sMap.GetGLID();
+			if (point)
+			{
+				ShadowCubeTexture sMap({ 800,800 }, GL_TEXTURE10 + light->slot);
+				program->shadowCubeMaps.push_back(sMap);
+				entity2ShadowCubeIndex[e] = program->shadowCubeMaps.size() - 1;
+				light->glID = sMap.GetGLID();
+			}
+			else
+			{
+				auto texUnit = (light->GetLightType() == LightType::DIRECTIONAL ? GL_TEXTURE15 : GL_TEXTURE20) + light->slot;
+				ShadowTexture sMap({ 800,800 }, texUnit);
+				program->shadowTextures.push_back(sMap);
+				entity2ShadowMapIndex[e] = program->shadowTextures.size() - 1;
+				light->glID = sMap.GetGLID();
+			}
 		}
 	}
 };
@@ -1240,17 +1257,18 @@ public:
 		scene->registry.view<CLight>()
 			.each([&](const auto& entity, auto& light)
 			{
-				if (!light.scheduledTextureUpdate && light.IsCastingShadows() &&
-					(entity2ShadowMapIndex.find(entity) != entity2ShadowMapIndex.end()) )
+				if (!light.scheduledTextureUpdate && light.IsCastingShadows())
 				{
-					if(light.GetLightType() == LightType::POINT)
+					if(light.GetLightType() == LightType::POINT &&
+						(entity2ShadowCubeIndex.find(entity) != entity2ShadowCubeIndex.end()))
 					{
-						/*if (entity2ShadowMapIndex.find(entity) != entity2ShadowMapIndex.end())
-							program->shadowCubeTextures[entity2ShadowMapIndex[entity]]
-								.RenderSide(std::bind(&MultiTargetRenderer::UpdateShadows, this, light.CalculateShadowMatrix()));*/
+						int i = frameCounter % 6;
+						program->shadowCubeMaps[entity2ShadowCubeIndex[entity]]
+							.RenderSide(i, std::bind(&MultiTargetRenderer::UpdateShadows, this, light.CalculateShadowMatrix(i)), i==5);
 					}
-					else if (light.GetLightType() == LightType::DIRECTIONAL ||
-						light.GetLightType() == LightType::SPOT)//for now
+					else if ( (light.GetLightType() == LightType::DIRECTIONAL ||
+						light.GetLightType() == LightType::SPOT) && 
+						(entity2ShadowMapIndex.find(entity) != entity2ShadowMapIndex.end()) )
 					{
 						program->shadowTextures[entity2ShadowMapIndex[entity]]
 						.Render(std::bind(&MultiTargetRenderer::UpdateShadows, this, light.CalculateShadowMatrix()));
@@ -1362,7 +1380,7 @@ public:
 				program->SetUniform(varName.c_str(), light.intensity);
 				varName = std::string("p_lights[" + std::to_string(p) + "].color");
 				program->SetUniform(varName.c_str(), light.color);
-				p++;
+				varName = std::string("p_lights[" + std::to_string(p) + "].casting_shadows");
 				if (light.show)//Display light
 				{
 					program->SetUniform("shading_mode", 1);
@@ -1372,6 +1390,16 @@ public:
 					if (entity2VAOIndex.find(entity) != entity2VAOIndex.end())
 						program->vaos[entity2VAOIndex[entity]].Draw();
 				}
+				if (!light.scheduledTextureUpdate && light.IsCastingShadows() &&
+					entity2ShadowCubeIndex.find(entity) != entity2ShadowCubeIndex.end())
+				{
+					program->shadowTextures[entity2ShadowCubeIndex[entity]].Bind();
+					varName = std::string("p_shadow_maps[" + std::to_string(p) + "]");
+					program->SetUniform(varName.c_str(), 10 + light.slot);//todo
+				}
+				else
+					program->SetUniform(varName.c_str(), 0);
+				p++;
 			}
 			else if (light.GetLightType() == LightType::DIRECTIONAL)
 			{

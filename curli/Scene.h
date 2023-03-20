@@ -891,10 +891,40 @@ public:
 		CLight::slotUsed[this->slot] = false;
 	}
 
-	glm::mat4 CalculateShadowMatrix()
+	glm::mat4 CalculateShadowMatrix(int side = -1)
 	{
 		if (lightType == LightType::POINT)
-			return glm::mat4(1.0f);
+		{
+			switch (side)
+			{
+			case 0:
+				return glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.0f) *
+					glm::lookAt(position, position + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+				break;
+			case 1:
+				return glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.0f) *
+					glm::lookAt(position, position + glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+				break;
+			case 2:
+				return glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.0f) *
+					glm::lookAt(position, position + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+				break;
+			case 3:
+				return glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.0f) *
+					glm::lookAt(position, position + glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f));
+				break;
+			case 4:
+				return glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.0f) *
+					glm::lookAt(position, position + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+				break;
+			case 5:
+				return glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.0f) *
+					glm::lookAt(position, position + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+				break;
+			default:
+				break;
+			}
+		}
 		else if (lightType == LightType::DIRECTIONAL)
 		{
 			glm::mat4 lightProjection = glm::ortho(-15.0f, 15.0f, -15.0f, 15.0f, 0.01f, 50.f);

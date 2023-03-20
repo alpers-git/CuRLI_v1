@@ -793,6 +793,124 @@ private:
 	GLuint depthBufferID = 0;
 };
 
+struct ShadowCubeTexture
+{
+public:
+	ShadowCubeTexture(glm::uvec2 dims, GLenum textUnit = GL_TEXTURE10)
+		:dims(dims), textUnit(textUnit)
+	{
+		GL_CALL(glGenTextures(1, &glID));
+		GL_CALL(glBindTexture(GL_TEXTURE_CUBE_MAP, glID));
+
+		for (unsigned int i = 0; i < 6; ++i)
+			GL_CALL(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT,
+				dims.x, dims.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL));
+
+		GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
+		GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+		GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+		GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+		GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE));
+
+		//Get the renderer state
+		GLint origFB;
+		GL_CALL(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &origFB));
+		GL_CALL(glGenFramebuffers(1, &frameBufferID));
+		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID));
+		GL_CALL(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthBufferID, 0));
+		GL_CALL(glDrawBuffer(GL_NONE));
+		GL_CALL(glReadBuffer(GL_NONE));
+		
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+		//Rebind the scene FB
+		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, origFB));
+	}
+	
+	//Copy constructor
+	ShadowCubeTexture(const ShadowCubeTexture& other)
+	{
+		glID = other.glID;
+		dims = other.dims;
+		textUnit = other.textUnit;
+		frameBufferID = other.frameBufferID;
+		depthBufferID = other.depthBufferID;
+	}
+	~ShadowCubeTexture()
+	{}
+
+	void RenderSide(int i, std::function <void()> renderFunc, bool lastFace = false)
+	{
+		//Get the renderer state
+		GLint origFB;
+		GL_CALL(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &origFB));
+		GLint origViewport[4];
+		GL_CALL(glGetIntegerv(GL_VIEWPORT, origViewport));
+
+		//Render the scene
+		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID));
+		GL_CALL(glViewport(0, 0, dims.x, dims.y));
+		auto mask = GL_DEPTH_BUFFER_BIT;
+		
+		GL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, glID, 0));
+		/*if (!lastFace)
+			GL_CALL(glClear(mask));*/
+		renderFunc();//Tell how the scene is going to be rendered
+
+		//Restore the renderer
+		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, origFB));
+		GL_CALL(glViewport(origViewport[0], origViewport[1], origViewport[2], origViewport[3]));
+		/*if (lastFace)
+			GL_CALL(glClear(mask));*/
+	}
+
+	void RenderAll(std::function <void()> renderFunc)
+	{
+		for (int i = 0; i < 6; i++)
+			RenderSide(i, renderFunc);
+	}
+
+	void Bind()
+	{
+		GL_CALL(glActiveTexture(textUnit));
+		GL_CALL(glBindTexture(GL_TEXTURE_CUBE_MAP, glID));
+	}
+
+	void Unbind()
+	{
+		GL_CALL(glActiveTexture(textUnit));
+		GL_CALL(glBindTexture(GL_TEXTURE_CUBE_MAP, 0));
+	}
+
+	void Delete()
+	{
+		GL_CALL(glDeleteTextures(1, &glID));
+	}
+
+	GLuint GetGLID()
+	{
+		return glID;
+	}
+
+	glm::uvec2 GetDims()
+	{
+		return dims;
+	}
+	
+	
+		
+private:
+	GLuint glID;
+	glm::uvec2 dims;
+	
+	GLenum dataType = GL_UNSIGNED_BYTE;
+
+	GLenum textUnit;
+
+	GLuint frameBufferID = 0;
+	GLuint depthBufferID = 0;
+};
+
 class OpenGLProgram
 {
 public:
@@ -801,6 +919,7 @@ public:
 	std::vector<RenderedTexture2D> renderedTextures;
 	std::vector<ShadowTexture> shadowTextures;
 	std::vector<CubeMappedTexture> cubeMaps;
+	std::vector<ShadowCubeTexture> shadowCubeMaps;
 	
 	OpenGLProgram()
 	{
