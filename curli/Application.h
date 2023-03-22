@@ -18,14 +18,7 @@ public:
 		ParseArguments(argc, argv);
 		renderer->ParseArguments(argc, argv);
 		
-		auto* tr = scene->registry.try_get<CTransform>(scene->GetSceneObject("plane"));
-		auto& tex = scene->registry.emplace<CImageMaps>(scene->GetSceneObject("plane"));
-		//tex.AddImageMap(ImageMap::BindingSlot::T_DIFFUSE, Camera(), {500,500});
-		if (tr)
-		{
-			tr->SetPosition(glm::vec3(0, -10, 0));
-			tr->SetScale(glm::vec3(50, 50, 1));
-		}
+		
 	}
 	~Application() {}
 
