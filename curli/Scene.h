@@ -898,27 +898,27 @@ public:
 			switch (side)
 			{
 			case 0:
-				return glm::scale(glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.0f), glm::vec3(glm::length(this->position / 1000.f))) *
+				return glm::scale(glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 1000.0f), glm::vec3(glm::length(this->position / 1000.f))) *
 					glm::lookAt(position, position + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
 				break;
 			case 1:
-				return glm::scale(glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.0f), glm::vec3(glm::length(this->position / 1000.f))) *
+				return glm::scale(glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 1000.0f), glm::vec3(glm::length(this->position / 1000.f))) *
 					glm::lookAt(position, position + glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
 				break;
 			case 2:
-				return glm::scale(glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.0f), glm::vec3(glm::length(this->position / 1000.f))) *
+				return glm::scale(glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 1000.0f), glm::vec3(glm::length(this->position / 1000.f))) *
 					glm::lookAt(position, position + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 				break;
 			case 3:
-				return glm::scale(glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.0f), glm::vec3(glm::length(this->position / 1000.f))) *
+				return glm::scale(glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 1000.0f), glm::vec3(glm::length(this->position / 1000.f))) *
 					glm::lookAt(position, position + glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f));
 				break;
 			case 4:
-				return glm::scale(glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.0f), glm::vec3(glm::length(this->position / 1000.f))) *
+				return glm::scale(glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 1000.0f), glm::vec3(glm::length(this->position / 1000.f))) *
 					glm::lookAt(position, position + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
 				break;
 			case 5:
-				return glm::scale(glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.0f), glm::vec3(glm::length(this->position / 1000.f))) *
+				return glm::scale(glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 1000.0f), glm::vec3(glm::length(this->position / 1000.f))) *
 					glm::lookAt(position, position + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
 				break;
 			default:

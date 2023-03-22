@@ -925,15 +925,15 @@ public:
 		GL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, 
 			GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, glID, 0));
 		/*if (!lastFace)*/
-			GL_CALL(glClear(mask));
+			//GL_CALL(glClear(mask));
 		renderFunc();//Tell how the scene is going to be rendered
 
 		//Restore the renderer
 		//GL_CALL(glGenerateTextureMipmap(glID));
-		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, origFB));
-		GL_CALL(glViewport(origViewport[0], origViewport[1], origViewport[2], origViewport[3]));
 		if (lastFace)
 			GL_CALL(glClear(mask));
+		GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, origFB));
+		GL_CALL(glViewport(origViewport[0], origViewport[1], origViewport[2], origViewport[3]));
 	}
 
 	void RenderAll(std::function <void()> renderFunc)
