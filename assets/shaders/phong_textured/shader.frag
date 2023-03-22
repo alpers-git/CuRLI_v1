@@ -85,8 +85,8 @@ vec3 illuminationAt(in SLight light, in vec3 pos, in sampler2DShadow shadow_map,
                     if(textureProj(shadow_map, lv_space_pos + vec4(poissonDisk[i]/700, 0, 0)) < 1.0)
                          shadow += 0.25;
                }
-               //intensity -= shadow;
-               intensity *= textureProj(shadow_map, lv_space_pos);
+               intensity -= shadow;
+               //intensity *= textureProj(shadow_map, lv_space_pos);
                intensity = clamp(intensity, 0.0, 1.0); 
           }
      }
@@ -105,6 +105,7 @@ layout (location = 8) in vec4 lv_space_pos;
 //------------ Uniforms ------------
 uniform mat4 to_view_space; //mv
 uniform mat4 to_world_space; //m
+uniform mat3 normals_to_view_space;
 
 uniform int p_light_count;
 uniform PLight p_lights[5];
@@ -123,7 +124,7 @@ uniform struct Material {
      float shininess;
 }material;
 uniform int shading_mode;//0 = phong-color, 1 = editor mode
-uniform int has_texture[5] = {0,0,0,0,0};//[0] = diffuse, [1] = specular, [2] = normal
+uniform int has_texture[5] = {0,0,0,0,0};//[0] = ambient, [1] = diffuse, [2] = specular, [3] = normal, [4] = bump
 uniform sampler2D tex_list[5];
 
 uniform samplerCube env_map;
@@ -138,7 +139,9 @@ void main() {
      {
           color = vec4(0,0,0,1);
           float shadow = 0;
-          vec3 v_space_norm = normalize(v_space_norm);
+          vec3 v_space_norm = normalize( ( has_texture[3] == 1 ? 
+          normals_to_view_space * texture(tex_list[3], tex_coord).xyz :
+                                         v_space_norm) );
           for(int i = 0; i < p_light_count + d_light_count + s_light_count; i++)
           {
                vec3 l = vec3(0,0,0);

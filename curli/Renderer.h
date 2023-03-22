@@ -358,6 +358,8 @@ protected:
 						textureIDs.v[(int)it->second.GetBindingSlot()] = program->textures.size() - 1;
 						//add the texture ids to the entity2TextureIndex map
 						entity2TextureIndices[e] = textureIDs;
+						printf("Texture created for entity %d with glID %d and binding slot %d\n",
+							e, texture.GetGLID(), (int)it->second.GetBindingSlot());
 					}
 				}
 			}

@@ -26,13 +26,13 @@ const mat4 scale_bias = mat4(vec4(0.5, 0.0, 0.0, 0.0), vec4(0.0, 0.5, 0.0, 0.0),
 
 void main() {
     gl_Position = to_screen_space * vec4(pos, 1.0);
+    tex_coord = texc;
     v_space_norm = normals_to_view_space * norm;
     v_space_pos = (to_view_space * vec4(pos, 1.0)).xyz;
 
     w_space_pos = (to_world_space * vec4(pos, 1.0)).xyz;
     w_space_norm = normals_to_world_space * norm;
     
-    tex_coord = texc;
     if(mirror_reflection==1)
     {
         tex_coord = (scale_bias * gl_Position).xy / (scale_bias * gl_Position).w;

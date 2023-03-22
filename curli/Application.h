@@ -72,6 +72,11 @@ private:
 				i++;
 				bool hasRB = false; //Rigidbody
 				bool hasBC = false; //BoxCollider
+				
+				bool hasIM = false; //ImageMap
+				ImageMap::BindingSlot bindingSlot = ImageMap::BindingSlot::T_DIFFUSE;
+				std::string imPath;
+				
 				std::string path;
 				for (; i < argc; i++)
 				{
@@ -90,6 +95,27 @@ private:
 						//i++;
 						hasBC = true;
 					}
+					else if (std::string(argv[i]).compare("--im") == 0)
+					{
+						i++;
+						hasIM = true;
+						if (std::string(argv[i]).compare("amb"))
+							bindingSlot = ImageMap::BindingSlot::T_AMBIENT;
+						else if (std::string(argv[i]).compare("diff"))
+							bindingSlot = ImageMap::BindingSlot::T_DIFFUSE;
+						else if (std::string(argv[i]).compare("spec"))
+							bindingSlot = ImageMap::BindingSlot::T_SPECULAR;
+						else if (std::string(argv[i]).compare("norm"))
+							bindingSlot = ImageMap::BindingSlot::NORMAL;
+						else if (std::string(argv[i]).compare("bump"))
+							bindingSlot = ImageMap::BindingSlot::BUMP;
+						else
+							throw std::invalid_argument("image map requires a type");
+						i++;
+						//if the next argument does not start with - set it to imPath
+						if(std::string(argv[i]).at(0) != '-' )
+							imPath = std::string(argv[i]);
+					}
 					else
 					{
 						i--;
@@ -103,6 +129,14 @@ private:
 					scene->registry.emplace<CBoxCollider>( modelObj, 
 						scene->registry.get<CTriMesh>(modelObj).GetBoundingBoxMin(), 
 						scene->registry.get<CTriMesh>(modelObj).GetBoundingBoxMax() );
+				if (hasIM)
+				{
+					auto imap = scene->registry.emplace<CImageMaps>(modelObj);
+					if (imPath.empty())
+						imap.AddImageMap(bindingSlot, glm::ivec2(800, 800), ImageMap::RenderImageMode::REFLECTION);
+					else
+						imap.AddImageMap(bindingSlot, imPath);
+				}
 					
 			}
 			else if (std::string(argv[i]).compare("-skybox") == 0)
