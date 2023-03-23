@@ -14,6 +14,7 @@ public:
 	}
 	entt::entity selectedObject;
 	bool physicsInteraction = false;
+	bool renderingWireframe = false;
 
 	ApplicationState(const ApplicationState&) = delete;
 	void operator=(GLFWHandler const&) = delete;

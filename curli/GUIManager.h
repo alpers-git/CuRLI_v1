@@ -162,6 +162,7 @@ namespace gui
 					}
 					ImGui::EndMenu();
 				}
+				//----------------------------------------------------------------------
 				if (ImGui::BeginMenu("Edit"))
 				{
 					if (ImGui::MenuItem("Create Entity", "CTRL+e"))
@@ -281,6 +282,12 @@ namespace gui
 						}
 						ImGui::EndMenu();
 					}
+					ImGui::EndMenu();
+				}
+				//---------------------------------------------------------------------------------
+				if (ImGui::BeginMenu("View"))
+				{
+					ImGui::MenuItem("Wireframes", "", &ApplicationState::GetInstance().renderingWireframe);
 					ImGui::EndMenu();
 				}
 				ImGui::EndMainMenuBar();
@@ -592,7 +599,7 @@ namespace gui
 								bool shadow = l.IsCastingShadows();
 								if(ImGui::ToggleButton("shadow", &shadow))
 									l.SetCastingShadows(shadow);
-								if (shadow)
+								if (shadow && l.GetLightType() != LightType::POINT)
 								{
 									ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 									ImGui::Image((void*)(intptr_t) l.glID,

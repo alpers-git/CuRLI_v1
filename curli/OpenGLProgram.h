@@ -1065,6 +1065,8 @@ public:
 		GL_CALL(glDeleteProgram(glID));
 		delete vertexShader;
 		delete fragmentShader;
+		if (geometryShader)
+			delete geometryShader;
 	};
 
 	//void CreateProgram();
@@ -1101,15 +1103,19 @@ public:
 
 	bool AttachVertexShader();
 	bool AttachFragmentShader();
+	bool AttachGeometryShader();
 
 	void SetVertexShaderSource(const char* src, bool compile = false);
 	void SetFragmentShaderSource(const char* src, bool compile = false);
+	void SetGeometryShaderSource(const char* src, bool compile = false);
 
 	void SetVertexShaderSourceFromFile(const char* filePath, bool compile = false);
 	void SetFragmentShaderSourceFromFile(const char* filePath, bool compile = false);
-
+	void SetGeometryShaderSourceFromFile(const char* filePath, bool compile = false);
+	
 	void SetVertexShader(Shader* shader);
 	void SetFragmentShader(Shader* shader);
+	void SetGeometryShader(Shader* shader);
 	
 	bool CompileShaders();
 	
@@ -1233,6 +1239,7 @@ private:
 	GLuint glID;
 	Shader* vertexShader;
 	Shader* fragmentShader;
+	Shader* geometryShader = nullptr; //optional
 	GLbitfield clearFlags = GL_COLOR_BUFFER_BIT;
 	glm::vec4 clearColor = glm::vec4(0.02f, 0.02f, 0.02f, 1.f);
 };

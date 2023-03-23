@@ -44,12 +44,12 @@ public:
 		GLFWHandler::GetInstance().SwapBuffers();
 		
 		//Scene changes
-		static_cast<T*>(this)->PreUpdate();
+		static_cast<T*>(this)->FirstPass();
 		
 		//glClear(clearFlags);
 		program->Clear();
 		//Rendering
-		static_cast<T*>(this)->Update();
+		static_cast<T*>(this)->MainPass();
 		frameCounter++;
 	}
 	//Cleans up after render loop exits
@@ -93,11 +93,11 @@ protected:
 	/*
 	* Called During Render after clear buffers calls
 	*/
-	virtual void PreUpdate() = 0;
+	virtual void FirstPass() = 0;
 	/*
 	* Called During Render
 	*/
-	virtual void Update() = 0;
+	virtual void MainPass() = 0;
 	/*
 	* Called after render loop
 	*/
@@ -157,7 +157,7 @@ protected:
 		if (toBeRemoved)
 			return;
 		auto* mesh = scene->registry.try_get<CTriMesh>(e);
-		auto* envMap = scene->registry.try_get<CSkyBox>(e);
+		auto* skybox = scene->registry.try_get<CSkyBox>(e);
 		auto* light = scene->registry.try_get<CLight>(e);
 		auto* pBounds = scene->registry.try_get<CPhysicsBounds>(e);
 		
@@ -222,7 +222,7 @@ protected:
 			}
 			program->vaos.back().SetDrawMode(GL_TRIANGLES);
 		}
-		else if (envMap)
+		else if (skybox)
 		{
 			float data[] = {
 				-1, 3, 0.999999f,
@@ -416,11 +416,11 @@ public:
 		printf("Initializing AnimatedBGRenderer");
 	}
 	
-	void PreUpdate()
+	void FirstPass()
 	{
 	}
 
-	void Update()
+	void MainPass()
 	{
 		const glm::vec3 clearColor1(0.09f, 0.30f, 0.55f);
 		const glm::vec3 clearColor2(1.0f, 0.76f, 0.03f);
@@ -488,7 +488,7 @@ public:
 		LookAtMesh();
 	}
 
-	void PreUpdate()
+	void FirstPass()
 	{
 		//for each element with CTransform in the scene registry loop
 		auto view = scene->registry.view<CTransform, CTriMesh>();
@@ -502,7 +502,7 @@ public:
 			});
 	}
 
-	void Update()
+	void MainPass()
 	{
 		auto view = scene->registry.view<CTransform>();
 		view.each([&](const auto& e, auto& transform)
@@ -674,7 +674,7 @@ public:
 
 	}
 
-	void PreUpdate()
+	void FirstPass()
 	{
 		int i = 0;
 		auto view2 = scene->registry.view<CLight>();
@@ -691,7 +691,7 @@ public:
 		program->SetUniform("light_count", i);
 	}
 
-	void Update()
+	void MainPass()
 	{	
 		scene->registry.view<CTriMesh>()
 			.each([&](const auto& entity, auto& mesh)
@@ -975,7 +975,7 @@ public:
 			});
 	}
 
-	void PreUpdate()
+	void FirstPass()
 	{
 		int i = 0;
 		scene->registry.view<CLight>()
@@ -992,7 +992,7 @@ public:
 		program->SetUniform("light_count", i);
 	}
 
-	void Update()
+	void MainPass()
 	{	
 		//bind GLSL program
 		program->Use();
@@ -1207,12 +1207,31 @@ public:
 		shadowProgram->CreatePipelineFromFiles("../assets/shaders/shadow/shadow.vert",
 			"../assets/shaders/shadow/shadow.frag");
 		program->SetClearColor({ 0.0f,0.0f,0.0f,1.f });
+
+		//custom setup wireframe program
+		wireframeProgram = std::make_unique<OpenGLProgram>();
+		Shader* wireframeVertShader = new Shader(GL_VERTEX_SHADER);
+		wireframeVertShader->SetSourceFromFile("../assets/shaders/wireframe/wireframe.vert", true);
+		wireframeProgram->SetVertexShader(wireframeVertShader);
+		if(!wireframeProgram->AttachVertexShader())
+			throw std::runtime_error("Failed to attach vertex shader");
+
+		Shader* wireframeGeomShader = new Shader(GL_GEOMETRY_SHADER);
+		wireframeGeomShader->SetSourceFromFile("../assets/shaders/wireframe/wireframe.geom", true);
+		wireframeProgram->SetGeometryShader(wireframeGeomShader);
+		if (!wireframeProgram->AttachGeometryShader())
+			throw std::runtime_error("Failed to attach geometry vertex");
+		
+		Shader* wireframeFragShader = new Shader(GL_FRAGMENT_SHADER);
+		wireframeFragShader->SetSourceFromFile("../assets/shaders/wireframe/wireframe.frag", true);
+		wireframeProgram->SetFragmentShader(wireframeFragShader);
+		if(!wireframeProgram->AttachFragmentShader())
+			throw std::runtime_error("Failed to attach fragment shader");
 		
 		//load shaders to the main program 
 		program->CreatePipelineFromFiles("../assets/shaders/phong_textured/shader.vert",
 			"../assets/shaders/phong_textured/shader.frag");
 		program->SetClearColor({ 0.01f,0.f,0.09f,1.f });
-
 		
 		
 		scene->registry.view<CTriMesh>()
@@ -1251,7 +1270,7 @@ public:
 		glm::vec3(0.0f, 180.f,0),
 		glm::vec3(0.0f, 0.f,0.f),
 	};
-	void PreUpdate()
+	void FirstPass()
 	{	
 		//=======StackPush=======
 		glm::vec4 clearColor = program->GetClearColor();
@@ -1270,7 +1289,7 @@ public:
 							angles[i], 10.0, -90);
 						tmpCamera.SetFarPlane(100.f);
 						program->shadowCubeMaps[entity2ShadowCubeIndex[entity]]
-							.RenderSide(i, std::bind(&MultiTargetRenderer::UpdateShadows,
+							.RenderSide(i, std::bind(&MultiTargetRenderer::RenderShadows,
 								this, light.CalculateShadowMatrix(i)
 								/*tmpCamera.GetProjectionMatrix() * tmpCamera.GetViewMatrix()*/), i == 5);
 					}
@@ -1279,7 +1298,7 @@ public:
 						(entity2ShadowMapIndex.find(entity) != entity2ShadowMapIndex.end()) )
 					{
 						program->shadowTextures[entity2ShadowMapIndex[entity]]
-						.Render(std::bind(&MultiTargetRenderer::UpdateShadows,
+						.Render(std::bind(&MultiTargetRenderer::RenderShadows,
 							this, light.CalculateShadowMatrix()));
 					}
 				}
@@ -1320,7 +1339,7 @@ public:
 								if (entity2EnvMapIndex.find(entity) != entity2EnvMapIndex.end() &&
 									entity2EnvMapIndex[entity] < program->cubeMaps.size())
 									program->cubeMaps[entity2EnvMapIndex[entity]].
-										RenderSide(i,std::bind(&MultiTargetRenderer::Update, this),i==5);
+										RenderSide(i,std::bind(&MultiTargetRenderer::MainPass, this),i==5);
 							}
 							else if(program->renderedTextures.size() > it->second.GetProgramRenderedTexIndex())
 							{
@@ -1331,7 +1350,7 @@ public:
 										glm::vec3(0,1,0) * glm::transpose(glm::inverse(glm::mat3(transform->GetModelMatrix()))),
 										scene->camera);
 									program->renderedTextures[it->second.GetProgramRenderedTexIndex()].
-										Render(std::bind(&MultiTargetRenderer::Update, this));
+										Render(std::bind(&MultiTargetRenderer::MainPass, this));
 								}
 							}
 						}
@@ -1346,30 +1365,54 @@ public:
 		program->SetClearColor(clearColor);
 		scene->camera = origCam;
 	}
+//=======================================================================================================================
+	void RenderWireframe()
+	{
+		wireframeProgram->Use();
+		scene->registry.view<CTriMesh>()
+		.each([&](const auto& entity, auto& mesh)
+		{
+			if (entity2VAOIndex.find(entity) != entity2VAOIndex.end())
+			program->vaos[entity2VAOIndex[entity]].visible = mesh.visible;
+			CTransform* transform = scene->registry.try_get<CTransform>(entity);
+			
+			const glm::mat4 mvp = scene->camera.GetProjectionMatrix() * 
+				scene->camera.GetViewMatrix() * 
+				(transform ? transform->GetModelMatrix() : glm::mat4(1.0f));
+			shadowProgram->SetUniform("to_screen_space", mvp);
+
+			if (entity2VAOIndex.find(entity) != entity2VAOIndex.end() && 
+				mesh.GetShadingMode() == ShadingMode::PHONG && 
+				!scene->registry.any_of<CSkyBox>(entity))
+				program->vaos[entity2VAOIndex[entity]].Draw();
+		});
+	}
+//=======================================================================================================================
 	//Gets called from PreUpdate
-	void UpdateShadows(glm::mat4 shadowMatrix)
+	void RenderShadows(glm::mat4 shadowMatrix)
 	{
 		//bind shadow program
 		shadowProgram->Use();
 
 		//only render meshes
 		scene->registry.view<CTriMesh>()
-			.each([&](const auto& entity, auto& mesh)
-			{
-				if (entity2VAOIndex.find(entity) != entity2VAOIndex.end())
-					program->vaos[entity2VAOIndex[entity]].visible = mesh.visible;
-				CTransform* transform = scene->registry.try_get<CTransform>(entity);
+		.each([&](const auto& entity, auto& mesh)
+		{
+			if (entity2VAOIndex.find(entity) != entity2VAOIndex.end())
+				program->vaos[entity2VAOIndex[entity]].visible = mesh.visible;
+			CTransform* transform = scene->registry.try_get<CTransform>(entity);
 
-				const glm::mat4 mlp = shadowMatrix *(transform ?
-					transform->GetModelMatrix() : glm::mat4(1.0f));
-				shadowProgram->SetUniform("to_screen_space", mlp);
+			const glm::mat4 mlp = shadowMatrix *(transform ?
+				transform->GetModelMatrix() : glm::mat4(1.0f));
+			shadowProgram->SetUniform("to_screen_space", mlp);
 
-				if (entity2VAOIndex.find(entity) != entity2VAOIndex.end() && mesh.GetShadingMode() == ShadingMode::PHONG)
-					program->vaos[entity2VAOIndex[entity]].Draw();
-			});
+			if (entity2VAOIndex.find(entity) != entity2VAOIndex.end() && mesh.GetShadingMode() == ShadingMode::PHONG)
+				program->vaos[entity2VAOIndex[entity]].Draw();
+		});
 	}
-
-	void Update()
+	
+//=======================================================================================================================
+	void MainPass()
 	{	
 		//bind GLSL program
 		program->Use();
@@ -1603,6 +1646,9 @@ public:
 					}
 				});
 		GL_CALL(glDepthMask(GL_TRUE));//TODO
+		
+		if (ApplicationState::GetInstance().renderingWireframe)
+			RenderWireframe();
 	}
 
 	void End()
@@ -1634,6 +1680,12 @@ public:
 	{
 		program->SetVertexShaderSourceFromFile("../assets/shaders/phong_textured/shader.vert");
 		program->SetFragmentShaderSourceFromFile("../assets/shaders/phong_textured/shader.frag");
+		shadowProgram->SetVertexShaderSourceFromFile("../assets/shaders/shadow/shadow.vert");
+		shadowProgram->SetFragmentShaderSourceFromFile("../assets/shaders/shadow/shadow.frag");
+		wireframeProgram->SetVertexShaderSource("../assets/shaders/wireframe/wireframe.vert");
+		wireframeProgram->SetGeometryShaderSource("../assets/shaders/wireframe/wireframe.geom");
+		wireframeProgram->SetFragmentShaderSourceFromFile("../assets/shaders/wireframe/wireframe.frag");
+		
 		RecompileShaders();
 	}
 
@@ -1782,6 +1834,7 @@ public:
 
 private:
 	std::unique_ptr<OpenGLProgram> shadowProgram;
+	std::unique_ptr<OpenGLProgram> wireframeProgram;
 	
 	//--orbit controls--//
 	bool m1Down = false;
