@@ -614,6 +614,7 @@ public:
 
 	
 	bool visible = true;
+	int tessellationLevel = 1;//None
 private:
 	std::vector<glm::vec3> vertices;
 	std::vector<glm::vec3> vertexNormals;

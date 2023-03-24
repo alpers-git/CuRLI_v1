@@ -139,5 +139,9 @@ bool OpenGLProgram::CompileShaders()
 		return false;
 	if (geometryShader && !geometryShader->Compile())
 		return false;
+	if (tessControlShader && !tessControlShader->Compile())
+		return false;
+	if (tessEvalShader && !tessEvalShader->Compile())
+		return false;
 	return true;
 };

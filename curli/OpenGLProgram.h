@@ -1078,18 +1078,18 @@ public:
 	*/
 	bool CreatePipelineFromFiles(const char* filePathVert, const char* filePathFrag,
 		const char* filePathGeom = nullptr, const char* filePathTessControl = nullptr, 
-		const char* filePathTessEval = nullptr)
+		const char* filePathTessEval = nullptr, int patchSize = 3)
 	{
 		SetVertexShaderSourceFromFile(filePathVert);
 		if (filePathGeom)
 			SetGeometryShaderSourceFromFile(filePathGeom);
-		if (filePathTessControl && filePathTessEval)
-			SetTessellationShaderSourcesFromFiles(filePathTessControl, filePathTessEval);
 		if ((filePathTessControl != nullptr) ^ (filePathTessEval != nullptr))
 		{
 			printf("Error: Only one of the tessellation shader files was provided.\n");
 			return false;
 		}
+		if (filePathTessControl && filePathTessEval)
+			SetTessellationShaderSourcesFromFiles(filePathTessControl, filePathTessEval);
 		SetFragmentShaderSourceFromFile(filePathFrag);
 		
 		
@@ -1098,7 +1098,7 @@ public:
 		
 		AttachVertexShader();
 		AttachGeometryShader();
-		AttachTessellationShaders();
+		AttachTessellationShaders(patchSize);
 		AttachFragmentShader();
 	}
 	/*

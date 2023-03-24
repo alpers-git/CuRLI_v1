@@ -703,6 +703,13 @@ namespace gui
 									event.geometryChange.e = e;
 									GLFWHandler::GetInstance().QueueEvent(event);
 								}
+								
+								ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+								ImGui::PushItemWidth(viewportPanelSize.x * 0.66f);
+								if (ImGui::InputInt("Tesselation lvl", &m.tessellationLevel, 1, 5, ImGuiInputTextFlags_EnterReturnsTrue))
+									m.tessellationLevel = glm::clamp(m.tessellationLevel, 1, 64);
+								ImGui::PopItemWidth();
+								
 								ImGui::Checkbox("Visible", &(m.visible));
 								ImGui::Text("# Vertices:");
 								ImGui::SameLine();

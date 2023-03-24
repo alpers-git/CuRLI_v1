@@ -1204,35 +1204,26 @@ public:
 
 		//load shaders to the shadow program
 		shadowProgram = std::make_unique<OpenGLProgram>();
-		shadowProgram->CreatePipelineFromFiles("../assets/shaders/shadow/shadow.vert",
-			"../assets/shaders/shadow/shadow.frag");
-		program->SetClearColor({ 0.0f,0.0f,0.0f,1.f });
+		if (shadowProgram->CreatePipelineFromFiles("../assets/shaders/shadow/shadow.vert",
+			"../assets/shaders/shadow/shadow.frag"));
+			//throw std::runtime_error("Failed to create shadow program");
+		
+		shadowProgram->SetClearColor({ 0.0f,0.0f,0.0f,1.f });
 
 		//custom setup wireframe program
 		wireframeProgram = std::make_unique<OpenGLProgram>();
-		wireframeProgram->CreatePipelineFromFiles("../assets/shaders/wireframe/wireframe.vert",
-			"../assets/shaders/wireframe/wireframe.frag", "../assets/shaders/wireframe/wireframe.geom");
-		/*Shader* wireframeVertShader = new Shader(GL_VERTEX_SHADER);
-		wireframeVertShader->SetSourceFromFile("../assets/shaders/wireframe/wireframe.vert", true);
-		wireframeProgram->SetVertexShader(wireframeVertShader);
-		if(!wireframeProgram->AttachVertexShader())
-			throw std::runtime_error("Failed to attach vertex shader");
-
-		Shader* wireframeGeomShader = new Shader(GL_GEOMETRY_SHADER);
-		wireframeGeomShader->SetSourceFromFile("../assets/shaders/wireframe/wireframe.geom", true);
-		wireframeProgram->SetGeometryShader(wireframeGeomShader);
-		if (!wireframeProgram->AttachGeometryShader())
-			throw std::runtime_error("Failed to attach geometry vertex");
-		
-		Shader* wireframeFragShader = new Shader(GL_FRAGMENT_SHADER);
-		wireframeFragShader->SetSourceFromFile("../assets/shaders/wireframe/wireframe.frag", true);
-		wireframeProgram->SetFragmentShader(wireframeFragShader);
-		if(!wireframeProgram->AttachFragmentShader())
-			throw std::runtime_error("Failed to attach fragment shader");*/
+		if (wireframeProgram->CreatePipelineFromFiles("../assets/shaders/wireframe/wireframe.vert",
+			"../assets/shaders/wireframe/wireframe.frag",
+			"../assets/shaders/wireframe/wireframe.geom",
+			"../assets/shaders/tessellation/subdivide.tesc",
+			"../assets/shaders/tessellation/subdivide.tese", 3));
+			//throw std::runtime_error("Failed to create wireframe program");
 		
 		//load shaders to the main program 
-		program->CreatePipelineFromFiles("../assets/shaders/phong_textured/shader.vert",
-			"../assets/shaders/phong_textured/shader.frag");
+		if (program->CreatePipelineFromFiles("../assets/shaders/phong_textured/shader.vert",
+			"../assets/shaders/phong_textured/shader.frag"));
+			//throw std::runtime_error("Failed to create main program");
+		
 		program->SetClearColor({ 0.01f,0.f,0.09f,1.f });
 		
 		
@@ -1381,12 +1372,14 @@ public:
 			const glm::mat4 mvp = scene->camera.GetProjectionMatrix() * 
 				scene->camera.GetViewMatrix() * 
 				(transform ? transform->GetModelMatrix() : glm::mat4(1.0f));
-			shadowProgram->SetUniform("to_screen_space", mvp);
+			wireframeProgram->SetUniform("to_screen_space", mvp);
+			
+			wireframeProgram->SetUniform("tessellation_level", mesh.tessellationLevel);
 
 			if (entity2VAOIndex.find(entity) != entity2VAOIndex.end() && 
 				mesh.GetShadingMode() == ShadingMode::PHONG && 
 				!scene->registry.any_of<CSkyBox>(entity))
-				program->vaos[entity2VAOIndex[entity]].Draw();
+				program->vaos[entity2VAOIndex[entity]].Draw(GL_PATCHES);
 		});
 	}
 //=======================================================================================================================
@@ -1671,9 +1664,18 @@ public:
 			printf("Shaders compiled successfully\n");
 			program->AttachVertexShader();
 			program->AttachFragmentShader();
+			shadowProgram->AttachVertexShader();
+			shadowProgram->AttachFragmentShader();
+			wireframeProgram->AttachVertexShader();
+			wireframeProgram->AttachGeometryShader();
+			wireframeProgram->AttachTessellationShaders();
+			wireframeProgram->AttachFragmentShader();
 		}
 		else
+		{
+			system("color 4");
 			printf("Shaders compilation failed\n");
+		}
 	}
 	/*
 	* Reloads and recompiles shaders
@@ -1684,9 +1686,11 @@ public:
 		program->SetFragmentShaderSourceFromFile("../assets/shaders/phong_textured/shader.frag");
 		shadowProgram->SetVertexShaderSourceFromFile("../assets/shaders/shadow/shadow.vert");
 		shadowProgram->SetFragmentShaderSourceFromFile("../assets/shaders/shadow/shadow.frag");
-		wireframeProgram->SetVertexShaderSource("../assets/shaders/wireframe/wireframe.vert");
-		wireframeProgram->SetGeometryShaderSource("../assets/shaders/wireframe/wireframe.geom");
+		wireframeProgram->SetVertexShaderSourceFromFile("../assets/shaders/wireframe/wireframe.vert");
+		wireframeProgram->SetGeometryShaderSourceFromFile("../assets/shaders/wireframe/wireframe.geom");
 		wireframeProgram->SetFragmentShaderSourceFromFile("../assets/shaders/wireframe/wireframe.frag");
+		wireframeProgram->SetTessellationShaderSourcesFromFiles("../assets/shaders/tessellation/subdivide.tesc",
+			"../assets/shaders/tessellation/subdivide.tese");
 		
 		RecompileShaders();
 	}
