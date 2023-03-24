@@ -1076,15 +1076,29 @@ public:
 	/*
 	* Read compile and attach shaders to the opengl program.
 	*/
-	bool CreatePipelineFromFiles(const char* filePathVert, const char* filePathFrag)
+	bool CreatePipelineFromFiles(const char* filePathVert, const char* filePathFrag,
+		const char* filePathGeom = nullptr, const char* filePathTessControl = nullptr, 
+		const char* filePathTessEval = nullptr)
 	{
 		SetVertexShaderSourceFromFile(filePathVert);
+		if (filePathGeom)
+			SetGeometryShaderSourceFromFile(filePathGeom);
+		if (filePathTessControl && filePathTessEval)
+			SetTessellationShaderSourcesFromFiles(filePathTessControl, filePathTessEval);
+		if ((filePathTessControl != nullptr) ^ (filePathTessEval != nullptr))
+		{
+			printf("Error: Only one of the tessellation shader files was provided.\n");
+			return false;
+		}
 		SetFragmentShaderSourceFromFile(filePathFrag);
+		
 		
 		if (!CompileShaders())
 			return false;
 		
 		AttachVertexShader();
+		AttachGeometryShader();
+		AttachTessellationShaders();
 		AttachFragmentShader();
 	}
 	/*
@@ -1097,6 +1111,8 @@ public:
 			return false;
 
 		AttachVertexShader();
+		AttachGeometryShader();
+		AttachTessellationShaders();
 		AttachFragmentShader();
 	}
 	
@@ -1104,18 +1120,22 @@ public:
 	bool AttachVertexShader();
 	bool AttachFragmentShader();
 	bool AttachGeometryShader();
+	bool AttachTessellationShaders(int patchSize = 3);
 
 	void SetVertexShaderSource(const char* src, bool compile = false);
 	void SetFragmentShaderSource(const char* src, bool compile = false);
 	void SetGeometryShaderSource(const char* src, bool compile = false);
+	void SetTessellationShaderSources(const char* cSrc, const char* eSrc, bool compile = false);
 
 	void SetVertexShaderSourceFromFile(const char* filePath, bool compile = false);
 	void SetFragmentShaderSourceFromFile(const char* filePath, bool compile = false);
 	void SetGeometryShaderSourceFromFile(const char* filePath, bool compile = false);
+	void SetTessellationShaderSourcesFromFiles(const char* cPath, const char* ePath, bool compile = false);
 	
 	void SetVertexShader(Shader* shader);
 	void SetFragmentShader(Shader* shader);
 	void SetGeometryShader(Shader* shader);
+	void SetTessellationShaders(Shader* cShader, Shader* eSHader);
 	
 	bool CompileShaders();
 	
@@ -1240,6 +1260,8 @@ private:
 	Shader* vertexShader;
 	Shader* fragmentShader;
 	Shader* geometryShader = nullptr; //optional
+	Shader* tessControlShader = nullptr; //optional
+	Shader* tessEvalShader = nullptr; //optional
 	GLbitfield clearFlags = GL_COLOR_BUFFER_BIT;
 	glm::vec4 clearColor = glm::vec4(0.02f, 0.02f, 0.02f, 1.f);
 };

@@ -1210,7 +1210,9 @@ public:
 
 		//custom setup wireframe program
 		wireframeProgram = std::make_unique<OpenGLProgram>();
-		Shader* wireframeVertShader = new Shader(GL_VERTEX_SHADER);
+		wireframeProgram->CreatePipelineFromFiles("../assets/shaders/wireframe/wireframe.vert",
+			"../assets/shaders/wireframe/wireframe.frag", "../assets/shaders/wireframe/wireframe.geom");
+		/*Shader* wireframeVertShader = new Shader(GL_VERTEX_SHADER);
 		wireframeVertShader->SetSourceFromFile("../assets/shaders/wireframe/wireframe.vert", true);
 		wireframeProgram->SetVertexShader(wireframeVertShader);
 		if(!wireframeProgram->AttachVertexShader())
@@ -1226,7 +1228,7 @@ public:
 		wireframeFragShader->SetSourceFromFile("../assets/shaders/wireframe/wireframe.frag", true);
 		wireframeProgram->SetFragmentShader(wireframeFragShader);
 		if(!wireframeProgram->AttachFragmentShader())
-			throw std::runtime_error("Failed to attach fragment shader");
+			throw std::runtime_error("Failed to attach fragment shader");*/
 		
 		//load shaders to the main program 
 		program->CreatePipelineFromFiles("../assets/shaders/phong_textured/shader.vert",
