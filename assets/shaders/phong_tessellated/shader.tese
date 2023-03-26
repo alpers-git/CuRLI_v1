@@ -36,6 +36,7 @@ vec2 interpolate(vec2 v0, vec2 v1, vec2 v2)
 uniform float displacement_multiplier;
 uniform sampler2D displacement_map;
 uniform mat4 to_screen_space;
+uniform int shading_mode;
 
 void main()
 {
@@ -47,7 +48,10 @@ void main()
     w_space_pos = interpolate(w_space_pos_tese[0], w_space_pos_tese[1], w_space_pos_tese[2]);
     w_space_norm = interpolate(w_space_norm_tese[0], w_space_norm_tese[1], w_space_norm_tese[2]);
 
-    gl_Position = to_screen_space * (interpolate(gl_in[0].gl_Position, gl_in[1].gl_Position, gl_in[2].gl_Position) +
-                        vec4(0, 0, texture(displacement_map, tex_coord).y * displacement_multiplier, 1.0));
+    if (shading_mode != 2)
+        gl_Position = to_screen_space * (interpolate(gl_in[0].gl_Position, gl_in[1].gl_Position, gl_in[2].gl_Position) +
+                            vec4(0, 0, texture(displacement_map, tex_coord).y * displacement_multiplier, 1.0));
+    else
+        gl_Position = interpolate(gl_in[0].gl_Position, gl_in[1].gl_Position, gl_in[2].gl_Position);
 
 }

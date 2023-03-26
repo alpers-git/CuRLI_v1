@@ -1648,7 +1648,9 @@ public:
 		}
 				
 		});
-
+		program->SetUniform("displacement_multiplier", 0.0f);
+		program->SetUniform("tessellation_level", 1);
+		
 		//Render skybox
 		GL_CALL(glDepthMask(GL_FALSE));//TODO
 		scene->registry.view<CSkyBox>()
@@ -1657,14 +1659,14 @@ public:
 					if (entity2EnvMapIndex.find(entity) != entity2EnvMapIndex.end())
 					{
 						int cubemapIndex = entity2EnvMapIndex[entity];
-						program->SetUniform("to_screen_space", 
+						program->SetUniform("to_screen_space",
 							glm::mat4(1.0f));//hmmmm
-						program->SetUniform("to_view_space", 
+						program->SetUniform("to_view_space",
 							glm::inverse(scene->camera.GetProjectionMatrix() * scene->camera.GetViewMatrix()));
 						program->SetUniform("shading_mode", 2);//skybox shading mode
 						program->cubeMaps[cubemapIndex].Bind();
 						program->SetUniform("env_map", 30);
-						program->vaos[entity2VAOIndex[entity]].Draw();
+						program->vaos[entity2VAOIndex[entity]].Draw(GL_PATCHES);
 
 						program->cubeMaps[cubemapIndex].Unbind();
 					}

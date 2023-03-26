@@ -20,11 +20,15 @@ uniform mat3 normals_to_world_space;
 uniform mat3 normals_to_view_space;
 uniform vec3 camera_pos;
 uniform int mirror_reflection = 0;
+uniform int shading_mode;
 
 const mat4 scale_bias = mat4(vec4(0.5, 0.0, 0.0, 0.0), vec4(0.0, 0.5, 0.0, 0.0), vec4(0.0, 0.0, 0.5, 0.0), vec4(0.5, 0.5, 0.5, 1.0));
 
 void main() {
-    gl_Position = /*to_screen_space */ vec4(pos, 1.0);
+    if (shading_mode == 2)
+        gl_Position = to_screen_space * vec4(pos, 1.0);
+    else
+        gl_Position = /*to_screen_space */ vec4(pos, 1.0);
     tex_coord_tesc = texc;
     v_space_norm_tesc = normals_to_view_space * norm;
     v_space_pos_tesc = (to_view_space * vec4(pos, 1.0)).xyz;
