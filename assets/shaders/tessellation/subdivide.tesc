@@ -15,6 +15,7 @@ void main()
     gl_TessLevelOuter[2] = tessellation_level;
 
     gl_TessLevelInner[0] = tessellation_level;
+    gl_TessLevelInner[1] = tessellation_level;
 
     // Pass the input vertices to the output patch
     gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
