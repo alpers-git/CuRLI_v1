@@ -849,6 +849,12 @@ namespace gui
 										ImGui::PopID();
 										break;
 									}
+									if (it->first == ImageMap::BindingSlot::DISPLACEMENT)
+									{
+										ImGui::PushItemWidth(viewportPanelSize.x / 4);
+										ImGui::DragFloat("multiplier", &it->second.dispMultiplier);
+										ImGui::PopItemWidth();
+									}
 									if (it->second.IsRenderedImage())
 									{
 										ImGui::Spacing();
@@ -856,12 +862,6 @@ namespace gui
 										ImGui::PushID("renderedCamera");
 										DrawCameraController(it->second.GetRenderedImageCamera());
 										ImGui::PopID();
-									}
-									if (textureBinding == ImageMap::BindingSlot::DISPLACEMENT)
-									{
-										ImGui::PushItemWidth(viewportPanelSize.x / 2);
-										ImGui::DragFloat("multiplier", &it->second.dispMultiplier);
-										ImGui::PopItemWidth();
 									}
 									
 									ImGui::Separator();

@@ -1220,8 +1220,12 @@ public:
 			//throw std::runtime_error("Failed to create wireframe program");
 		
 		//load shaders to the main program 
-		if (!program->CreatePipelineFromFiles("../assets/shaders/phong_textured/shader.vert",
-			"../assets/shaders/phong_textured/shader.frag"));
+		if (!program->CreatePipelineFromFiles("../assets/shaders/phong_tessellated/shader.vert",
+			"../assets/shaders/phong_tessellated/shader.frag", 
+			nullptr,
+			"../assets/shaders/phong_tessellated/shader.tesc",
+			"../assets/shaders/phong_tessellated/shader.tese", 3
+			));
 			//throw std::runtime_error("Failed to create main program");
 		
 		program->SetClearColor({ 0.01f,0.f,0.09f,1.f });
@@ -1576,6 +1580,8 @@ public:
 			program->SetUniform("normals_to_view_space",
 				glm::transpose(glm::inverse(glm::mat3(mv))));
 			program->SetUniform("camera_pos", scene->camera.GetLookAtEye());
+			program->SetUniform("displacement_multiplier", 0);
+			program->SetUniform("tessellation_level", 1);
 				
 			CImageMaps* imgMaps = scene->registry.try_get<CImageMaps>(entity);
 			if (imgMaps && !imgMaps->scheduledTextureUpdate)
@@ -1610,13 +1616,21 @@ public:
 							program->SetUniform(uniformName.c_str(), 1);
 							const std::string uniformName2 = std::string("tex_list[") + std::to_string(((int)it->first)) + std::string("]");
 							program->SetUniform(uniformName2.c_str(), ((int)it->first));
+							if(it->first == ImageMap::BindingSlot::DISPLACEMENT)
+							{
+								program->SetUniform("tessellation_level", mesh.tessellationLevel);
+								program->SetUniform("displacement_multiplier",
+									imgMaps->GetImageMap(ImageMap::BindingSlot::DISPLACEMENT).dispMultiplier);
+								program->SetUniform("displacement_map", 4);
+								//program->textures[texIndex].Bind();
+							}
 						}
 					}
 				}
 			}
 			program->SetUniform("shading_mode", ((int)mesh.GetShadingMode()));
 			if (entity2VAOIndex.find(entity) != entity2VAOIndex.end())
-				program->vaos[entity2VAOIndex[entity]].Draw();
+				program->vaos[entity2VAOIndex[entity]].Draw(GL_PATCHES);
 			//Reset uniforms
 			for (int i = 0; i < 5; i++)
 			{

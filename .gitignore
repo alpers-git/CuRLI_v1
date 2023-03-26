@@ -68,3 +68,5 @@ assets/models/yoda.mtl
 assets/images/cubemap/imgui.ini
 
 assets/shaders/.vscode/
+
+*.ini

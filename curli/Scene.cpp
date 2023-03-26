@@ -760,7 +760,7 @@ std::string ImageMap::GetSlotName()
 		return "NormalMap";
 		break;
 	case ImageMap::BindingSlot::DISPLACEMENT:
-		return "BumpMap";
+		return "Displacement Map";
 		break;
 	case ImageMap::BindingSlot::ENV_MAP:
 		return "Environment Map";
