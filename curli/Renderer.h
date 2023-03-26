@@ -1765,6 +1765,22 @@ public:
 			altDown = true;
 		else if (key == GLFW_KEY_LEFT_ALT && action == GLFW_RELEASE)
 			altDown = false;
+		if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
+			ApplicationState::GetInstance().renderingWireframe = !ApplicationState::GetInstance().renderingWireframe;
+		if (scene->registry.try_get<CTriMesh>(ApplicationState::GetInstance().selectedObject) &&  
+			key == GLFW_KEY_UP && (action == GLFW_PRESS || action == GLFW_REPEAT))
+		{
+			scene->registry.try_get<CTriMesh>(ApplicationState::GetInstance().selectedObject)->tessellationLevel++;
+			if( scene->registry.try_get<CTriMesh>(ApplicationState::GetInstance().selectedObject)->tessellationLevel > 64)
+				scene->registry.try_get<CTriMesh>(ApplicationState::GetInstance().selectedObject)->tessellationLevel = 64;
+		}
+		if (scene->registry.try_get<CTriMesh>(ApplicationState::GetInstance().selectedObject) && 
+			key == GLFW_KEY_DOWN && (action == GLFW_PRESS || action == GLFW_REPEAT))
+		{
+			scene->registry.try_get<CTriMesh>(ApplicationState::GetInstance().selectedObject)->tessellationLevel--;
+			if (scene->registry.try_get<CTriMesh>(ApplicationState::GetInstance().selectedObject)->tessellationLevel < 1)
+				scene->registry.try_get<CTriMesh>(ApplicationState::GetInstance().selectedObject)->tessellationLevel = 1;
+		}
 	}
 
 	//orbit camera

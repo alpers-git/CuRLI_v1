@@ -196,3 +196,27 @@ Some Screenshots:
 <img src="./images/pr7_1.png" width=80%>
 <img src="./images/pr7_2.png" width=80%>
 <img src="./images/pr7_3.png" width=80%>
+
+#### Project 8 - Tessellation
+###### Project 8 requirements:
+- [X] Implemented normal mapping.
+- [X] Now image map components(textures) can be loaded along side with a model object `-model --path ../path/to/your.obj --im [amb/diff/spec/norm/disp] ../path/to/your.png` 
+  - One can use the GUI for this as well(see fifth bullet point).
+- [X] Quad-shaped plane can be loaded from assets plane.obj.
+- [X] Normal shading(Blinn) operations are supported with this mode.
+- [X] Using geometry shaders CuRLI can generate wireframes for the scene. To activate this one can either press spacebar or click on `view/Wireframe` on top menu.
+- [X] Using tessellation shaders CuRLI can utilize displacement mapping to enable this one can use the GUI menu.
+  - Select object, add an image map component using `edit/Attach Detach Components/Image Map` then select the newly created image map tab on the selected object and load displacement map from images.
+  - Same can be achieved with console arguments described in second bullet point.
+  - Tesselation level can be controlled by selecting the object from the right menu and pressing up or down arrows. 
+  - Same can be achieved by going to mesh tab and adjusting the tessellation parameter there.
+
+###### Additional Features:
+- Normal and displacement map terxtures can be viewed using the left menu tab.
+
+Some Screenshots:
+
+<img src="./images/pr8_1.png" width=80%>
+<img src="./images/pr8_3.png" width=80%>
+<img src="./images/pr8_4.png" width=80%>
+<img src="./images/pr8_5.png" width=80%>
