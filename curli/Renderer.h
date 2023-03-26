@@ -1390,11 +1390,6 @@ public:
 					program->textures[texIndex].Bind();
 				}
 			}
-			//get texture coodinates and loop over them printing
-			for (int i = 0; i < mesh.GetNumTextureVertices(); i++)
-			{
-				printf("tex coord %d: %f, %f\n", i, mesh.GetVTexture(i).x, mesh.GetVTexture(i).y);
-			}
 
 			if (entity2VAOIndex.find(entity) != entity2VAOIndex.end() && 
 				mesh.GetShadingMode() == ShadingMode::PHONG && 

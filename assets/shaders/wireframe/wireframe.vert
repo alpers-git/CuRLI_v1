@@ -10,6 +10,6 @@ out vec2 tex_coords_tesc;
 uniform mat4 to_screen_space; // mvp
 
 void main() {
-    gl_Position = to_screen_space * vec4(pos, 1.0);
+    gl_Position = vec4(pos, 1.0);
     tex_coords_tesc = texc;
 }
