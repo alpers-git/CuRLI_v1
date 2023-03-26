@@ -1204,7 +1204,7 @@ public:
 
 		//load shaders to the shadow program
 		shadowProgram = std::make_unique<OpenGLProgram>();
-		if (shadowProgram->CreatePipelineFromFiles("../assets/shaders/shadow/shadow.vert",
+		if (!shadowProgram->CreatePipelineFromFiles("../assets/shaders/shadow/shadow.vert",
 			"../assets/shaders/shadow/shadow.frag"));
 			//throw std::runtime_error("Failed to create shadow program");
 		
@@ -1212,7 +1212,7 @@ public:
 
 		//custom setup wireframe program
 		wireframeProgram = std::make_unique<OpenGLProgram>();
-		if (wireframeProgram->CreatePipelineFromFiles("../assets/shaders/wireframe/wireframe.vert",
+		if (!wireframeProgram->CreatePipelineFromFiles("../assets/shaders/wireframe/wireframe.vert",
 			"../assets/shaders/wireframe/wireframe.frag",
 			"../assets/shaders/wireframe/wireframe.geom",
 			"../assets/shaders/tessellation/subdivide.tesc",
@@ -1220,7 +1220,7 @@ public:
 			//throw std::runtime_error("Failed to create wireframe program");
 		
 		//load shaders to the main program 
-		if (program->CreatePipelineFromFiles("../assets/shaders/phong_textured/shader.vert",
+		if (!program->CreatePipelineFromFiles("../assets/shaders/phong_textured/shader.vert",
 			"../assets/shaders/phong_textured/shader.frag"));
 			//throw std::runtime_error("Failed to create main program");
 		
@@ -1375,6 +1375,26 @@ public:
 			wireframeProgram->SetUniform("to_screen_space", mvp);
 			
 			wireframeProgram->SetUniform("tessellation_level", mesh.tessellationLevel);
+			wireframeProgram->SetUniform("displacement_multiplier", 0.0f);
+			auto imaps = scene->registry.try_get<CImageMaps>(entity);
+			if (imaps)
+			{
+				int texIndex = entity2TextureIndices[entity].v[4];
+				
+				//bind texture
+				if (texIndex >= 0)
+				{
+					wireframeProgram->SetUniform("displacement_multiplier", 
+						imaps->GetImageMap(ImageMap::BindingSlot::DISPLACEMENT).dispMultiplier);
+					wireframeProgram->SetUniform("displacement_map", 4);
+					program->textures[texIndex].Bind();
+				}
+			}
+			//get texture coodinates and loop over them printing
+			for (int i = 0; i < mesh.GetNumTextureVertices(); i++)
+			{
+				printf("tex coord %d: %f, %f\n", i, mesh.GetVTexture(i).x, mesh.GetVTexture(i).y);
+			}
 
 			if (entity2VAOIndex.find(entity) != entity2VAOIndex.end() && 
 				mesh.GetShadingMode() == ShadingMode::PHONG && 
@@ -1383,7 +1403,7 @@ public:
 		});
 	}
 //=======================================================================================================================
-	//Gets called from PreUpdate
+	//Gets called from FirstPass
 	void RenderShadows(glm::mat4 shadowMatrix)
 	{
 		//bind shadow program
@@ -1675,6 +1695,7 @@ public:
 		{
 			system("color 4");
 			printf("Shaders compilation failed\n");
+			system("color 7");
 		}
 	}
 	/*
@@ -1684,8 +1705,10 @@ public:
 	{
 		program->SetVertexShaderSourceFromFile("../assets/shaders/phong_textured/shader.vert");
 		program->SetFragmentShaderSourceFromFile("../assets/shaders/phong_textured/shader.frag");
+		
 		shadowProgram->SetVertexShaderSourceFromFile("../assets/shaders/shadow/shadow.vert");
 		shadowProgram->SetFragmentShaderSourceFromFile("../assets/shaders/shadow/shadow.frag");
+		
 		wireframeProgram->SetVertexShaderSourceFromFile("../assets/shaders/wireframe/wireframe.vert");
 		wireframeProgram->SetGeometryShaderSourceFromFile("../assets/shaders/wireframe/wireframe.geom");
 		wireframeProgram->SetFragmentShaderSourceFromFile("../assets/shaders/wireframe/wireframe.frag");

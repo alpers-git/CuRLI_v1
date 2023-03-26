@@ -1,19 +1,28 @@
 #version 450 core
+precision highp float;
 
 layout (triangles, equal_spacing, ccw) in;
 
+in vec2 tex_coords_tese[];
+
 vec4 interpolate(vec4 v0, vec4 v1, vec4 v2)
 {
-    return v0 *gl_TessCoord.x + v1 * gl_TessCoord.y + v2 * gl_TessCoord.z;
+    return v0 * gl_TessCoord.x + v1 * gl_TessCoord.y + v2 * gl_TessCoord.z;
 }
 
-// in VS_OUT ts_in[];
-// out VS_OUT ts_out[];
+vec2 interpolate(vec2 v0, vec2 v1, vec2 v2)
+{
+    return v0 * gl_TessCoord.x + v1 * gl_TessCoord.y + v2 * gl_TessCoord.z;
+}
+
+uniform float displacement_multiplier;
+uniform sampler2D displacement_map;
 
 void main()
 {
-    // Calculate the barycentric coordinates of the current vertex
-    gl_Position = interpolate(  gl_in[0].gl_Position, 
-                                gl_in[1].gl_Position, 
-                                gl_in[2].gl_Position);
+    vec2 tex_coords = interpolate(tex_coords_tese[0], tex_coords_tese[1], tex_coords_tese[2]);
+
+    vec3 displacement = texture(displacement_map, tex_coords).xyz;
+    gl_Position = interpolate(gl_in[0].gl_Position, gl_in[1].gl_Position, gl_in[2].gl_Position) +
+                  vec4(displacement * displacement_multiplier, 1.0);
 }

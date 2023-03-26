@@ -642,7 +642,7 @@ public:
 struct ImageMap
 {
 	enum class BindingSlot {
-		T_AMBIENT, T_DIFFUSE, T_SPECULAR, NORMAL, BUMP, ENV_MAP
+		T_AMBIENT, T_DIFFUSE, T_SPECULAR, NORMAL, DISPLACEMENT, ENV_MAP
 	};
 	enum class RenderImageMode {
 		REFLECTION, SHADOW, CUSTOM, NONE
@@ -755,6 +755,7 @@ public:
 	void SetProgramRenderedTexIndex(unsigned int index) { programRenderedTexIndex = index; }
 
 	GLuint glID; //Maybe find a better way...
+	float dispMultiplier = 0;
 private:
 	std::string path;
 	std::vector<unsigned char> image;
@@ -783,6 +784,7 @@ public:
 	unsigned int inline GetNumMaps() { return imgMaps.size(); }
 	std::unordered_map<ImageMap::BindingSlot, ImageMap>::iterator mapsBegin() { return imgMaps.begin(); }
 	std::unordered_map<ImageMap::BindingSlot, ImageMap>::iterator mapsEnd() { return imgMaps.end(); }
+	ImageMap& GetImageMap(ImageMap::BindingSlot slot) { return imgMaps[slot]; }
 
 	bool scheduledTextureUpdate = false;
 private:

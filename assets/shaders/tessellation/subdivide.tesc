@@ -1,11 +1,11 @@
 #version 450 core
+precision highp float;
 
 layout(vertices = 3) out;
+in vec2 tex_coords_tesc[];
+out vec2 tex_coords_tese[];
 
 uniform int tessellation_level;
-
-// in VS_OUT ts_in[];
-// out VS_OUT ts_out[];
 
 void main()
 {
@@ -16,10 +16,7 @@ void main()
 
     gl_TessLevelInner[0] = tessellation_level;
 
-
-    // ts_out[gl_InvocationID].position = ts_in[gl_InvocationID].position;
-    // ts_out[gl_InvocationID] = ts_in[gl_InvocationID];
-
     // Pass the input vertices to the output patch
     gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
+    tex_coords_tese[gl_InvocationID] = tex_coords_tesc[gl_InvocationID];
 }

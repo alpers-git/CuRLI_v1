@@ -233,6 +233,27 @@ void CTriMesh::InitializeFrom(cy::TriMesh& mesh)
 			}
 		}
 	}
+
+	//go over vertices and if they are Nan remove them and update faces accordingly
+	for (int i = 0; i < this->vertices.size(); i++)
+	{
+		if (glm::any(glm::isnan(this->vertices[i])))
+		{
+			this->vertices.erase(this->vertices.begin() + i);
+			this->vertexNormals.erase(this->vertexNormals.begin() + i);
+			this->textureCoords.erase(this->textureCoords.begin() + i);
+			for (int j = 0; j < this->faces.size(); j++)
+			{
+				if (this->faces[j].x > i)
+					this->faces[j].x--;
+				if (this->faces[j].y > i)
+					this->faces[j].y--;
+				if (this->faces[j].z > i)
+					this->faces[j].z--;
+			}
+			i--;
+		}
+	}
 }
 
 void CTriMesh::Update()
@@ -738,7 +759,7 @@ std::string ImageMap::GetSlotName()
 	case ImageMap::BindingSlot::NORMAL:
 		return "NormalMap";
 		break;
-	case ImageMap::BindingSlot::BUMP:
+	case ImageMap::BindingSlot::DISPLACEMENT:
 		return "BumpMap";
 		break;
 	case ImageMap::BindingSlot::ENV_MAP:

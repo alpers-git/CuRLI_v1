@@ -107,8 +107,8 @@ private:
 							bindingSlot = ImageMap::BindingSlot::T_SPECULAR;
 						else if (std::string(argv[i]).compare("norm"))
 							bindingSlot = ImageMap::BindingSlot::NORMAL;
-						else if (std::string(argv[i]).compare("bump"))
-							bindingSlot = ImageMap::BindingSlot::BUMP;
+						else if (std::string(argv[i]).compare("disp"))
+							bindingSlot = ImageMap::BindingSlot::DISPLACEMENT;
 						else
 							throw std::invalid_argument("image map requires a type");
 						i++;

@@ -755,7 +755,7 @@ namespace gui
 								static const char* current_item = NULL;
 								//Texturebinding picker combo box
 								const char* items[] = {
-									"Ambient", "Diffuse", "Specular", "Normal Map", "Bump Map", "Environment Map"};
+									"Ambient", "Diffuse", "Specular", "Normal Map", "Displacement Map", "Environment Map"};
 								if (ImGui::BeginCombo("##combo", current_item))
 								{
 									for (int n = 0; n < IM_ARRAYSIZE(items); n++)
@@ -857,6 +857,13 @@ namespace gui
 										DrawCameraController(it->second.GetRenderedImageCamera());
 										ImGui::PopID();
 									}
+									if (textureBinding == ImageMap::BindingSlot::DISPLACEMENT)
+									{
+										ImGui::PushItemWidth(viewportPanelSize.x / 2);
+										ImGui::DragFloat("multiplier", &it->second.dispMultiplier);
+										ImGui::PopItemWidth();
+									}
+									
 									ImGui::Separator();
 									ImGui::EndGroup();
 									ImGui::PopID();
