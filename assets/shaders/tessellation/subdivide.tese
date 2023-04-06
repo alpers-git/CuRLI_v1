@@ -23,7 +23,7 @@ void main()
 {
     vec2 tex_coords = interpolate(tex_coords_tese[0], tex_coords_tese[1], tex_coords_tese[2]);
 
-    vec3 displacement = texture(displacement_map, tex_coords).xyz;
+    //vec3 displacement = texture(displacement_map, tex_coords).xyz;
     gl_Position = to_screen_space * (interpolate(gl_in[0].gl_Position, gl_in[1].gl_Position, gl_in[2].gl_Position) +
                         vec4(0, 0, texture(displacement_map, tex_coords).y * displacement_multiplier, 1.0));
 }

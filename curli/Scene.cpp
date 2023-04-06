@@ -158,21 +158,39 @@ void CTriMesh::InitializeFrom(cy::TriMesh& mesh)
 {
 	shading = ShadingMode::PHONG;
 	unsigned int minAttribCount = glm::min(mesh.NV(), glm::min(mesh.NVN(), mesh.NVT()));
+	bool hasTextureCoords = true;
+	if (minAttribCount == 0)
+	{
+		if(mesh.NV())
+			throw std::runtime_error("Mesh has no vertices");
+		if (mesh.NVN())
+		{
+			mesh.ComputeNormals();
+			minAttribCount = glm::min(mesh.NV(), glm::min(mesh.NVN(), mesh.NVT()));
+		}
+		if (mesh.NVT())
+		{
+			hasTextureCoords = false;
+			minAttribCount = glm::min(mesh.NV(), mesh.NVN());
+		}
+	}
 	this->vertices.resize(minAttribCount);
 	std::fill(this->vertices.begin(), this->vertices.end(), glm::vec3(NAN));
 	this->vertexNormals.resize(minAttribCount);
 	std::fill(this->vertexNormals.begin(), this->vertexNormals.end(), glm::vec3(NAN));
 	this->textureCoords.resize(minAttribCount);
-	std::fill(this->textureCoords.begin(), this->textureCoords.end(), glm::vec2(NAN));
+	if(hasTextureCoords) std::fill(this->textureCoords.begin(), this->textureCoords.end(), glm::vec2(NAN));
 	this->faces.resize(mesh.NF());
 	for (size_t i = 0; i < mesh.NF(); i++)
 	{
-		bool pushNewFace = this->vertices.size() < mesh.F(i).v[0] || 
-			this->vertices.size() <= mesh.F(i).v[1] || 
+		bool pushNewFace = this->vertices.size() < mesh.F(i).v[0] ||
+			this->vertices.size() <= mesh.F(i).v[1] ||
 			this->vertices.size() <= mesh.F(i).v[2] ||
 			this->vertexNormals.size() <= mesh.FN(i).v[0] ||
 			this->vertexNormals.size() <= mesh.FN(i).v[1] ||
-			this->vertexNormals.size() <= mesh.FN(i).v[2] ||
+			this->vertexNormals.size() <= mesh.FN(i).v[2];
+		if (hasTextureCoords)
+			pushNewFace = pushNewFace ||
 			this->textureCoords.size() <= mesh.FT(i).v[0] ||
 			this->textureCoords.size() <= mesh.FT(i).v[1] ||
 			this->textureCoords.size() <= mesh.FT(i).v[2];
@@ -184,15 +202,16 @@ void CTriMesh::InitializeFrom(cy::TriMesh& mesh)
 			const bool repeatedNormals = !glm::all(glm::isnan(this->vertexNormals[mesh.FN(i).v[0]])) &&
 				!glm::all(glm::isnan(this->vertexNormals[mesh.FN(i).v[1]])) &&
 				!glm::all(glm::isnan(this->vertexNormals[mesh.FN(i).v[2]]));
-			const bool repeatedTxCoords = !glm::all(glm::isnan(this->textureCoords[mesh.FT(i).v[0]])) &&
+			const bool repeatedTxCoords = hasTextureCoords &&
+				!glm::all(glm::isnan(this->textureCoords[mesh.FT(i).v[0]])) &&
 				!glm::all(glm::isnan(this->textureCoords[mesh.FT(i).v[1]])) &&
 				!glm::all(glm::isnan(this->textureCoords[mesh.FT(i).v[2]]));
 			pushNewFace = repeatedVerts || repeatedNormals || repeatedTxCoords;
 		}
 			
 		glm::ivec3 face = glm::ivec3(mesh.F(i).v[0], mesh.F(i).v[1], mesh.F(i).v[2]);
-		glm::ivec3 tface = glm::ivec3(mesh.FT(i).v[0], mesh.FT(i).v[1], mesh.FT(i).v[2]);
 		glm::ivec3 nface = glm::ivec3(mesh.FN(i).v[0], mesh.FN(i).v[1], mesh.FN(i).v[2]);
+		glm::ivec3 tface = hasTextureCoords ? glm::ivec3(mesh.FT(i).v[0], mesh.FT(i).v[1], mesh.FT(i).v[2]) : glm::ivec3();
 		if (!pushNewFace)//all of the vertex attribues of these faces are NaN... then we push them as is
 		{
 			this->faces[i] = face;
@@ -241,7 +260,8 @@ void CTriMesh::InitializeFrom(cy::TriMesh& mesh)
 		{
 			this->vertices.erase(this->vertices.begin() + i);
 			this->vertexNormals.erase(this->vertexNormals.begin() + i);
-			this->textureCoords.erase(this->textureCoords.begin() + i);
+			if(hasTextureCoords)
+				this->textureCoords.erase(this->textureCoords.begin() + i);
 			for (int j = 0; j < this->faces.size(); j++)
 			{
 				if (this->faces[j].x > i)
