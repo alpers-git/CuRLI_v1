@@ -7,8 +7,8 @@ void OpenGLProgram::Use()
 
 bool OpenGLProgram::AttachVertexShader()
 {
-	if (vertexShader->AttachShader(glID))
-		GL_CALL(glDeleteShader(vertexShader->glID));//Lets drivers know we don't need this shader objects anymore.
+	if (vertexShader->AttachShader(glID));
+		//GL_CALL(glDeleteShader(vertexShader->glID));//Lets drivers know we don't need this shader objects anymore.
 	else 
 		return false;
 	
@@ -17,8 +17,8 @@ bool OpenGLProgram::AttachVertexShader()
 
 bool OpenGLProgram::AttachFragmentShader()
 {
-	if (fragmentShader->AttachShader(glID))
-		GL_CALL(glDeleteShader(fragmentShader->glID));//Lets drivers know we don't need this shader objects anymore.
+	if (fragmentShader->AttachShader(glID));
+		//GL_CALL(glDeleteShader(fragmentShader->glID));//Lets drivers know we don't need this shader objects anymore.
 	else
 		return false;
 	return true;
@@ -28,8 +28,8 @@ bool OpenGLProgram::AttachGeometryShader()
 {
 	if (!geometryShader)
 		return false;
-	if (geometryShader->AttachShader(glID))
-		GL_CALL(glDeleteShader(geometryShader->glID));//Lets drivers know we don't need this shader objects anymore.
+	if (geometryShader->AttachShader(glID));
+		//GL_CALL(glDeleteShader(geometryShader->glID));//Lets drivers know we don't need this shader objects anymore.
 	else
 		return false;
 	return true;
@@ -39,12 +39,12 @@ bool OpenGLProgram::AttachTessellationShaders(int patchSize)
 {
 	if (!tessControlShader || !tessEvalShader)
 		return false;
-	if (tessControlShader->AttachShader(glID))
-		GL_CALL(glDeleteShader(tessControlShader->glID));//Lets drivers know we don't need this shader objects anymore.
+	if (tessControlShader->AttachShader(glID));
+		//GL_CALL(glDeleteShader(tessControlShader->glID));//Lets drivers know we don't need this shader objects anymore.
 	else
 		return false;
-	if (tessEvalShader->AttachShader(glID))
-		GL_CALL(glDeleteShader(tessEvalShader->glID));//Lets drivers know we don't need this shader objects anymore.
+	if (tessEvalShader->AttachShader(glID));
+		//GL_CALL(glDeleteShader(tessEvalShader->glID));//Lets drivers know we don't need this shader objects anymore.
 	else
 		return false;
 	GL_CALL(glPatchParameteri(GL_PATCH_VERTICES, patchSize));
