@@ -276,6 +276,340 @@ void CTriMesh::InitializeFrom(cy::TriMesh& mesh)
 	}
 }
 
+void parseFileLine(std::ifstream& file, std::string& line)
+{
+	while (true)
+	{
+		std::getline(file, line);
+		if (line[0] != '#')//skip comments
+			break;
+	}
+}
+
+void CTriMesh::GenerateFaceFrom(const glm::vec3 v0,const glm::vec3 v1,const glm::vec3 v2,
+	const glm::vec3 vIn, const glm::ivec3 vertIndices)
+{
+	glm::ivec3 face;
+	//compute the normal for the face
+	const glm::vec3 e1 = v1 - v0;
+	const glm::vec3 e2 = v2 - v0;
+	glm::vec3 normal = glm::normalize(glm::cross(e2, e1));
+	const glm::vec3 inwardVec = vIn - (v0 +
+		v1 + v2) / 3.0f;
+	if (glm::dot(normal, -inwardVec) >= 0)
+		normal = -normal;
+	glm::vec3 boundaryVertices[3] = {v0,v1,v2};
+	for (int j = 0; j < 3; j++)
+	{
+		//check if index of the boundary vertex is already in the mesh faces using tetgen2Face map
+		//auto foundIndex = tetgen2Face.find(indices[j]);
+		if (vertIndices[j] == -1)//new vertex
+		{
+			//Position
+			this->vertices.push_back(boundaryVertices[j]);
+
+			//Normals
+			this->vertexNormals.push_back(normal);
+
+			//Texture
+			this->textureCoords.push_back({ 0,0 });//insert empty coords
+
+			face[j] = this->vertices.size() - 1;
+			//tetgen2Face.insert(std::make_pair(indices[j], face[j]));
+		}
+		else//existing vertex
+		{
+			face[j] = vertIndices[j];
+		}
+	}
+	this->faces.push_back(face);
+}
+
+struct TripleHash {
+	size_t operator()(const glm::ivec3& t) const {
+		int x = (t.x);
+		int y = (t.y);
+		int z = (t.z);
+		int a[3] = { x, y, z };
+		std::sort(a, a + 3);
+		size_t h1 = std::hash<int>{}(a[0]);
+		size_t h2 = std::hash<int>{}(a[1]);
+		size_t h3 = std::hash<int>{}(a[2]);
+		return h1 ^ (h2 << 1) ^ (h3 << 2);
+	}
+};
+
+// Function to mark boundary nodes
+void mark_boundary_nodes(
+	const std::vector<glm::ivec4>& elements,
+	std::vector<bool>& boundary)
+{
+	// Create a hash map to count the number of times each face is encountered
+	std::unordered_map<glm::ivec3, int, TripleHash> face_count;
+
+	// Count the number of times each face is encountered
+	for (const auto& tetrahedron : elements) {
+		// Get the indices of the tetrahedron's vertices
+		int i = tetrahedron.x;
+		int j = tetrahedron.y;
+		int k = tetrahedron.z;
+		int l = tetrahedron.w;
+
+		// For each face of the tetrahedron, increment its count in the hash map
+		++face_count[glm::ivec3(i, k, j)];
+		++face_count[glm::ivec3(i, l, j)];
+		++face_count[glm::ivec3(i, l, k)];
+		++face_count[glm::ivec3(j, l, k)];
+	}
+
+	// Find the boundary nodes
+	for (const auto& [face, count] : face_count) {
+		// If the face is encountered only once, mark its vertices as boundary nodes
+		if (count == 1) {
+			int i = face.x;
+			int j = face.y;
+			int k = face.z;
+			boundary[i] = true;
+			boundary[j] = true;
+			boundary[k] = true;
+		}
+	}
+}
+
+void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string elePath)
+{
+	printf("======Reading Tetgen files=====\n");
+	//check the file extensions node needs to be .node and ele needs to be .ele
+	if (nodePath.substr(nodePath.find_last_of(".") + 1) != "node" ||
+		elePath.substr(elePath.find_last_of(".") + 1) != "ele")
+	{
+		throw std::exception("Invalid extension for tetgen files");
+	}
+	
+	//------------------node file----------------------
+	//open the node file
+	std::ifstream nodeFile(nodePath, std::ios::in);
+	if (!nodeFile.is_open())
+	{
+		throw std::exception("Could not open node file");
+	}
+	//first line includes space seperated # nodes, # dimensions, # attributes, # boundary markers
+	std::string line;
+	parseFileLine(nodeFile, line);
+	std::istringstream iss(line);
+	std::vector<std::string> tokens{ std::istream_iterator<std::string>{iss},
+		std::istream_iterator<std::string>{} };
+	const unsigned int numNodes = std::stoi(tokens[0]);
+	const unsigned int numDimensions = std::stoi(tokens[1]);
+	const unsigned int numAttributes = std::stoi(tokens[2]);
+	const unsigned int numBoundaryMarkers = std::stoi(tokens[3]);
+
+	if (numDimensions != 3)
+		throw std::exception("Only 3D meshes are supported");
+	if(numNodes <=0)
+		throw std::exception("Invalid number of nodes");
+	
+	std::vector<glm::vec3> nodes;
+	std::vector<bool> boundary;
+	nodes.resize(numNodes);
+	boundary.resize(numNodes, false);
+
+	//go over the file and find the min index
+	int minIndex = 2;
+	for (int i = 0; i < numNodes; i++)
+	{
+		parseFileLine(nodeFile, line);
+		std::istringstream iss(line);
+		std::vector<std::string> tokens{ std::istream_iterator<std::string>{iss},
+			std::istream_iterator<std::string>{} };
+		if (minIndex > std::stoi(tokens[0]))
+			minIndex = std::stoi(tokens[0]);
+	}
+
+	//rewind to begining of the file and skip the first line
+	nodeFile.seekg(0);
+	nodeFile.clear();
+	parseFileLine(nodeFile, line);
+
+	//read the rest of the file with a loop and store the vertices.
+	for (int i = 0; i < numNodes; i++)
+	{
+		parseFileLine(nodeFile, line);
+		std::istringstream iss(line);
+		std::vector<std::string> tokens{ std::istream_iterator<std::string>{iss},
+			std::istream_iterator<std::string>{} };
+		glm::vec3 node = glm::vec3(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]));
+		nodes.at(std::stof(tokens[0])- minIndex) = node;
+		if(numBoundaryMarkers > 0)
+			boundary.at(std::stof(tokens[0]) - minIndex) = std::stoi(tokens[4]) == 1;// 1 means boundary vert
+	}
+	nodeFile.close();
+
+	//------------------ele file----------------------
+	std::ifstream eleFile(elePath, std::ios::in);
+	if (!eleFile.is_open())
+	{
+		throw std::exception("Could not open ele file");
+	}
+
+	//first line includes space seperated # elements, # nodes per element, # attributes
+	parseFileLine(eleFile, line);
+	std::istringstream iss2(line);
+	std::vector<std::string> tokens2{ std::istream_iterator<std::string>{iss2},
+		std::istream_iterator<std::string>{} };
+	const unsigned int numElements = std::stoi(tokens2[0]);
+	const unsigned int numNodesPerElement = std::stoi(tokens2[1]);
+	const unsigned int numAttributes2 = std::stoi(tokens2[2]);
+	
+	if (numNodesPerElement != 4)
+		throw std::exception("Only tetrahedral meshes are supported");
+	if (numElements <= 0)
+		throw std::exception("Invalid number of elements");
+	
+	std::vector<glm::ivec4> elements;
+	
+	//read the rest of the file with a loop and store the vertices.
+	
+	for (int i = 0; i < numElements; i++)
+	{
+		parseFileLine(eleFile, line);
+		std::istringstream iss(line);
+		std::vector<std::string> tokens{ std::istream_iterator<std::string>{iss},
+			std::istream_iterator<std::string>{} };
+		glm::ivec4 element = glm::ivec4(std::stoi(tokens[1]), std::stoi(tokens[2]), std::stoi(tokens[3]), std::stoi(tokens[4]));
+		elements.push_back(element - glm::ivec4(minIndex));
+	}
+	eleFile.close();
+	if (numBoundaryMarkers == 0)//well the file doesnt have a boundary marker...
+	{
+		mark_boundary_nodes(elements, boundary);
+	}
+	printf("======Done reading Tetgen files=====\n\t# nodes:%d \n\t# elements:%d\n", numNodes, numElements);
+	printf("======Generating surface mesh=====\n");
+	//generate the mesh
+	//A map to input data to our face structure
+	std::unordered_map<int, int> tetgen2Face;
+	//go over tets if they have a boundary nodes push them as a face
+	for (int i = 0; i < elements.size(); i++)
+	{
+		const glm::ivec4 indices = elements.at(i);
+
+		glm::vec3 boundaryVertices[4] = {glm::vec3(NAN),glm::vec3(NAN),glm::vec3(NAN), glm::vec3(NAN)};
+		int boundaryCount = 0;//for indexing the array up there
+		glm::vec3 inwardVertex;
+		for (int j = 0; j < 4; j++)
+		{
+			if (boundary.at(indices[j]))
+				boundaryVertices[boundaryCount++] = nodes.at(indices[j]);
+			else
+				inwardVertex = nodes.at(indices[j]);
+		}
+		//if any of the boundary vertices is nan this tet is not a boundary tet, skip!
+		if (boundaryCount<3)
+			continue;
+		if (boundaryCount == 3)
+		{
+			glm::ivec3 indicesForVertices(-1, -1, -1);//init as new vertices, so no known index(-1)
+			int numNewVert = 0;
+			//for (int j = 0; j < 3; j++)//check if that vertex already exists
+			//{
+			//	auto foundIndex = tetgen2Face.find(indices[j]);
+			//	if(foundIndex != tetgen2Face.end())//duplicate vertex so get the values from the map
+			//		indicesForVertices[j] = foundIndex->second;
+			//	else
+			//	{
+			//		tetgen2Face.insert(std::make_pair(indices[j], this->vertices.size() + numNewVert));
+			//		numNewVert++;
+			//	}
+			//}
+			GenerateFaceFrom(boundaryVertices[0], boundaryVertices[1], boundaryVertices[2],
+				inwardVertex, indicesForVertices);
+
+		}
+		if (boundaryCount == 4)
+		{
+			//push all 4 faces...
+			//-------------0-------------
+			glm::ivec3 curIndices = { indices[0], indices[1], indices[2] };
+			inwardVertex = boundaryVertices[3];
+			glm::ivec3 indicesForVertices(-1, -1, -1);//init as new vertices, so no known index(-1)
+			int numNewVert = 0;
+			//for (int j = 0; j < 3; j++)//check if that vertex already exists
+			//{
+			//	auto foundIndex = tetgen2Face.find(curIndices[j]);
+			//	if (foundIndex != tetgen2Face.end())
+			//		indicesForVertices[j] = foundIndex->second;
+			//	else
+			//	{
+			//		tetgen2Face.insert(std::make_pair(curIndices[j], this->vertices.size() + numNewVert));
+			//		numNewVert++;
+			//	}
+			//}
+			GenerateFaceFrom(boundaryVertices[0], boundaryVertices[1], boundaryVertices[2],
+				inwardVertex, indicesForVertices);
+			//-------------1-------------
+			curIndices = { indices[1], indices[3], indices[2] };
+			inwardVertex = boundaryVertices[0];
+			indicesForVertices = glm::ivec3(-1, -1, -1);//init as new vertices, so no known index(-1)
+			numNewVert = 0;
+			//for (int j = 0; j < 3; j++)//check if that vertex already exists
+			//{
+			//	auto foundIndex = tetgen2Face.find(curIndices[j]);
+			//	if (foundIndex != tetgen2Face.end())
+			//		indicesForVertices[j] = foundIndex->second;
+			//	else
+			//	{
+			//		tetgen2Face.insert(std::make_pair(curIndices[j], this->vertices.size() + numNewVert));
+			//		numNewVert++;
+			//	}
+			//}
+			GenerateFaceFrom(boundaryVertices[1], boundaryVertices[3], boundaryVertices[2],
+				inwardVertex, indicesForVertices);
+			//-------------2-------------
+			curIndices = { indices[3], indices[0], indices[2] };
+			inwardVertex = boundaryVertices[1];
+			indicesForVertices = glm::ivec3(-1, -1, -1);//init as new vertices, so no known index(-1)
+			numNewVert = 0;
+			//for (int j = 0; j < 3; j++)//check if that vertex already exists
+			//{
+			//	auto foundIndex = tetgen2Face.find(curIndices[j]);
+			//	if (foundIndex != tetgen2Face.end())
+			//		indicesForVertices[j] = foundIndex->second;
+			//	else
+			//	{
+			//		tetgen2Face.insert(std::make_pair(curIndices[j], this->vertices.size() + numNewVert));
+			//		numNewVert++;
+			//	}
+			//}
+			GenerateFaceFrom(boundaryVertices[3], boundaryVertices[0], boundaryVertices[2],
+				inwardVertex, indicesForVertices);
+			//-------------3-------------
+			curIndices = { indices[0], indices[1], indices[3] };
+			inwardVertex = boundaryVertices[2];
+			indicesForVertices = glm::ivec3(-1, -1, -1);//init as new vertices, so no known index(-1)
+			numNewVert = 0;
+			//for (int j = 0; j < 3; j++)//check if that vertex already exists
+			//{
+			//	auto foundIndex = tetgen2Face.find(curIndices[j]);
+			//	if (foundIndex != tetgen2Face.end())
+			//		indicesForVertices[j] = foundIndex->second;
+			//	else
+			//	{
+			//		tetgen2Face.insert(std::make_pair(curIndices[j], this->vertices.size() + numNewVert));
+			//		numNewVert++;
+			//		}
+			//}
+			GenerateFaceFrom(boundaryVertices[0], boundaryVertices[1], boundaryVertices[3],
+				inwardVertex, indicesForVertices);
+		}
+
+	}
+
+	printf("======Done=====\n\t#verts: %d\n\t#normals %d\n\t#text co: %d\n\t#faces: %d\n", 
+		this->vertices.size(), this->vertexNormals.size(), this->textureCoords.size(), this->faces.size());
+	
+}
+
 void CTriMesh::Update()
 {
 }
@@ -638,6 +972,26 @@ entt::entity Scene::CreateModelObject(const std::string& meshPath, glm::vec3 pos
 			
 	}
 	
+
+	return entity;
+}
+
+entt::entity Scene::CreateModelObject(const std::string& nodePath, const std::string& elePath, glm::vec3 position, glm::vec3 rotation, glm::vec3 scale)
+{
+	//from path get the part after the last "/" and before "."
+	auto name = nodePath.substr(nodePath.find_last_of("/\\") + 1);
+	name = name.substr(0, name.find_last_of("."));
+	auto entity = CreateSceneObject(name);
+
+	CTriMesh mesh;
+	mesh.InitializeFrom(nodePath, elePath);
+	registry.emplace<CTriMesh>(entity, mesh);
+	auto& transform = registry.emplace<CTransform>(entity, position, rotation, scale);
+	transform.SetPivot(mesh.GetBoundingBoxCenter());
+	auto& material = registry.emplace<CPhongMaterial>(entity);
+	
+	registry.emplace<CRigidBody>(entity);
+	registry.emplace<CBoxCollider>(entity, mesh.GetBoundingBoxMin(), mesh.GetBoundingBoxMax());
 
 	return entity;
 }

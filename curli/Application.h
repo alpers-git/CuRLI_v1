@@ -77,7 +77,8 @@ private:
 				ImageMap::BindingSlot bindingSlot = ImageMap::BindingSlot::T_DIFFUSE;
 				std::string imPath;
 				
-				std::string path;
+				std::string path;//doubles as nodePath
+				std::string elePath = "";
 				for (; i < argc; i++)
 				{
 					if (std::string(argv[i]).compare("--rb") == 0)
@@ -89,6 +90,20 @@ private:
 					{
 						i++;
 						path = argv[i];
+						//check if path ends with .ele or .node
+						if (path.substr(path.find_last_of(".") + 1) == "ele" ||
+							path.substr(path.find_last_of(".") + 1) == "node")
+						{
+							i++;
+							elePath = argv[i];
+							//if path ends ele swap the values with path2
+							if (path.substr(path.find_last_of(".") + 1) == "ele")
+							{
+								std::string temp = path;
+								path = elePath;
+								elePath = temp;
+							}
+						}
 					}
 					else if (std::string(argv[i]).compare("--bc") == 0)
 					{
@@ -122,10 +137,14 @@ private:
 						break;
 					}
 				}
-				entt::entity modelObj = scene->CreateModelObject(path);
-				if (hasRB)
+				entt::entity modelObj;
+				if (!elePath.empty())
+					modelObj = scene->CreateModelObject(/*node*/path, elePath);
+				else
+					modelObj = scene->CreateModelObject(path);
+				if (elePath.empty() && hasRB)
 					scene->registry.emplace<CRigidBody>(modelObj, .5f);
-				if (hasBC)
+				if (elePath.empty() && hasBC)
 					scene->registry.emplace<CBoxCollider>( modelObj, 
 						scene->registry.get<CTriMesh>(modelObj).GetBoundingBoxMin(), 
 						scene->registry.get<CTriMesh>(modelObj).GetBoundingBoxMax() );
@@ -133,7 +152,8 @@ private:
 				{
 					auto imap = scene->registry.emplace<CImageMaps>(modelObj);
 					if (imPath.empty())
-						imap.AddImageMap(bindingSlot, glm::ivec2(800, 800), ImageMap::RenderImageMode::REFLECTION);
+						imap.AddImageMap(bindingSlot, glm::ivec2(800, 800), 
+							ImageMap::RenderImageMode::REFLECTION);
 					else
 						imap.AddImageMap(bindingSlot, imPath);
 				}

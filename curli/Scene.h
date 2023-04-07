@@ -4,9 +4,12 @@
 
 #include <cyTriMesh.h>
 #include <CyToGLMHelper.h>
+
 #include <Eigen/Sparse>
 #include <Eigen/Dense>
+
 #include <entt/entt.hpp>
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -17,10 +20,14 @@
 #include <glm/gtx/log_base.hpp>
 #include <glm/gtc/matrix_access.hpp>
 #include <glm/gtx/matrix_operation.hpp>
+
 #include <lodepng.h>
+
+#include <fstream>
 #include <stdarg.h>
 #include <string>
 #include <unordered_map>
+#include <tuple>
 
 //define a macro that takes a function calls it and ctaches opengl errors
 #define GL_CALL(func) \
@@ -509,6 +516,21 @@ public:
 	{
 	}
 	
+	//deep copy constructor
+	CTriMesh(const CTriMesh& other)
+	{
+		this->vertices = other.vertices;
+		this->vertexNormals = other.vertexNormals;
+		this->textureCoords = other.textureCoords;
+		this->faces = other.faces;
+		this -> shading = other.shading;
+		this->bBoxMax = other.bBoxMax;
+		this->bBoxMin = other.bBoxMin;
+		this->bBoxInitialized = other.bBoxInitialized;
+		this->tessellationLevel = other.tessellationLevel;
+		this->visible = other.visible;
+	}
+	
 	unsigned int GetNumVertices() const { return vertices.size(); }
 	unsigned int GetNumFaces() const { return faces.size(); }
 	unsigned int GetNumNormals() const { return vertexNormals.size(); }
@@ -530,6 +552,7 @@ public:
 	* Create opengl friendly single buffer indexed mesh from cy::TriMesh
 	*/
 	void InitializeFrom(cy::TriMesh& mesh);
+	void InitializeFrom(const std::string& nodePath, const std::string elePath);
 
 	inline void ComputeBoundingBox()
 	{
@@ -625,6 +648,9 @@ private:
 	glm::vec3 bBoxMax = glm::vec3(-FLT_MAX);
 	bool bBoxInitialized = false;
 	ShadingMode shading = ShadingMode::PHONG; //0 = phong-color, 1 = phong-texture, 2 = editor mode
+
+	void GenerateFaceFrom(const glm::vec3 v0, const glm::vec3 v1, const glm::vec3 v2,
+		const glm::vec3 vIn, const glm::ivec3 vertIndices);
 };
 
 struct CPhongMaterial : Component
@@ -1243,6 +1269,11 @@ public:
 	* Reads an obj file and adds and entity to the sceneObjects with a transform, phong material and a mesh
 	*/
 	entt::entity CreateModelObject(const std::string& meshPath, glm::vec3 position = glm::vec3(0.f),
+		glm::vec3 rotation = glm::vec3(0.f), glm::vec3 scale = glm::vec3(1.f));
+	/*
+	* Reads a node and ele file to create a mesh with rigidbody, collider, transform, phong material and mesh
+	*/
+	entt::entity CreateModelObject(const std::string& nodePath, const std::string& elePath, glm::vec3 position = glm::vec3(0.f),
 		glm::vec3 rotation = glm::vec3(0.f), glm::vec3 scale = glm::vec3(1.f));
 	/*
 	* Adds and entity to the sceneObjects with a transform, phong material and a mesh
