@@ -1031,30 +1031,30 @@ public:
 				switch (severity) {
 				case GL_DEBUG_SEVERITY_HIGH:
 					_severity = "high";
-					system("color 4");
+					//system("color 4");
 					break;
 				case GL_DEBUG_SEVERITY_MEDIUM:
 					_severity = "med";
-					system("color 6");
+					//system("color 6");
 					break;
 				case GL_DEBUG_SEVERITY_LOW:
 					_severity = "low";
-					system("color 2");
+					//system("color 2");
 					break;
 				case GL_DEBUG_SEVERITY_NOTIFICATION:
 					_severity = "notif";
-					system("color 7");
+					//system("color 7");
 					break;
 				default:
 					_severity = "UNKNOWN";
-					system("color 1");
+					//system("color 1");
 					break;
 				}
 
 				if (severity != GL_DEBUG_SEVERITY_NOTIFICATION) {
 					printf("GL Error type: %s severity: %s from: %s-\n\t %s", _type.c_str(), _severity.c_str(), _source.c_str(), message);
 				}
-				system("color 7");
+				//system("color 7");
 			}, 0);
 		
 		vertexShader = new Shader(GL_VERTEX_SHADER);

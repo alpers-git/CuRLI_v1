@@ -294,9 +294,8 @@ void CTriMesh::GenerateFaceFrom(const glm::vec3 v0,const glm::vec3 v1,const glm:
 	const glm::vec3 e1 = v1 - v0;
 	const glm::vec3 e2 = v2 - v0;
 	glm::vec3 normal = glm::normalize(glm::cross(e2, e1));
-	const glm::vec3 inwardVec = vIn - (v0 +
-		v1 + v2) / 3.0f;
-	if (glm::dot(normal, -inwardVec) >= 0)
+	const glm::vec3 inwardVec = vIn - v0;
+	if (glm::dot(normal, inwardVec) >= 0)
 		normal = -normal;
 	glm::vec3 boundaryVertices[3] = {v0,v1,v2};
 	for (int j = 0; j < 3; j++)
@@ -319,6 +318,7 @@ void CTriMesh::GenerateFaceFrom(const glm::vec3 v0,const glm::vec3 v1,const glm:
 		}
 		else//existing vertex
 		{
+			this->vertexNormals[vertIndices[j]] += normal;// we will normalize in the end
 			face[j] = vertIndices[j];
 		}
 	}
@@ -495,12 +495,16 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 		const glm::ivec4 indices = elements.at(i);
 
 		glm::vec3 boundaryVertices[4] = {glm::vec3(NAN),glm::vec3(NAN),glm::vec3(NAN), glm::vec3(NAN)};
+		int boundaryIndices[4] = { -1,-1,-1,-1 };
 		int boundaryCount = 0;//for indexing the array up there
 		glm::vec3 inwardVertex;
 		for (int j = 0; j < 4; j++)
 		{
 			if (boundary.at(indices[j]))
-				boundaryVertices[boundaryCount++] = nodes.at(indices[j]);
+			{
+				boundaryVertices[boundaryCount] = nodes.at(indices[j]);
+				boundaryIndices[boundaryCount++] = indices[j];
+			}
 			else
 				inwardVertex = nodes.at(indices[j]);
 		}
@@ -511,17 +515,17 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 		{
 			glm::ivec3 indicesForVertices(-1, -1, -1);//init as new vertices, so no known index(-1)
 			int numNewVert = 0;
-			//for (int j = 0; j < 3; j++)//check if that vertex already exists
-			//{
-			//	auto foundIndex = tetgen2Face.find(indices[j]);
-			//	if(foundIndex != tetgen2Face.end())//duplicate vertex so get the values from the map
-			//		indicesForVertices[j] = foundIndex->second;
-			//	else
-			//	{
-			//		tetgen2Face.insert(std::make_pair(indices[j], this->vertices.size() + numNewVert));
-			//		numNewVert++;
-			//	}
-			//}
+			for (int j = 0; j < 3; j++)//check if that vertex already exists
+			{
+				auto foundIndex = tetgen2Face.find(boundaryIndices[j]);
+				if(foundIndex != tetgen2Face.end())//duplicate vertex so get the values from the map
+					indicesForVertices[j] = foundIndex->second;
+				else
+				{
+					tetgen2Face.insert(std::make_pair(boundaryIndices[j], this->vertices.size() + numNewVert));
+					numNewVert++;
+				}
+			}
 			GenerateFaceFrom(boundaryVertices[0], boundaryVertices[1], boundaryVertices[2],
 				inwardVertex, indicesForVertices);
 
@@ -530,7 +534,7 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 		{
 			//push all 4 faces...
 			//-------------0-------------
-			glm::ivec3 curIndices = { indices[0], indices[1], indices[2] };
+			glm::ivec3 curIndices = { boundaryIndices[0], boundaryIndices[1], boundaryIndices[2] };
 			inwardVertex = boundaryVertices[3];
 			glm::ivec3 indicesForVertices(-1, -1, -1);//init as new vertices, so no known index(-1)
 			int numNewVert = 0;
@@ -548,7 +552,7 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 			GenerateFaceFrom(boundaryVertices[0], boundaryVertices[1], boundaryVertices[2],
 				inwardVertex, indicesForVertices);
 			//-------------1-------------
-			curIndices = { indices[1], indices[3], indices[2] };
+			curIndices = { boundaryIndices[1], boundaryIndices[3], boundaryIndices[2] };
 			inwardVertex = boundaryVertices[0];
 			indicesForVertices = glm::ivec3(-1, -1, -1);//init as new vertices, so no known index(-1)
 			numNewVert = 0;
@@ -566,7 +570,7 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 			GenerateFaceFrom(boundaryVertices[1], boundaryVertices[3], boundaryVertices[2],
 				inwardVertex, indicesForVertices);
 			//-------------2-------------
-			curIndices = { indices[3], indices[0], indices[2] };
+			curIndices = { boundaryIndices[3], boundaryIndices[0], boundaryIndices[2] };
 			inwardVertex = boundaryVertices[1];
 			indicesForVertices = glm::ivec3(-1, -1, -1);//init as new vertices, so no known index(-1)
 			numNewVert = 0;
@@ -584,7 +588,7 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 			GenerateFaceFrom(boundaryVertices[3], boundaryVertices[0], boundaryVertices[2],
 				inwardVertex, indicesForVertices);
 			//-------------3-------------
-			curIndices = { indices[0], indices[1], indices[3] };
+			curIndices = { boundaryIndices[0], boundaryIndices[3], boundaryIndices[1] };
 			inwardVertex = boundaryVertices[2];
 			indicesForVertices = glm::ivec3(-1, -1, -1);//init as new vertices, so no known index(-1)
 			numNewVert = 0;
@@ -602,6 +606,12 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 			GenerateFaceFrom(boundaryVertices[0], boundaryVertices[1], boundaryVertices[3],
 				inwardVertex, indicesForVertices);
 		}
+
+		//loop over all of the mesh normals and normalize them using cpp for each parallel loop
+		std::for_each(std::execution::par, this->vertexNormals.begin(), this->vertexNormals.end(), 
+			[](glm::vec3& n){ n = glm::normalize(n); });
+		/*for(auto& n : this->vertexNormals)
+			n = glm::normalize(n);*/
 
 	}
 
