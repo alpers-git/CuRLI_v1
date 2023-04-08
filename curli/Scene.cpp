@@ -339,6 +339,26 @@ struct TripleHash {
 	}
 };
 
+// Computes the Z-order curve value of a given pair of (x, y) coordinates
+unsigned int zOrder(unsigned int x, unsigned int y) {
+	unsigned int z = 0;
+	for (int i = 0; i < sizeof(unsigned int) * CHAR_BIT / 2; i++) {
+		z |= (x & (1 << i)) << i | (y & (1 << i)) << (i + 1);
+	}
+	return z;
+}
+
+// Hash function for unordered_map that uses the Z-order curve value
+struct zOrderHash {
+	size_t operator()(const std::pair<unsigned int, unsigned int>& p) const {
+		unsigned int x = p.first;
+		unsigned int y = p.second;
+		if (x > y) std::swap(x, y);  // ensure x is smaller than y
+		return zOrder(x, y);
+	}
+};
+
+
 // Function to mark boundary nodes
 void mark_boundary_nodes(
 	const std::vector<glm::ivec4>& elements,
@@ -487,6 +507,33 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 	}
 	printf("======Done reading Tetgen files=====\n\t# nodes:%d \n\t# elements:%d\n", numNodes, numElements);
 	printf("======Generating surface mesh & springs=====\n");
+	//generate springs
+	for (const auto node : nodes)
+	{
+		sNodes.push_back(SpringNode(node));
+	}
+	//create a std unordered map to avoid duplicating the same spring twice
+	std::unordered_map<std::pair<unsigned int, unsigned int>, unsigned int, zOrderHash> springMap;
+	for (const auto tet : elements) {
+		for (int i = 0; i < 4; i++)
+		{
+			for (int j = 0; j < 4; j++)
+			{
+				if (i == j)//skip self
+					continue;
+				//check if the spring already exists
+				if (springMap.find(std::pair<unsigned int, unsigned int>(tet[i], tet[j])) != springMap.end())
+					continue;
+				
+				else
+				{	
+					springMap.insert({ std::pair<unsigned int, unsigned int>(tet[j], tet[i]), 1 });
+					springs.push_back(Spring({tet[i], tet[j]}, 
+						glm::length(sNodes.at(tet[i]).position - sNodes.at(tet[j]).position)));
+				}
+			}
+		}
+	}
 	//generate the mesh
 	//A map to input data to our face structure
 	std::unordered_map<int, int> tetgen2Face;
@@ -511,28 +558,7 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 		}
 		//if any of the boundary vertices is nan this tet is not a boundary tet, push as a internal spring and skip!
 		if (boundaryCount < 3)
-		{
-			for (int j = 0; j < 6; j++)
-			{
-				for (int k = 0; k < 6; k++)
-				{
-					if (j == k)
-						continue;
-					if (!boundary.at(indices[j]) || !boundary.at(indices[k]))
-					{
-						//push as a boundary spring
-						SpringNode node0, node1;
-						node0.position = nodes.at(indices[j]);
-						node1.position = nodes.at(indices[k]);
-						sNodes.push_back(node0);
-						sNodes.push_back(node1);
-						springs.push_back(Spring({ sNodes.size() - 2, sNodes.size() - 1 },
-							node0.position, node1.position));
-					}
-				}
-			}
 			continue;
-		}
 		if (boundaryCount == 3)
 		{
 			glm::ivec3 indicesForVertices(-1, -1, -1);//init as new vertices, so no known index(-1)
@@ -550,93 +576,81 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 			}
 			GenerateFaceFrom(boundaryVertices[0], boundaryVertices[1], boundaryVertices[2],
 				inwardVertex, indicesForVertices);
-			//push springs
-			for (int j = 0; j < 3; j++)
-			{
-				SpringNode node0, node1;
-				node0.position = boundaryVertices[j];
-				node1.position = inwardVertex;
-				sNodes.push_back(node0);
-				sNodes.push_back(node1);
-				springs.push_back(Spring({ sNodes.size() - 2, sNodes.size() - 1 },
-					node0.position, node1.position));
-			}
-
 		}
 		if (boundaryCount == 4)
 		{
 			//push all 4 faces...
 			//-------------0-------------
-			glm::ivec3 curIndices = { boundaryIndices[0], boundaryIndices[1], boundaryIndices[2] };
+			glm::ivec3 curIndices = { boundaryIndices[0], boundaryIndices[2], boundaryIndices[1] };
 			inwardVertex = boundaryVertices[3];
 			glm::ivec3 indicesForVertices(-1, -1, -1);//init as new vertices, so no known index(-1)
 			int numNewVert = 0;
-			//for (int j = 0; j < 3; j++)//check if that vertex already exists
-			//{
-			//	auto foundIndex = tetgen2Face.find(curIndices[j]);
-			//	if (foundIndex != tetgen2Face.end())
-			//		indicesForVertices[j] = foundIndex->second;
-			//	else
-			//	{
-			//		tetgen2Face.insert(std::make_pair(curIndices[j], this->vertices.size() + numNewVert));
-			//		numNewVert++;
-			//	}
-			//}
-			GenerateFaceFrom(boundaryVertices[0], boundaryVertices[1], boundaryVertices[2],
+			for (int j = 0; j < 3; j++)//check if that vertex already exists
+			{
+				auto foundIndex = tetgen2Face.find(curIndices[j]);
+				if (foundIndex != tetgen2Face.end())
+					indicesForVertices[j] = foundIndex->second;
+				else
+				{
+					tetgen2Face.insert(std::make_pair(curIndices[j], this->vertices.size() + numNewVert));
+					numNewVert++;
+				}
+			}
+			GenerateFaceFrom(boundaryVertices[0], boundaryVertices[2], boundaryVertices[1],
 				inwardVertex, indicesForVertices);
 			//-------------1-------------
-			curIndices = { boundaryIndices[1], boundaryIndices[3], boundaryIndices[2] };
+			curIndices = { boundaryIndices[1], boundaryIndices[2], boundaryIndices[3] };
 			inwardVertex = boundaryVertices[0];
 			indicesForVertices = glm::ivec3(-1, -1, -1);//init as new vertices, so no known index(-1)
 			numNewVert = 0;
-			//for (int j = 0; j < 3; j++)//check if that vertex already exists
-			//{
-			//	auto foundIndex = tetgen2Face.find(curIndices[j]);
-			//	if (foundIndex != tetgen2Face.end())
-			//		indicesForVertices[j] = foundIndex->second;
-			//	else
-			//	{
-			//		tetgen2Face.insert(std::make_pair(curIndices[j], this->vertices.size() + numNewVert));
-			//		numNewVert++;
-			//	}
-			//}
-			GenerateFaceFrom(boundaryVertices[1], boundaryVertices[3], boundaryVertices[2],
+			for (int j = 0; j < 3; j++)//check if that vertex already exists
+			{
+				auto foundIndex = tetgen2Face.find(curIndices[j]);
+				if (foundIndex != tetgen2Face.end())
+					indicesForVertices[j] = foundIndex->second;
+				else
+				{
+					tetgen2Face.insert(std::make_pair(curIndices[j], this->vertices.size() + numNewVert));
+					numNewVert++;
+				}
+			}
+			GenerateFaceFrom(boundaryVertices[1], boundaryVertices[2], boundaryVertices[3],
 				inwardVertex, indicesForVertices);
 			//-------------2-------------
-			curIndices = { boundaryIndices[3], boundaryIndices[0], boundaryIndices[2] };
+			curIndices = { boundaryIndices[3], boundaryIndices[2], boundaryIndices[0] };
 			inwardVertex = boundaryVertices[1];
 			indicesForVertices = glm::ivec3(-1, -1, -1);//init as new vertices, so no known index(-1)
 			numNewVert = 0;
-			//for (int j = 0; j < 3; j++)//check if that vertex already exists
-			//{
-			//	auto foundIndex = tetgen2Face.find(curIndices[j]);
-			//	if (foundIndex != tetgen2Face.end())
-			//		indicesForVertices[j] = foundIndex->second;
-			//	else
-			//	{
-			//		tetgen2Face.insert(std::make_pair(curIndices[j], this->vertices.size() + numNewVert));
-			//		numNewVert++;
-			//	}
-			//}
-			GenerateFaceFrom(boundaryVertices[3], boundaryVertices[0], boundaryVertices[2],
+			for (int j = 0; j < 3; j++)//check if that vertex already exists
+			{
+				auto foundIndex = tetgen2Face.find(curIndices[j]);
+				if (foundIndex != tetgen2Face.end())
+					indicesForVertices[j] = foundIndex->second;
+				else
+				{
+					tetgen2Face.insert(std::make_pair(curIndices[j], this->vertices.size() + numNewVert));
+					numNewVert++;
+				}
+			}
+			GenerateFaceFrom(boundaryVertices[3], boundaryVertices[2], boundaryVertices[0],
 				inwardVertex, indicesForVertices);
 			//-------------3-------------
-			curIndices = { boundaryIndices[0], boundaryIndices[3], boundaryIndices[1] };
+			curIndices = { boundaryIndices[0], boundaryIndices[1], boundaryIndices[3] };
 			inwardVertex = boundaryVertices[2];
 			indicesForVertices = glm::ivec3(-1, -1, -1);//init as new vertices, so no known index(-1)
 			numNewVert = 0;
-			//for (int j = 0; j < 3; j++)//check if that vertex already exists
-			//{
-			//	auto foundIndex = tetgen2Face.find(curIndices[j]);
-			//	if (foundIndex != tetgen2Face.end())
-			//		indicesForVertices[j] = foundIndex->second;
-			//	else
-			//	{
-			//		tetgen2Face.insert(std::make_pair(curIndices[j], this->vertices.size() + numNewVert));
-			//		numNewVert++;
-			//		}
-			//}
-			GenerateFaceFrom(boundaryVertices[0], boundaryVertices[1], boundaryVertices[3],
+			for (int j = 0; j < 3; j++)//check if that vertex already exists
+			{
+				auto foundIndex = tetgen2Face.find(curIndices[j]);
+				if (foundIndex != tetgen2Face.end())
+					indicesForVertices[j] = foundIndex->second;
+				else
+				{
+					tetgen2Face.insert(std::make_pair(curIndices[j], this->vertices.size() + numNewVert));
+					numNewVert++;
+					}
+			}
+			GenerateFaceFrom(boundaryVertices[0], boundaryVertices[3], boundaryVertices[1],
 				inwardVertex, indicesForVertices);
 		}
 
