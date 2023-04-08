@@ -5,6 +5,32 @@ void OpenGLProgram::Use()
 	GL_CALL(glUseProgram(glID));
 }
 
+bool OpenGLProgram::CreatePipelineFromFiles(const char* filePathVert, const char* filePathFrag,
+	const char* filePathGeom, const char* filePathTessControl,
+	const char* filePathTessEval, int patchSize)
+{
+	SetVertexShaderSourceFromFile(filePathVert);
+	if (filePathGeom)
+		SetGeometryShaderSourceFromFile(filePathGeom);
+	if ((filePathTessControl != nullptr) ^ (filePathTessEval != nullptr))
+	{
+		printf("Error: Only one of the tessellation shader files was provided.\n");
+		return false;
+	}
+	if (filePathTessControl && filePathTessEval)
+		SetTessellationShaderSourcesFromFiles(filePathTessControl, filePathTessEval);
+	SetFragmentShaderSourceFromFile(filePathFrag);
+
+
+	if (!CompileShaders())
+		return false;
+
+	AttachVertexShader();
+	AttachGeometryShader();
+	AttachTessellationShaders(patchSize);
+	AttachFragmentShader();
+}
+
 bool OpenGLProgram::AttachVertexShader()
 {
 	if (vertexShader->AttachShader(glID));

@@ -1077,30 +1077,9 @@ public:
 	* Read compile and attach shaders to the opengl program.
 	*/
 	bool CreatePipelineFromFiles(const char* filePathVert, const char* filePathFrag,
-		const char* filePathGeom = nullptr, const char* filePathTessControl = nullptr, 
-		const char* filePathTessEval = nullptr, int patchSize = 3)
-	{
-		SetVertexShaderSourceFromFile(filePathVert);
-		if (filePathGeom)
-			SetGeometryShaderSourceFromFile(filePathGeom);
-		if ((filePathTessControl != nullptr) ^ (filePathTessEval != nullptr))
-		{
-			printf("Error: Only one of the tessellation shader files was provided.\n");
-			return false;
-		}
-		if (filePathTessControl && filePathTessEval)
-			SetTessellationShaderSourcesFromFiles(filePathTessControl, filePathTessEval);
-		SetFragmentShaderSourceFromFile(filePathFrag);
-		
-		
-		if (!CompileShaders())
-			return false;
-		
-		AttachVertexShader();
-		AttachGeometryShader();
-		AttachTessellationShaders(patchSize);
-		AttachFragmentShader();
-	}
+		const char* filePathGeom = nullptr, const char* filePathTessControl = nullptr,
+		const char* filePathTessEval = nullptr, int patchSize = 3);
+	
 	/*
 	* Assuming shader sources are already set this function will
 	compile and attach shaders to the opengl program.

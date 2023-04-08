@@ -1200,7 +1200,6 @@ public:
 	void Start()
 	{
 		printf("Initializing Renderer\n");
-		program->SetGLClearFlags(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		//load shaders to the shadow program
 		shadowProgram = std::make_unique<OpenGLProgram>();
@@ -1229,6 +1228,7 @@ public:
 			//throw std::runtime_error("Failed to create main program");
 		
 		program->SetClearColor({ 0.01f,0.f,0.09f,1.f });
+		program->SetGLClearFlags(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		
 		
 		scene->registry.view<CTriMesh>()

@@ -293,13 +293,38 @@ private:
 	}
 };
 
+struct Spring
+{
+	Spring(glm::ivec2 nodes, float restLength)
+	{
+		this->nodes = nodes;
+		this->restLength = restLength;
+	}
+	Spring(glm::ivec2 nodes, glm::vec3 node0Pos, glm::vec3 node1Pos)
+	{
+		this->nodes = nodes;
+		this->restLength = glm::length(node0Pos - node1Pos);
+	}
+	float restLength;
+	float k = 1.0f;
+	float damping = 0.0f;
+	glm::ivec2 nodes;
+};
+struct SpringNode
+{
+	glm::vec3 position;
+	glm::vec3 velocity = glm::vec3(0.0f);
+	//glm::vec3 force;
+	float mass = 1.0f;
+};
+
 enum class CType{
 	Transform, TriMesh, 
 	PhongMaterial, ImageMaps,
 	Light, EnvironmentMap,
 	PhysicsBounds,VelocityField2D,
 	ForceField2D, RigidBody,
-	BoxCollider,
+	BoxCollider, SoftBody,
 	Count
 };
 struct Component
@@ -553,7 +578,8 @@ public:
 	* Create opengl friendly single buffer indexed mesh from cy::TriMesh
 	*/
 	void InitializeFrom(cy::TriMesh& mesh);
-	void InitializeFrom(const std::string& nodePath, const std::string elePath);
+	void InitializeFrom(const std::string& nodePath, const std::string elePath,
+		std::vector<Spring>& springs, std::vector<SpringNode>& nodes);
 
 	inline void ComputeBoundingBox()
 	{
@@ -1063,6 +1089,18 @@ public:
 	}
 
 	glm::vec3 At(glm::vec3 p);
+};
+
+struct CSoftBody : Component
+{
+	static constexpr CType type = CType::SoftBody;
+	CSoftBody()
+	{}
+
+	void Update();
+	
+	std::vector<Spring> springs;
+	std::vector<SpringNode> nodes;
 };
 
 struct CRigidBody : Component

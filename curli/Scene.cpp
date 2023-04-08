@@ -376,7 +376,8 @@ void mark_boundary_nodes(
 	}
 }
 
-void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string elePath)
+void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string elePath,
+	std::vector<Spring>& springs, std::vector<SpringNode>& sNodes)
 {
 	printf("======Reading Tetgen files=====\n");
 	//check the file extensions node needs to be .node and ele needs to be .ele
@@ -485,7 +486,7 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 		mark_boundary_nodes(elements, boundary);
 	}
 	printf("======Done reading Tetgen files=====\n\t# nodes:%d \n\t# elements:%d\n", numNodes, numElements);
-	printf("======Generating surface mesh=====\n");
+	printf("======Generating surface mesh & springs=====\n");
 	//generate the mesh
 	//A map to input data to our face structure
 	std::unordered_map<int, int> tetgen2Face;
@@ -508,9 +509,30 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 			else
 				inwardVertex = nodes.at(indices[j]);
 		}
-		//if any of the boundary vertices is nan this tet is not a boundary tet, skip!
-		if (boundaryCount<3)
+		//if any of the boundary vertices is nan this tet is not a boundary tet, push as a internal spring and skip!
+		if (boundaryCount < 3)
+		{
+			for (int j = 0; j < 6; j++)
+			{
+				for (int k = 0; k < 6; k++)
+				{
+					if (j == k)
+						continue;
+					if (!boundary.at(indices[j]) || !boundary.at(indices[k]))
+					{
+						//push as a boundary spring
+						SpringNode node0, node1;
+						node0.position = nodes.at(indices[j]);
+						node1.position = nodes.at(indices[k]);
+						sNodes.push_back(node0);
+						sNodes.push_back(node1);
+						springs.push_back(Spring({ sNodes.size() - 2, sNodes.size() - 1 },
+							node0.position, node1.position));
+					}
+				}
+			}
 			continue;
+		}
 		if (boundaryCount == 3)
 		{
 			glm::ivec3 indicesForVertices(-1, -1, -1);//init as new vertices, so no known index(-1)
@@ -528,6 +550,17 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 			}
 			GenerateFaceFrom(boundaryVertices[0], boundaryVertices[1], boundaryVertices[2],
 				inwardVertex, indicesForVertices);
+			//push springs
+			for (int j = 0; j < 3; j++)
+			{
+				SpringNode node0, node1;
+				node0.position = boundaryVertices[j];
+				node1.position = inwardVertex;
+				sNodes.push_back(node0);
+				sNodes.push_back(node1);
+				springs.push_back(Spring({ sNodes.size() - 2, sNodes.size() - 1 },
+					node0.position, node1.position));
+			}
 
 		}
 		if (boundaryCount == 4)
@@ -537,7 +570,7 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 			glm::ivec3 curIndices = { boundaryIndices[0], boundaryIndices[1], boundaryIndices[2] };
 			inwardVertex = boundaryVertices[3];
 			glm::ivec3 indicesForVertices(-1, -1, -1);//init as new vertices, so no known index(-1)
-			int numNewVert = 0;
+			//int numNewVert = 0;
 			//for (int j = 0; j < 3; j++)//check if that vertex already exists
 			//{
 			//	auto foundIndex = tetgen2Face.find(curIndices[j]);
@@ -615,8 +648,9 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 
 	}
 
-	printf("======Done=====\n\t#verts: %d\n\t#normals %d\n\t#text co: %d\n\t#faces: %d\n", 
-		this->vertices.size(), this->vertexNormals.size(), this->textureCoords.size(), this->faces.size());
+	printf("======Done=====\n\t#verts: %d\n\t#normals %d\n\t#text co: %d\n\t#faces: %d\n\t#springs: %d\n\t#nodes: %d\n", 
+		this->vertices.size(), this->vertexNormals.size(), this->textureCoords.size(), this->faces.size(),
+		springs.size(), sNodes.size());
 	
 }
 
@@ -994,13 +1028,15 @@ entt::entity Scene::CreateModelObject(const std::string& nodePath, const std::st
 	auto entity = CreateSceneObject(name);
 
 	CTriMesh mesh;
-	mesh.InitializeFrom(nodePath, elePath);
+	std::vector<Spring> springs;
+	std::vector<SpringNode> nodes;
+	mesh.InitializeFrom(nodePath, elePath,springs, nodes);
 	registry.emplace<CTriMesh>(entity, mesh);
 	auto& transform = registry.emplace<CTransform>(entity, position, rotation, scale);
 	transform.SetPivot(mesh.GetBoundingBoxCenter());
 	auto& material = registry.emplace<CPhongMaterial>(entity);
 	
-	registry.emplace<CRigidBody>(entity);
+	registry.emplace<CSoftBody>(entity);
 	registry.emplace<CBoxCollider>(entity, mesh.GetBoundingBoxMin(), mesh.GetBoundingBoxMax());
 
 	return entity;
@@ -1169,4 +1205,8 @@ std::vector<unsigned char> CSkyBox::GetSideImagesFlat()
 bool CBoxCollider::CollidingWith(CBoxCollider* other)
 {
 	return false;//TODO
+}
+
+void CSoftBody::Update()
+{
 }
