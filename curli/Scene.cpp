@@ -570,7 +570,7 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 			glm::ivec3 curIndices = { boundaryIndices[0], boundaryIndices[1], boundaryIndices[2] };
 			inwardVertex = boundaryVertices[3];
 			glm::ivec3 indicesForVertices(-1, -1, -1);//init as new vertices, so no known index(-1)
-			//int numNewVert = 0;
+			int numNewVert = 0;
 			//for (int j = 0; j < 3; j++)//check if that vertex already exists
 			//{
 			//	auto foundIndex = tetgen2Face.find(curIndices[j]);
