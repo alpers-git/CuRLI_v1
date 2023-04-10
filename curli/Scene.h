@@ -315,12 +315,14 @@ struct SpringNode
 	SpringNode(glm::vec3 position, float mass = 1.0f)
 	{
 		this->position = position;
+		this->mass = mass;
 	}
 	
 	glm::vec3 position;
 	glm::vec3 velocity = glm::vec3(0.0f);
 	//glm::vec3 force;
 	float mass = 1.0f;
+	int faceIndex = -1;//-1 = non-boundary
 };
 
 enum class CType{
@@ -571,6 +573,11 @@ public:
 	glm::vec3 GetVNormal(unsigned int index) const { return vertexNormals.at(index);}
 	glm::vec2 GetVTexture(unsigned int index) const { return textureCoords.at(index); }
 	glm::uvec3 GetFace(unsigned int index) const { return faces.at(index); }
+	
+	glm::vec3& GetVertex(unsigned int index) { return vertices.at(index); }
+	glm::vec3& GetVNormal(unsigned int index) { return vertexNormals.at(index); }
+	glm::vec2& GetVTexture(unsigned int index) { return textureCoords.at(index); }
+	glm::uvec3& GetFace(unsigned int index) { return faces.at(index); }
 	
 
 	void* GetVertexDataPtr() { return &vertices.front(); }

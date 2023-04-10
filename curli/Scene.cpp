@@ -308,6 +308,11 @@ void CTriMesh::GenerateFaceFrom(const glm::vec3 v0,const glm::vec3 v1,const glm:
 			this->vertices.push_back(boundaryVertices[j]);
 
 			//Normals
+			if (glm::any(glm::isnan(normal)))
+			{
+				printf("normal is nan\n");
+				normal = glm::vec3(0, 0, 0);
+			}
 			this->vertexNormals.push_back(normal);
 
 			//Texture
@@ -327,15 +332,37 @@ void CTriMesh::GenerateFaceFrom(const glm::vec3 v0,const glm::vec3 v1,const glm:
 
 struct TripleHash {
 	size_t operator()(const glm::ivec3& t) const {
-		int x = (t.x);
-		int y = (t.y);
-		int z = (t.z);
-		int a[3] = { x, y, z };
-		std::sort(a, a + 3);
-		size_t h1 = std::hash<int>{}(a[0]);
-		size_t h2 = std::hash<int>{}(a[1]);
-		size_t h3 = std::hash<int>{}(a[2]);
-		return h1 ^ (h2 << 1) ^ (h3 << 2);
+		int x = t.x;
+		int y = t.y;
+		int z = t.z;
+
+		// Sort the coordinates to improve hash quality
+		std::array<int, 3> a = { x, y, z };
+		std::sort(a.begin(), a.end());
+		x = a[0];
+		y = a[1];
+		z = a[2];
+
+		// Interleave bits of x, y, z to get Morton index
+		uint32_t xx = (uint32_t)x;
+		uint32_t yy = (uint32_t)y;
+		uint32_t zz = (uint32_t)z;
+		xx = (xx | (xx << 8)) & 0x00ff00ff;
+		xx = (xx | (xx << 4)) & 0x0f0f0f0f;
+		xx = (xx | (xx << 2)) & 0x33333333;
+		xx = (xx | (xx << 1)) & 0x55555555;
+		yy = (yy | (yy << 8)) & 0x00ff00ff;
+		yy = (yy | (yy << 4)) & 0x0f0f0f0f;
+		yy = (yy | (yy << 2)) & 0x33333333;
+		yy = (yy | (yy << 1)) & 0x55555555;
+		zz = (zz | (zz << 8)) & 0x00ff00ff;
+		zz = (zz | (zz << 4)) & 0x0f0f0f0f;
+		zz = (zz | (zz << 2)) & 0x33333333;
+		zz = (zz | (zz << 1)) & 0x55555555;
+		uint32_t morton = xx | (yy << 1) | (zz << 2);
+
+		// Use the Morton index as the hash value
+		return std::hash<uint32_t>{}(morton);
 	}
 };
 
@@ -376,23 +403,30 @@ void mark_boundary_nodes(
 		int l = tetrahedron.w;
 
 		// For each face of the tetrahedron, increment its count in the hash map
-		++face_count[glm::ivec3(i, k, j)];
-		++face_count[glm::ivec3(i, l, j)];
-		++face_count[glm::ivec3(i, l, k)];
-		++face_count[glm::ivec3(j, l, k)];
+		face_count[glm::ivec3(i, k, j)] += 1;
+		face_count[glm::ivec3(i, l, j)] += 1;
+		face_count[glm::ivec3(i, l, k)] += 1;
+		face_count[glm::ivec3(j, l, k)] += 1;
+	}
+
+	//set all boundary array to true
+	for (int i = 0; i < boundary.size(); i++)
+	{
+		boundary[i] = false;
 	}
 
 	// Find the boundary nodes
 	for (const auto& [face, count] : face_count) {
 		// If the face is encountered only once, mark its vertices as boundary nodes
+		int i = face.x;
+		int j = face.y;
+		int k = face.z;
 		if (count == 1) {
-			int i = face.x;
-			int j = face.y;
-			int k = face.z;
-			boundary[i] = true;
-			boundary[j] = true;
-			boundary[k] = true;
+			boundary[i] = boundary[i] || true;
+			boundary[j] = boundary[j] || true;
+			boundary[k] = boundary[k] || true;
 		}
+			
 	}
 }
 
@@ -503,7 +537,9 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 	eleFile.close();
 	if (numBoundaryMarkers == 0)//well the file doesnt have a boundary marker...
 	{
+		printf("No boundary marker found, marking boundary nodes...\n");
 		mark_boundary_nodes(elements, boundary);
+		printf("Done marking boundary %d nodes\n", std::count(boundary.begin(), boundary.end(), true));
 	}
 	printf("======Done reading Tetgen files=====\n\t# nodes:%d \n\t# elements:%d\n", numNodes, numElements);
 	printf("======Generating surface mesh & springs=====\n");
@@ -566,11 +602,12 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 			for (int j = 0; j < 3; j++)//check if that vertex already exists
 			{
 				auto foundIndex = tetgen2Face.find(boundaryIndices[j]);
-				if(foundIndex != tetgen2Face.end())//duplicate vertex so get the values from the map
+				if(foundIndex != tetgen2Face.end())//duplicate vertex, so get the values from the map
 					indicesForVertices[j] = foundIndex->second;
 				else
 				{
 					tetgen2Face.insert(std::make_pair(boundaryIndices[j], this->vertices.size() + numNewVert));
+					sNodes.at(boundaryIndices[j]).faceIndex = this->vertices.size() + numNewVert;
 					numNewVert++;
 				}
 			}
@@ -593,6 +630,7 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 				else
 				{
 					tetgen2Face.insert(std::make_pair(curIndices[j], this->vertices.size() + numNewVert));
+					sNodes.at(boundaryIndices[j]).faceIndex = this->vertices.size() + numNewVert;
 					numNewVert++;
 				}
 			}
@@ -611,6 +649,7 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 				else
 				{
 					tetgen2Face.insert(std::make_pair(curIndices[j], this->vertices.size() + numNewVert));
+					sNodes.at(boundaryIndices[j]).faceIndex = this->vertices.size() + numNewVert;
 					numNewVert++;
 				}
 			}
@@ -629,6 +668,7 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 				else
 				{
 					tetgen2Face.insert(std::make_pair(curIndices[j], this->vertices.size() + numNewVert));
+					sNodes.at(boundaryIndices[j]).faceIndex = this->vertices.size() + numNewVert;
 					numNewVert++;
 				}
 			}
@@ -647,8 +687,9 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 				else
 				{
 					tetgen2Face.insert(std::make_pair(curIndices[j], this->vertices.size() + numNewVert));
+					sNodes.at(boundaryIndices[j]).faceIndex = this->vertices.size() + numNewVert;
 					numNewVert++;
-					}
+				}
 			}
 			GenerateFaceFrom(boundaryVertices[0], boundaryVertices[3], boundaryVertices[1],
 				inwardVertex, indicesForVertices);

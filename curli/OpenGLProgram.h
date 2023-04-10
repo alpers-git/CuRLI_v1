@@ -240,6 +240,51 @@ public:
 
 		GL_CALL(glVertexAttribPointer(loc, attribSize, type, normalized, stride, (void*)offset));
 	}
+	
+	void SetData(void* data, unsigned int dataSize, GLenum type, GLenum usage = GL_STATIC_DRAW)
+	{
+		GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, glID));
+		unsigned int t_size = 0;
+		switch (type)
+		{
+		case GL_FLOAT:
+			data = (float*)data;
+			t_size = sizeof(float);
+			break;
+		case GL_DOUBLE:
+			data = (double*)data;
+			t_size = sizeof(double);
+			break;
+		case GL_INT:
+			data = (int*)data;
+			t_size = sizeof(int);
+			break;
+		case GL_UNSIGNED_INT:
+			data = (unsigned int*)data;
+			t_size = sizeof(unsigned int);
+			break;
+		case GL_SHORT:
+			data = (short*)data;
+			t_size = sizeof(short);
+			break;
+		case GL_UNSIGNED_SHORT:
+			data = (unsigned short*)data;
+			t_size = sizeof(unsigned short);
+			break;
+		case GL_BYTE:
+			data = (char*)data;
+			t_size = sizeof(char);
+			break;
+		case GL_UNSIGNED_BYTE:
+			data = (unsigned char*)data;
+			t_size = sizeof(unsigned char);
+			break;
+		default:
+			break;
+		}
+
+		GL_CALL(glBufferData(GL_ARRAY_BUFFER, dataSize * t_size * attribSize, data, usage));
+	}
 };
 
 struct VertexArrayObject

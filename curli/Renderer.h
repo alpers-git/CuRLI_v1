@@ -1556,96 +1556,96 @@ public:
 
 		//Render meshes
 		scene->registry.view<CTriMesh>()
-			.each([&](const auto& entity, auto& mesh)
-				{
-					if (entity2VAOIndex.find(entity) != entity2VAOIndex.end())
-					program->vaos[entity2VAOIndex[entity]].visible = mesh.visible;
-		CPhongMaterial* material = scene->registry.try_get<CPhongMaterial>(entity);
-		CTransform* transform = scene->registry.try_get<CTransform>(entity);
-
-		const glm::mat4 m = transform ? transform->GetModelMatrix() : glm::mat4(1.0f);
-		const glm::mat4 mv = scene->camera.GetViewMatrix() * (transform ?
-			transform->GetModelMatrix() : glm::mat4(1.0f));
-		const glm::mat4 mvp = scene->camera.GetProjectionMatrix() * mv;
-
-		program->SetUniform("material.ka", material ? material->ambient : glm::vec3(0.0f));
-		program->SetUniform("material.kd", material ? material->diffuse : glm::vec3(0.0f));
-		program->SetUniform("material.ks", material ? material->specular : glm::vec3(0.0f));
-		program->SetUniform("material.shininess", material ? material->shininess : 0.0f);
-
-		program->SetUniform("to_screen_space", mvp);
-		program->SetUniform("to_view_space", mv);
-		program->SetUniform("to_world_space", m);
-		program->SetUniform("normals_to_world_space", glm::transpose(glm::inverse(glm::mat3(m))));
-		program->SetUniform("normals_to_view_space",
-			glm::transpose(glm::inverse(glm::mat3(mv))));
-		program->SetUniform("camera_pos", scene->camera.GetLookAtEye());
-		program->SetUniform("displacement_multiplier", 0.0f);
-		program->SetUniform("tessellation_level", 1);
-
-		CImageMaps* imgMaps = scene->registry.try_get<CImageMaps>(entity);
-		if (imgMaps && !imgMaps->scheduledTextureUpdate)
+		.each([&](const auto& entity, auto& mesh)
 		{
-			//iterate over all imagemaps
-			for (auto it = imgMaps->mapsBegin(); it != imgMaps->mapsEnd(); ++it)
+			if (entity2VAOIndex.find(entity) != entity2VAOIndex.end())
+			program->vaos[entity2VAOIndex[entity]].visible = mesh.visible;
+			CPhongMaterial* material = scene->registry.try_get<CPhongMaterial>(entity);
+			CTransform* transform = scene->registry.try_get<CTransform>(entity);
+
+			const glm::mat4 m = transform ? transform->GetModelMatrix() : glm::mat4(1.0f);
+			const glm::mat4 mv = scene->camera.GetViewMatrix() * (transform ?
+				transform->GetModelMatrix() : glm::mat4(1.0f));
+			const glm::mat4 mvp = scene->camera.GetProjectionMatrix() * mv;
+
+			program->SetUniform("material.ka", material ? material->ambient : glm::vec3(0.0f));
+			program->SetUniform("material.kd", material ? material->diffuse : glm::vec3(0.0f));
+			program->SetUniform("material.ks", material ? material->specular : glm::vec3(0.0f));
+			program->SetUniform("material.shininess", material ? material->shininess : 0.0f);
+
+			program->SetUniform("to_screen_space", mvp);
+			program->SetUniform("to_view_space", mv);
+			program->SetUniform("to_world_space", m);
+			program->SetUniform("normals_to_world_space", glm::transpose(glm::inverse(glm::mat3(m))));
+			program->SetUniform("normals_to_view_space",
+				glm::transpose(glm::inverse(glm::mat3(mv))));
+			program->SetUniform("camera_pos", scene->camera.GetLookAtEye());
+			program->SetUniform("displacement_multiplier", 0.0f);
+			program->SetUniform("tessellation_level", 1);
+
+			CImageMaps* imgMaps = scene->registry.try_get<CImageMaps>(entity);
+			if (imgMaps && !imgMaps->scheduledTextureUpdate)
 			{
-				if (it->second.GetBindingSlot() == ImageMap::BindingSlot::ENV_MAP)
+				//iterate over all imagemaps
+				for (auto it = imgMaps->mapsBegin(); it != imgMaps->mapsEnd(); ++it)
 				{
-					int texIndex = entity2EnvMapIndex[entity];
-					//bind texture
-					if (texIndex < program->cubeMaps.size())
+					if (it->second.GetBindingSlot() == ImageMap::BindingSlot::ENV_MAP)
 					{
-						program->cubeMaps[texIndex].Bind();
-						program->SetUniform("has_env_map", 1);
-						program->SetUniform("env_map", (int)it->second.GetBindingSlot());
-					}
-				}
-				else
-				{
-					int texIndex = entity2TextureIndices[entity].v[(int)it->first];
-					//bind texture
-					if (texIndex >= 0)
-					{
-						if (it->second.IsRenderedImage())
-							program->SetUniform("mirror_reflection", 1);
-						else
-							program->SetUniform("mirror_reflection", 0);
-						program->textures[texIndex].Bind();
-						//set uniform
-						const std::string uniformName = std::string("has_texture[") + std::to_string(((int)it->first)) + std::string("]");
-						program->SetUniform(uniformName.c_str(), 1);
-						const std::string uniformName2 = std::string("tex_list[") + std::to_string(((int)it->first)) + std::string("]");
-						program->SetUniform(uniformName2.c_str(), ((int)it->first));
-						if (it->first == ImageMap::BindingSlot::DISPLACEMENT)
+						int texIndex = entity2EnvMapIndex[entity];
+						//bind texture
+						if (texIndex < program->cubeMaps.size())
 						{
-							program->SetUniform("tessellation_level", mesh.tessellationLevel);
-							program->SetUniform("displacement_multiplier",
-								imgMaps->GetImageMap(ImageMap::BindingSlot::DISPLACEMENT).dispMultiplier);
-							program->SetUniform("displacement_map", 4);
-							//program->textures[texIndex].Bind();
+							program->cubeMaps[texIndex].Bind();
+							program->SetUniform("has_env_map", 1);
+							program->SetUniform("env_map", (int)it->second.GetBindingSlot());
+						}
+					}
+					else
+					{
+						int texIndex = entity2TextureIndices[entity].v[(int)it->first];
+						//bind texture
+						if (texIndex >= 0)
+						{
+							if (it->second.IsRenderedImage())
+								program->SetUniform("mirror_reflection", 1);
+							else
+								program->SetUniform("mirror_reflection", 0);
+							program->textures[texIndex].Bind();
+							//set uniform
+							const std::string uniformName = std::string("has_texture[") + std::to_string(((int)it->first)) + std::string("]");
+							program->SetUniform(uniformName.c_str(), 1);
+							const std::string uniformName2 = std::string("tex_list[") + std::to_string(((int)it->first)) + std::string("]");
+							program->SetUniform(uniformName2.c_str(), ((int)it->first));
+							if (it->first == ImageMap::BindingSlot::DISPLACEMENT)
+							{
+								program->SetUniform("tessellation_level", mesh.tessellationLevel);
+								program->SetUniform("displacement_multiplier",
+									imgMaps->GetImageMap(ImageMap::BindingSlot::DISPLACEMENT).dispMultiplier);
+								program->SetUniform("displacement_map", 4);
+								//program->textures[texIndex].Bind();
+							}
 						}
 					}
 				}
 			}
-		}
-		program->SetUniform("shading_mode", ((int)mesh.GetShadingMode()));
-		if (entity2VAOIndex.find(entity) != entity2VAOIndex.end())
-			program->vaos[entity2VAOIndex[entity]].Draw(GL_PATCHES);
-		//Reset uniforms
-		for (int i = 0; i < 5; i++)
-		{
-			const std::string uniformName = std::string("has_texture[") + std::to_string(i) + std::string("]");
-			program->SetUniform(uniformName.c_str(), 0);
-		}
-		for (auto tex : program->textures)
-		{
-			tex.Unbind();
-		}
-		program->SetUniform("has_env_map", 0);
-		for (auto tex : program->cubeMaps)
-		{
-			tex.Unbind();
-		}
+			program->SetUniform("shading_mode", ((int)mesh.GetShadingMode()));
+			if (entity2VAOIndex.find(entity) != entity2VAOIndex.end())
+				program->vaos[entity2VAOIndex[entity]].Draw(GL_PATCHES);
+			//Reset uniforms
+			for (int i = 0; i < 5; i++)
+			{
+				const std::string uniformName = std::string("has_texture[") + std::to_string(i) + std::string("]");
+				program->SetUniform(uniformName.c_str(), 0);
+			}
+			for (auto tex : program->textures)
+			{
+				tex.Unbind();
+			}
+			program->SetUniform("has_env_map", 0);
+			for (auto tex : program->cubeMaps)
+			{
+				tex.Unbind();
+			}
 				
 		});
 		program->SetUniform("displacement_multiplier", 0.0f);
