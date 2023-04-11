@@ -21,7 +21,8 @@ struct Event
 		MouseScroll,
 		Drop,
 		GeometryChange,
-		TextureChange
+		TextureChange,
+		SoftbodySim
 	};
 	Type type;
 	union
@@ -83,6 +84,11 @@ struct Event
 			bool toBeRemoved;
 			//ImageMap::BindingSlot slot;
 		} textureChange;
+
+		struct
+		{
+			entt::entity e;
+		}softbodySim;
 	};
 };
 
@@ -187,6 +193,9 @@ public:
 				break;
 			case Event::Type::TextureChange:
 				renderer.OnTextureChange(eventQueue.front().textureChange.e, eventQueue.front().textureChange.toBeRemoved);
+				break;
+			case Event::Type::SoftbodySim:
+				renderer.OnSoftbodyChange(eventQueue.front().softbodySim.e);
 				break;
 			/*case Event::Type::Drop:
 				renderer.OnDrop(eventQueue.front().drop.count, eventQueue.front().drop.paths);

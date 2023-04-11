@@ -25,6 +25,16 @@ public:
 			static_cast<T*>(this)->Integrate(tStepSize);
 		}
 
+		scene->registry.view<CSoftBody>()
+			.each([&](const auto entity, CSoftBody sb)
+				{
+					//Create event 
+					Event event;
+					event.type = Event::Type::SoftbodySim;
+					event.softbodySim.e = entity;
+					GLFWHandler::GetInstance().QueueEvent(event);
+				});
+
 		t = GLFWHandler::GetInstance().GetTime();
 	}
 
@@ -38,7 +48,7 @@ public:
 		{
 			transform.SetPosition(rigidBody.position);
 			transform.SetEulerRotation(rigidBody.GetOrientationMatrix());
-			transform.Update();
+			//transform.Update();
 		});
 		
 		scene->registry.view<CBoxCollider, CTransform, CTriMesh>()
@@ -77,15 +87,16 @@ public:
 		entt::entity curEntity = ApplicationState::GetInstance().selectedObject;
 		
 		auto* rb = scene->registry.try_get<CRigidBody>(curEntity);
+		auto* sb = scene->registry.try_get<CSoftBody>(curEntity);
 		auto* ms = scene->registry.try_get<CTriMesh>(curEntity);
 		auto* tr = scene->registry.try_get<CTransform>(curEntity);
 		
+		Camera cam = scene->camera;
+		glm::vec3 forward = glm::normalize(cam.GetCenter() - cam.GetLookAtEye());
+		glm::vec3 right = glm::normalize(glm::cross(forward, {0,1,0}));
+		glm::vec3 up = glm::normalize(glm::cross(forward, -right));
 		if (rb && ms && tr)
 		{
-			Camera cam = scene->camera;
-			glm::vec3 forward = glm::normalize(cam.GetCenter() - cam.GetLookAtEye());
-			glm::vec3 right = glm::normalize(glm::cross(forward, {0,1,0}));
-			glm::vec3 up = glm::normalize(glm::cross(forward, -right));
 			if (m1Down && shiftDown)
 			{
 				ApplicationState::GetInstance().physicsInteraction = true;
@@ -95,6 +106,22 @@ public:
 			{
 				ApplicationState::GetInstance().physicsInteraction = true;
 				rb->ApplyAngularImpulse((deltaPos.x * -up + deltaPos.y * -right) * 80.1f);
+			}
+		}
+		else if (sb && ms && tr)
+		{
+			if (m1Down && shiftDown)
+			{
+				ApplicationState::GetInstance().physicsInteraction = true;
+				//sb->ApplyLinearImpulse((-deltaPos.x * right + deltaPos.y * up) * 0.1f);
+				//random number between 0 and numOfNodes in the selected softbody
+				int randomNode = rand() % sb->nodes.size();
+				sb->nodes[randomNode].acceleration += (-deltaPos.x * right + deltaPos.y * up) * 0.1f;
+			}
+			if (m2Down && shiftDown)
+			{
+				ApplicationState::GetInstance().physicsInteraction = true;
+				//sb->ApplyAngularImpulse((deltaPos.x * -up + deltaPos.y * -right) * 80.1f);
 			}
 		}
 
@@ -137,7 +164,7 @@ protected:
 	}
 	
 	std::shared_ptr<Scene> scene;
-	const float tStepSize = 0.0001f;
+	const float tStepSize = 0.01f;
 	float t = 0.0f;
 	
 	bool m1Down = false;
@@ -239,6 +266,12 @@ public:
 					}	
 				}				
 			}
+		});
+
+		scene->registry.view<CSoftBody>()
+		.each([dt, this](auto entity, CSoftBody& sb)
+		{
+			sb.TakeFwEulerStep(dt);
 		});
 	}
 };

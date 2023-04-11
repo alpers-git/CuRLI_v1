@@ -293,6 +293,22 @@ private:
 	}
 };
 
+struct SpringNode
+{
+	SpringNode(glm::vec3 position, float mass = 1.0f)
+	{
+		this->position = position;
+		this->mass = mass;
+	}
+	
+	glm::vec3 position;
+	glm::vec3 velocity = glm::vec3(0.0f);
+	glm::vec3 acceleration = glm::vec3(0.0f);
+	//glm::vec3 force;
+	float mass = 1.0f;
+	int faceIndex = -1;//-1 = non-boundary
+};
+
 struct Spring
 {
 	Spring(glm::ivec2 nodes, float restLength)
@@ -306,23 +322,19 @@ struct Spring
 		this->restLength = glm::length(node0Pos - node1Pos);
 	}
 	float restLength;
-	float k = 1.0f;
-	float damping = 0.0f;
+	float k = 1.0f;//stiffness
+	float damping = 0.5f;
 	glm::ivec2 nodes;
-};
-struct SpringNode
-{
-	SpringNode(glm::vec3 position, float mass = 1.0f)
+
+	glm::vec3 CalculateForce(SpringNode& node0, SpringNode& node1) const
 	{
-		this->position = position;
-		this->mass = mass;
+		glm::vec3 springVector = node0.position - node1.position;
+		float currentLength = glm::length(springVector);
+		springVector = glm::normalize(springVector);
+		glm::vec3 springForce = -k * (currentLength - restLength) * springVector;
+		glm::vec3 dampingForce = -damping * (node1.velocity - node0.velocity);
+		return springForce + dampingForce;
 	}
-	
-	glm::vec3 position;
-	glm::vec3 velocity = glm::vec3(0.0f);
-	//glm::vec3 force;
-	float mass = 1.0f;
-	int faceIndex = -1;//-1 = non-boundary
 };
 
 enum class CType{
@@ -1108,8 +1120,17 @@ struct CSoftBody : Component
 	static constexpr CType type = CType::SoftBody;
 	CSoftBody()
 	{}
+	
+	CSoftBody(std::vector<Spring> springs, std::vector<SpringNode> nodes)
+	{
+		this->nodes = nodes;
+		this->springs = springs;
+	}
 
 	void Update();
+	void TakeFwEulerStep(float dt);
+	
+	Eigen::SparseMatrix<float> CalculateStiffnessMatrix();
 	
 	std::vector<Spring> springs;
 	std::vector<SpringNode> nodes;

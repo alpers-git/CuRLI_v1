@@ -1,6 +1,7 @@
 #include <Scene.h>
 #include <GLFWHandler.h>
 #include <Eigen/Eigenvalues>
+#include <thread>
 
 //===============Sinks for entity management===============
 void scheduleSynchForAddedGeom(entt::registry& registry, entt::entity e)
@@ -403,30 +404,23 @@ void mark_boundary_nodes(
 		int l = tetrahedron.w;
 
 		// For each face of the tetrahedron, increment its count in the hash map
-		face_count[glm::ivec3(i, k, j)] += 1;
-		face_count[glm::ivec3(i, l, j)] += 1;
-		face_count[glm::ivec3(i, l, k)] += 1;
-		face_count[glm::ivec3(j, l, k)] += 1;
-	}
-
-	//set all boundary array to true
-	for (int i = 0; i < boundary.size(); i++)
-	{
-		boundary[i] = false;
+		++face_count[glm::ivec3(i, k, j)];
+		++face_count[glm::ivec3(i, l, j)];
+		++face_count[glm::ivec3(i, l, k)];
+		++face_count[glm::ivec3(j, l, k)];
 	}
 
 	// Find the boundary nodes
 	for (const auto& [face, count] : face_count) {
 		// If the face is encountered only once, mark its vertices as boundary nodes
-		int i = face.x;
-		int j = face.y;
-		int k = face.z;
 		if (count == 1) {
-			boundary[i] = boundary[i] || true;
-			boundary[j] = boundary[j] || true;
-			boundary[k] = boundary[k] || true;
+			int i = face.x;
+			int j = face.y;
+			int k = face.z;
+			boundary[i] = true;
+			boundary[j] = true;
+			boundary[k] = true;
 		}
-			
 	}
 }
 
@@ -487,6 +481,8 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 	parseFileLine(nodeFile, line);
 
 	//read the rest of the file with a loop and store the vertices.
+	glm::vec3 bboxMin = glm::vec3(FLT_MAX);
+	glm::vec3 bboxMax = glm::vec3(-FLT_MAX);
 	for (int i = 0; i < numNodes; i++)
 	{
 		parseFileLine(nodeFile, line);
@@ -494,11 +490,22 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 		std::vector<std::string> tokens{ std::istream_iterator<std::string>{iss},
 			std::istream_iterator<std::string>{} };
 		glm::vec3 node = glm::vec3(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]));
+		bboxMin = glm::min(bboxMin, node);
+		bboxMax = glm::max(bboxMax, node);
 		nodes.at(std::stof(tokens[0])- minIndex) = node;
 		if(numBoundaryMarkers > 0)
 			boundary.at(std::stof(tokens[0]) - minIndex) = std::stoi(tokens[4]) == 1;// 1 means boundary vert
 	}
 	nodeFile.close();
+
+	//normalize the nodes to be in the range of -5 to 5
+	glm::vec3 bboxSize = bboxMax - bboxMin;
+	glm::vec3 bboxCenter = (bboxMax + bboxMin) / 2.0f;
+	float maxDim = glm::max(glm::max(bboxSize.x, bboxSize.y), bboxSize.z);
+	for (int i = 0; i < numNodes; i++)
+	{
+		nodes[i] = (nodes[i] - bboxCenter) / maxDim * 5.0f;
+	}
 
 	//------------------ele file----------------------
 	std::ifstream eleFile(elePath, std::ios::in);
@@ -524,7 +531,6 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 	std::vector<glm::ivec4> elements;
 	
 	//read the rest of the file with a loop and store the vertices.
-	
 	for (int i = 0; i < numElements; i++)
 	{
 		parseFileLine(eleFile, line);
@@ -696,13 +702,14 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 		}
 
 		//loop over all of the mesh normals and normalize them using cpp for each parallel loop
-		std::for_each(std::execution::par, this->vertexNormals.begin(), this->vertexNormals.end(), 
-			[](glm::vec3& n){ n = glm::normalize(n); });
-		/*for(auto& n : this->vertexNormals)
-			n = glm::normalize(n);*/
+		/*std::for_each(std::execution::par, this->vertexNormals.begin(), this->vertexNormals.end(), 
+			[](glm::vec3& n){ n = glm::normalize(n); });*/
+		for(auto& n : this->vertexNormals)
+			n = glm::normalize(n);
 
 	}
-
+	if (numBoundaryMarkers == 0)
+		this->ComputeNormals();
 	printf("======Done=====\n\t#verts: %d\n\t#normals %d\n\t#text co: %d\n\t#faces: %d\n\t#springs: %d\n\t#nodes: %d\n", 
 		this->vertices.size(), this->vertexNormals.size(), this->textureCoords.size(), this->faces.size(),
 		springs.size(), sNodes.size());
@@ -773,6 +780,124 @@ void CRigidBody::initializeInertiaTensor(const CTriMesh* mesh, CTransform* trans
 	inertiaAtRest[0][0] = eigenValues(0).real();
 	inertiaAtRest[1][1] = eigenValues(1).real();
 	inertiaAtRest[2][2] = eigenValues(2).real();*/
+}
+
+Eigen::SparseMatrix<float> CSoftBody::CalculateStiffnessMatrix() {
+	// Number of nodes in the soft body
+	const int nNodes = nodes.size();
+
+	// Create a sparse matrix with 3*nNodes rows and columns
+	Eigen::SparseMatrix<float> K(3 * nNodes, 3 * nNodes);
+
+	// Reserve space for the non-zero entries in the matrix
+	K.reserve(27 * springs.size());
+
+	// Loop over all springs
+	for (const Spring& spring : springs) {
+		// Indices of the two nodes connected by the spring
+		const int i = spring.nodes.x;
+		const int j = spring.nodes.y;
+
+		// Positions of the two nodes
+		const glm::vec3& pi = nodes[i].position;
+		const glm::vec3& pj = nodes[j].position;
+
+		// Spring force and stiffness matrix
+		const glm::vec3 f = spring.CalculateForce(nodes[i], nodes[j]);
+		Eigen::Matrix<float, 3, 3> force;
+		force(0, 0) = f.x * f.x;
+		force(0, 1) = f.x * f.y;
+		force(0, 2) = f.x * f.z;
+		force(1, 0) = f.y * f.x;
+		force(1, 1) = f.y * f.y;
+		force(1, 2) = f.y * f.z;
+		force(2, 0) = f.z * f.x;
+		force(2, 1) = f.z * f.y;
+		force(2, 2) = f.z * f.z;
+		
+		const Eigen::Matrix<float, 3, 3> Kij = -spring.k * (Eigen::Matrix<float, 3, 3>::Identity() - force / glm::length2(pi - pj));
+
+		// Fill in the matrix entries corresponding to the i-th node
+		for (int d = 0; d < 3; ++d) {
+			K.insert(3 * i + d, 3 * i + d) += Kij(d, d);
+			K.insert(3 * i + d, 3 * j + d) += Kij(d, 3 - d);
+		}
+
+		// Fill in the matrix entries corresponding to the j-th node
+		for (int d = 0; d < 3; ++d) {
+			K.insert(3 * j + d, 3 * i + d) += Kij(3 - d, d);
+			K.insert(3 * j + d, 3 * j + d) += Kij(3 - d, 3 - d);
+		}
+	}
+
+	// Compress the matrix (this sorts the non-zero entries and makes the matrix more efficient to use)
+	K.makeCompressed();
+
+	// Return the stiffness matrix
+	return K;
+}
+
+
+void CSoftBody::TakeFwEulerStep(float dt)
+{
+	// Calculate the mass matrix
+	Eigen::SparseMatrix<float> massMatrix(nodes.size() * 3, nodes.size() * 3);
+	massMatrix.setZero();
+	for (SpringNode& node : nodes)
+	{
+		//Eigen::Matrix3f mass = Eigen::Matrix3f::Identity() * node.mass;
+		massMatrix.coeffRef(node.faceIndex * 3 + 0, node.faceIndex * 3 + 0) = node.mass;
+	}
+
+	// Calculate the force vector
+	Eigen::VectorXf forceVector(nodes.size() * 3);
+	forceVector.setZero();
+	for (Spring& spring : springs)
+	{
+		SpringNode& node0 = nodes[spring.nodes[0]];
+		SpringNode& node1 = nodes[spring.nodes[1]];
+		glm::vec3 force = spring.CalculateForce(node0, node1);
+		forceVector.segment<3>(spring.nodes[0] * 3) += Eigen::Map<Eigen::Vector3f>(&force[0]);
+		forceVector.segment<3>(spring.nodes[1] * 3) -= Eigen::Map<Eigen::Vector3f>(&force[0]);
+	}
+
+	// Apply the external forces
+	for (SpringNode& node : nodes)
+	{
+		// Gravity force
+		Eigen::Vector3f gravityForce = Eigen::Vector3f(0.0f, -9.81f * node.mass, 0.0f);
+		forceVector.segment<3>(&node.position.x - &nodes[0].position.x) += gravityForce;
+	}
+
+	// Solve for v_{t+1} where (M - dt*dt *K) * vv_{t+1} = M * v_{t} + dt * f_{t}
+	Eigen::SparseMatrix<float> MminusdtK = massMatrix - dt * dt * CalculateStiffnessMatrix();
+	Eigen::SparseLU<Eigen::SparseMatrix<float>> solver;
+	solver.compute(MminusdtK);
+	if (solver.info() != Eigen::Success)
+	{
+		std::cerr << "Failed to decompose matrix." << std::endl;
+		return;
+	}
+
+	Eigen::VectorXf velVector(nodes.size() * 3);
+	for (size_t i = 0; i < nodes.size(); i++)
+	{
+		velVector.segment<3>(i * 3) = Eigen::Map<Eigen::Vector3f>(&nodes[i].velocity[0]);
+	}
+
+	Eigen::VectorXf newVelVector = solver.solve(massMatrix * velVector + dt * forceVector);
+	if (solver.info() != Eigen::Success)
+	{
+		std::cerr << "Failed to solve linear system." << std::endl;
+		return;
+	}
+
+	// Update the positions and velocities of the nodes
+	for (size_t i = 0; i < nodes.size(); i++)
+	{
+		nodes[i].velocity = glm::vec3(newVelVector.segment<3>(i * 3)[0], newVelVector.segment<3>(i * 3)[1], newVelVector.segment<3>(i * 3)[2]);
+		nodes[i].position += nodes[i].velocity * dt;
+	}
 }
 
 void CRigidBody::TakeFwEulerStep(float dt)
@@ -1091,7 +1216,7 @@ entt::entity Scene::CreateModelObject(const std::string& nodePath, const std::st
 	transform.SetPivot(mesh.GetBoundingBoxCenter());
 	auto& material = registry.emplace<CPhongMaterial>(entity);
 	
-	registry.emplace<CSoftBody>(entity);
+	registry.emplace<CSoftBody>(entity, springs, nodes);
 	registry.emplace<CBoxCollider>(entity, mesh.GetBoundingBoxMin(), mesh.GetBoundingBoxMax());
 
 	return entity;

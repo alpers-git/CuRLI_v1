@@ -403,6 +403,30 @@ protected:
 			}
 		}
 	}
+	/*
+	* Softbody update
+	*/
+	void OnSoftbodyChange(entt::entity e)
+	{
+		//get the softbody
+		auto& softbody = scene->registry.get<CSoftBody>(e);
+		auto* mesh = scene->registry.try_get<CTriMesh>(e);
+		if (mesh != nullptr)
+		{
+			//for each node with face index !=-1 update the vertex position in the mesh
+			for (const auto node : softbody.nodes)
+			{
+				if (node.faceIndex != -1)
+				{
+					mesh->GetVertex(node.faceIndex) = node.position;
+				}
+			}
+
+			//now update the buffer in program vaos
+			auto vao = program->vaos[entity2VAOIndex[e]];
+			vao.GetVBO(0).SetData(mesh->GetVertexDataPtr(), mesh->GetNumVertices(), GL_FLOAT);//0th buffer is always vPos buffer
+		}
+	}
 };
 
 class AnimatedBGRenderer : public Renderer<AnimatedBGRenderer>
