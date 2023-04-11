@@ -323,7 +323,7 @@ struct Spring
 	}
 	float restLength;
 	float k = 1.0f;//stiffness
-	float damping = 0.5f;
+	float damping = 0.01f;
 	glm::ivec2 nodes;
 
 	glm::vec3 CalculateForce(SpringNode& node0, SpringNode& node1) const

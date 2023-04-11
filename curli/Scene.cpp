@@ -795,43 +795,31 @@ Eigen::SparseMatrix<float> CSoftBody::CalculateStiffnessMatrix() {
 	// Loop over all springs
 	for (const Spring& spring : springs) {
 		// Indices of the two nodes connected by the spring
-		const int i = spring.nodes.x;
-		const int j = spring.nodes.y;
+		const int i = spring.nodes[0];
+		const int j = spring.nodes[1];
 
 		// Positions of the two nodes
-		const glm::vec3& pi = nodes[i].position;
-		const glm::vec3& pj = nodes[j].position;
-
-		// Spring force and stiffness matrix
-		const glm::vec3 f = spring.CalculateForce(nodes[i], nodes[j]);
-		Eigen::Matrix<float, 3, 3> force;
-		force(0, 0) = f.x * f.x;
-		force(0, 1) = f.x * f.y;
-		force(0, 2) = f.x * f.z;
-		force(1, 0) = f.y * f.x;
-		force(1, 1) = f.y * f.y;
-		force(1, 2) = f.y * f.z;
-		force(2, 0) = f.z * f.x;
-		force(2, 1) = f.z * f.y;
-		force(2, 2) = f.z * f.z;
+		const Eigen::Vector3f& pi = { nodes[i].position.x,  nodes[i].position.y, nodes[i].position.z};
+		const Eigen::Vector3f& pj = { nodes[j].position.x,  nodes[j].position.y, nodes[j].position.z };
+		const float curLenght = (pj - pi).norm();
 		
-		const Eigen::Matrix<float, 3, 3> Kij = -spring.k * (Eigen::Matrix<float, 3, 3>::Identity() - force / glm::length2(pi - pj));
+		const Eigen::Matrix3f Kij = spring.k * (-Eigen::Matrix3f::Identity() + spring.restLength / curLenght *
+			(Eigen::Matrix3f::Identity() - (pj - pi) * (pj - pi).transpose() / (pj - pi).squaredNorm()));
 
-		// Fill in the matrix entries corresponding to the i-th node
-		for (int d = 0; d < 3; ++d) {
-			K.insert(3 * i + d, 3 * i + d) += Kij(d, d);
-			K.insert(3 * i + d, 3 * j + d) += Kij(d, 3 - d);
-		}
+		// Fill in the matrix entries corresponding to the i-th node and jth node using double for loops
+		for (size_t ii = 0; ii < 3; ii++)
+		{
+			for (size_t jj = 0; jj < 3; jj++)
+			{
+				K.coeffRef(i * 3 + ii, j * 3 + jj) = Kij(ii, jj);
+				K.coeffRef(i * 3 + jj, j * 3 + ii) = -Kij(ii, jj);
+			}
 
-		// Fill in the matrix entries corresponding to the j-th node
-		for (int d = 0; d < 3; ++d) {
-			K.insert(3 * j + d, 3 * i + d) += Kij(3 - d, d);
-			K.insert(3 * j + d, 3 * j + d) += Kij(3 - d, 3 - d);
 		}
 	}
 
 	// Compress the matrix (this sorts the non-zero entries and makes the matrix more efficient to use)
-	K.makeCompressed();
+	//K.makeCompressed();
 
 	// Return the stiffness matrix
 	return K;
@@ -843,10 +831,9 @@ void CSoftBody::TakeFwEulerStep(float dt)
 	// Calculate the mass matrix
 	Eigen::SparseMatrix<float> massMatrix(nodes.size() * 3, nodes.size() * 3);
 	massMatrix.setZero();
-	for (SpringNode& node : nodes)
+	for (int i = 0; i < nodes.size() * 3; i++)
 	{
-		//Eigen::Matrix3f mass = Eigen::Matrix3f::Identity() * node.mass;
-		massMatrix.coeffRef(node.faceIndex * 3 + 0, node.faceIndex * 3 + 0) = node.mass;
+		massMatrix.coeffRef(i, i) = 1.0f;
 	}
 
 	// Calculate the force vector
@@ -862,16 +849,16 @@ void CSoftBody::TakeFwEulerStep(float dt)
 	}
 
 	// Apply the external forces
-	for (SpringNode& node : nodes)
-	{
-		// Gravity force
-		Eigen::Vector3f gravityForce = Eigen::Vector3f(0.0f, -9.81f * node.mass, 0.0f);
-		forceVector.segment<3>(&node.position.x - &nodes[0].position.x) += gravityForce;
-	}
+	//for (SpringNode& node : nodes)
+	//{
+	//	// Gravity force
+	//	Eigen::Vector3f gravityForce = Eigen::Vector3f(0.0f, -9.81f * node.mass, 0.0f);
+	//	forceVector.segment<3>(&node.position.x - &nodes[0].position.x) += gravityForce;
+	//}
 
 	// Solve for v_{t+1} where (M - dt*dt *K) * vv_{t+1} = M * v_{t} + dt * f_{t}
 	Eigen::SparseMatrix<float> MminusdtK = massMatrix - dt * dt * CalculateStiffnessMatrix();
-	Eigen::SparseLU<Eigen::SparseMatrix<float>> solver;
+	Eigen::BiCGSTAB<Eigen::SparseMatrix<float>> solver;
 	solver.compute(MminusdtK);
 	if (solver.info() != Eigen::Success)
 	{

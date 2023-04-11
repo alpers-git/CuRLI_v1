@@ -164,7 +164,7 @@ protected:
 	}
 	
 	std::shared_ptr<Scene> scene;
-	const float tStepSize = 0.01f;
+	const float tStepSize = 0.0001f;
 	float t = 0.0f;
 	
 	bool m1Down = false;
