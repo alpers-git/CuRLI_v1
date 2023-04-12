@@ -355,19 +355,9 @@ unsigned int zOrder3D(unsigned int x, unsigned int y, unsigned int z) {
 
 struct TripleHash {
 	size_t operator()(const glm::ivec3& t) const {
-		int x = t.x;
-		int y = t.y;
-		int z = t.z;
-
-		// Sort the coordinates to improve hash quality
-		std::array<int, 3> a = { x, y, z };
+		std::array<size_t, 3> a = { (size_t)t.x, (size_t)t.y, (size_t)t.z };
 		std::sort(a.begin(), a.end());
-		x = a[0];
-		y = a[1];
-		z = a[2];
-
-		// Use the cantor index as the hash value
-		return cantor(cantor(x, y),z);
+		return cantor(cantor(a[0], a[1]), a[2]);
 	}
 };
 
@@ -412,6 +402,7 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 	}
 
 	// Read ele file and isolate surface mesh
+	std::unordered_map<glm::ivec3, int, TripleHash> cnt;
 	std::unordered_set<glm::ivec3, TripleHash> surfFaceIdx;
 	std::unordered_map<glm::ivec3, int, TripleHash> face2InVertIdx;
 	std::unordered_set<glm::ivec2, PairHash> edgeIdxs;
@@ -429,26 +420,20 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 		// Add edges to surface face set
 		for (glm::ivec4 tetFace : std::array<glm::ivec4, 4>{ { {0, 1, 3, 2}, { 1,2,3,0 }, { 0,3,2,1 }, { 0,1,2,3 }}}) {
 			glm::ivec3 face(tet[tetFace.x], tet[tetFace.y], tet[tetFace.z]);
-			if (surfFaceIdx.find(face) != surfFaceIdx.end()) {
-				int tmp[3];
-				for (int i = 0; i < 3; i++) {
-					tmp[i] = face[i];
-				}
-				std::sort(tmp, tmp + 3);
-				printf("erased[%d]: %d %d %d\n",cantor(cantor(tmp[0],tmp[1]), tmp[2]), tmp[0], tmp[1], tmp[2]);
-				
+			if (cnt.count(face)) {
+				cnt[face] += 1;
+			}
+			else {
+				cnt[face] = 1;
+			}
+			if (surfFaceIdx.count(face)) {
+				assert(face2InVertIdx.count(face));
 				surfFaceIdx.erase(face);
 				face2InVertIdx.erase(face);
 			}
 			else {
+				assert(!face2InVertIdx.count(face));
 				surfFaceIdx.insert(face);
-				//copy the values in face to a tmp array and sort and print the values
-				int tmp[3];
-				for (int i = 0; i < 3; i++) {
-					tmp[i] = face[i];
-				}
-				std::sort(tmp, tmp + 3);
-				printf("inserted[%d]: %d %d %d\n", cantor(cantor(tmp[0], tmp[1]), tmp[2]), tmp[0], tmp[1], tmp[2]);
 				face2InVertIdx.emplace(face, tet[tetFace.w]);
 			}
 		}
@@ -470,7 +455,7 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 	// Map volume node index to surface vertex index
 	for (int idx : surfVertIdxs) {
 		volIdx2SurfIdx.emplace(idx, this->vertices.size());
-		this->vertices.push_back(glm::make_vec3(nodes.segment<3>(idx).data()));
+		this->vertices.push_back(glm::make_vec3(nodes.segment<3>(idx * 3).data()));
 		this->textureCoords.push_back({ 0.0f, 0.0f });
 	}
 
@@ -484,7 +469,7 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 		const glm::vec3 e1 = this->vertices[f[1]] - this->vertices[f[0]];
 		const glm::vec3 e2 = this->vertices[f[2]] - this->vertices[f[0]];
 		glm::vec3 normal = glm::normalize(glm::cross(e2, e1));
-		const glm::vec3 inwardVec = glm::make_vec3(nodes.segment<3>(face2InVertIdx.at(face) * 3).data());
+		const glm::vec3 inwardVec = glm::make_vec3(nodes.segment<3>(face2InVertIdx.at(face) * 3).data()) - this->vertices[f[0]];
 		if (glm::dot(normal, inwardVec) >= 0) {
 			normal *= -1.0f;
 		}
@@ -501,8 +486,8 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 
 	// Create springs
 	for (const glm::ivec2& edge : edgeIdxs) {
-		Eigen::Vector3f a = nodes.segment<3>(edge[0]);
-		Eigen::Vector3f b = nodes.segment<3>(edge[1]);
+		Eigen::Vector3f a = nodes.segment<3>(edge[0] * 3);
+		Eigen::Vector3f b = nodes.segment<3>(edge[1] * 3);
 		springs.emplace_back(edge, (a - b).norm());
 	}
 	printf("==========Done==========\n\t#verts: %d\n\t#normals: %d\n\t#faces: %d\n\t#springs:%d #nodes:%d\n",
