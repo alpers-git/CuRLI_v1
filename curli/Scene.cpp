@@ -2,6 +2,7 @@
 #include <GLFWHandler.h>
 #include <Eigen/Eigenvalues>
 #include <thread>
+#include <filesystem>
 
 //===============Sinks for entity management===============
 void scheduleSynchForAddedGeom(entt::registry& registry, entt::entity e)
@@ -287,6 +288,10 @@ void parseFileLine(std::ifstream& file, std::string& line)
 	}
 }
 
+uint64_t cantor(uint32_t x, uint32_t y) {
+	return ((x + y) * (x + y + 1u)) / 2u + y;
+}
+
 void CTriMesh::GenerateFaceFrom(const glm::vec3 v0,const glm::vec3 v1,const glm::vec3 v2,
 	const glm::vec3 vIn, const glm::ivec3 vertIndices)
 {
@@ -331,6 +336,23 @@ void CTriMesh::GenerateFaceFrom(const glm::vec3 v0,const glm::vec3 v1,const glm:
 	this->faces.push_back(face);
 }
 
+// Computes the Z-order curve value of a given pair of (x, y) coordinates
+unsigned int zOrder2D(unsigned int x, unsigned int y) {
+	unsigned int z = 0;
+	for (int i = 0; i < sizeof(unsigned int) * CHAR_BIT / 2; i++) {
+		z |= (x & (1 << i)) << i | (y & (1 << i)) << (i + 1);
+	}
+	return z;
+}
+
+unsigned int zOrder3D(unsigned int x, unsigned int y, unsigned int z) {
+	unsigned int code = 0;
+	for (int i = 0; i < sizeof(unsigned int) * CHAR_BIT / 3; i++) {
+		code |= (x & (1 << i)) << (2 * i) | (y & (1 << i)) << (2 * i + 1) | (z & (1 << i)) << (2 * i + 2);
+	}
+	return code;
+}
+
 struct TripleHash {
 	size_t operator()(const glm::ivec3& t) const {
 		int x = t.x;
@@ -344,376 +366,148 @@ struct TripleHash {
 		y = a[1];
 		z = a[2];
 
-		// Interleave bits of x, y, z to get Morton index
-		uint32_t xx = (uint32_t)x;
-		uint32_t yy = (uint32_t)y;
-		uint32_t zz = (uint32_t)z;
-		xx = (xx | (xx << 8)) & 0x00ff00ff;
-		xx = (xx | (xx << 4)) & 0x0f0f0f0f;
-		xx = (xx | (xx << 2)) & 0x33333333;
-		xx = (xx | (xx << 1)) & 0x55555555;
-		yy = (yy | (yy << 8)) & 0x00ff00ff;
-		yy = (yy | (yy << 4)) & 0x0f0f0f0f;
-		yy = (yy | (yy << 2)) & 0x33333333;
-		yy = (yy | (yy << 1)) & 0x55555555;
-		zz = (zz | (zz << 8)) & 0x00ff00ff;
-		zz = (zz | (zz << 4)) & 0x0f0f0f0f;
-		zz = (zz | (zz << 2)) & 0x33333333;
-		zz = (zz | (zz << 1)) & 0x55555555;
-		uint32_t morton = xx | (yy << 1) | (zz << 2);
-
-		// Use the Morton index as the hash value
-		return std::hash<uint32_t>{}(morton);
+		// Use the cantor index as the hash value
+		return cantor(cantor(x, y),z);
 	}
 };
 
-// Computes the Z-order curve value of a given pair of (x, y) coordinates
-unsigned int zOrder(unsigned int x, unsigned int y) {
-	unsigned int z = 0;
-	for (int i = 0; i < sizeof(unsigned int) * CHAR_BIT / 2; i++) {
-		z |= (x & (1 << i)) << i | (y & (1 << i)) << (i + 1);
-	}
-	return z;
-}
 
 // Hash function for unordered_map that uses the Z-order curve value
-struct zOrderHash {
-	size_t operator()(const std::pair<unsigned int, unsigned int>& p) const {
-		unsigned int x = p.first;
-		unsigned int y = p.second;
+struct PairHash {
+	size_t operator()(const glm::ivec2& p) const {
+		unsigned int x = p.x;
+		unsigned int y = p.y;
 		if (x > y) std::swap(x, y);  // ensure x is smaller than y
-		return zOrder(x, y);
+		return cantor(x, y);
 	}
 };
 
-
-// Function to mark boundary nodes
-void mark_boundary_nodes(
-	const std::vector<glm::ivec4>& elements,
-	std::vector<bool>& boundary)
-{
-	// Create a hash map to count the number of times each face is encountered
-	std::unordered_map<glm::ivec3, int, TripleHash> face_count;
-
-	// Count the number of times each face is encountered
-	for (const auto& tetrahedron : elements) {
-		// Get the indices of the tetrahedron's vertices
-		int i = tetrahedron.x;
-		int j = tetrahedron.y;
-		int k = tetrahedron.z;
-		int l = tetrahedron.w;
-
-		// For each face of the tetrahedron, increment its count in the hash map
-		++face_count[glm::ivec3(i, k, j)];
-		++face_count[glm::ivec3(i, l, j)];
-		++face_count[glm::ivec3(i, l, k)];
-		++face_count[glm::ivec3(j, l, k)];
-	}
-
-	// Find the boundary nodes
-	for (const auto& [face, count] : face_count) {
-		// If the face is encountered only once, mark its vertices as boundary nodes
-		if (count == 1) {
-			int i = face.x;
-			int j = face.y;
-			int k = face.z;
-			boundary[i] = true;
-			boundary[j] = true;
-			boundary[k] = true;
-		}
-	}
-}
+namespace fs = std::filesystem;
 
 void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string elePath,
-	std::vector<Spring>& springs, std::vector<SpringNode>& sNodes)
-{
-	printf("======Reading Tetgen files=====\n");
-	//check the file extensions node needs to be .node and ele needs to be .ele
-	if (nodePath.substr(nodePath.find_last_of(".") + 1) != "node" ||
-		elePath.substr(elePath.find_last_of(".") + 1) != "ele")
-	{
-		throw std::exception("Invalid extension for tetgen files");
-	}
-	
-	//------------------node file----------------------
-	//open the node file
+	std::vector<Spring>& springs, Eigen::VectorXf& nodes, std::unordered_map<int, int>& volIdx2SurfIdx)
+{	
+	printf("==========Reading ele & node files==========\n");
+	// Make sure files exist and good
+	assert(fs::exists(nodePath) && fs::path(nodePath).extension() == ".node" && "Invalid extension for tetgen files");
+	assert(fs::exists(elePath) && fs::path(elePath).extension() == ".ele" && "Invalid extension for tetgen files");
+
+	// Read node file
 	std::ifstream nodeFile(nodePath, std::ios::in);
-	if (!nodeFile.is_open())
-	{
-		throw std::exception("Could not open node file");
-	}
-	//first line includes space seperated # nodes, # dimensions, # attributes, # boundary markers
-	std::string line;
-	parseFileLine(nodeFile, line);
-	std::istringstream iss(line);
-	std::vector<std::string> tokens{ std::istream_iterator<std::string>{iss},
-		std::istream_iterator<std::string>{} };
-	const unsigned int numNodes = std::stoi(tokens[0]);
-	const unsigned int numDimensions = std::stoi(tokens[1]);
-	const unsigned int numAttributes = std::stoi(tokens[2]);
-	const unsigned int numBoundaryMarkers = std::stoi(tokens[3]);
-
-	if (numDimensions != 3)
-		throw std::exception("Only 3D meshes are supported");
-	if(numNodes <=0)
-		throw std::exception("Invalid number of nodes");
-	
-	std::vector<glm::vec3> nodes;
-	std::vector<bool> boundary;
-	nodes.resize(numNodes);
-	boundary.resize(numNodes, false);
-
-	//go over the file and find the min index
-	int minIndex = 2;
-	for (int i = 0; i < numNodes; i++)
-	{
-		parseFileLine(nodeFile, line);
-		std::istringstream iss(line);
-		std::vector<std::string> tokens{ std::istream_iterator<std::string>{iss},
-			std::istream_iterator<std::string>{} };
-		if (minIndex > std::stoi(tokens[0]))
-			minIndex = std::stoi(tokens[0]);
+	int numNodes, numDims, numAttrs, hasBdry, firstNodeIdx = std::numeric_limits<int>::max();
+	nodeFile >> numNodes >> numDims >> numAttrs >> hasBdry;
+	int nodeIdx = 0;
+	nodes.resize(numNodes * 3);
+	while (!nodeFile.eof() && nodeIdx < numNodes) {
+		int idx, bdry;
+		nodeFile >> idx;
+		firstNodeIdx = std::min(firstNodeIdx, idx);
+		for (int i = 0; i < 3; i++) {
+			nodeFile >> nodes[nodeIdx * 3 + i];
+		}
+		if (hasBdry) {
+			nodeFile >> bdry;
+		}
+		nodeIdx += 1;
 	}
 
-	//rewind to begining of the file and skip the first line
-	nodeFile.seekg(0);
-	nodeFile.clear();
-	parseFileLine(nodeFile, line);
-
-	//read the rest of the file with a loop and store the vertices.
-	glm::vec3 bboxMin = glm::vec3(FLT_MAX);
-	glm::vec3 bboxMax = glm::vec3(-FLT_MAX);
-	for (int i = 0; i < numNodes; i++)
-	{
-		parseFileLine(nodeFile, line);
-		std::istringstream iss(line);
-		std::vector<std::string> tokens{ std::istream_iterator<std::string>{iss},
-			std::istream_iterator<std::string>{} };
-		glm::vec3 node = glm::vec3(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]));
-		bboxMin = glm::min(bboxMin, node);
-		bboxMax = glm::max(bboxMax, node);
-		nodes.at(std::stof(tokens[0])- minIndex) = node;
-		if(numBoundaryMarkers > 0)
-			boundary.at(std::stof(tokens[0]) - minIndex) = std::stoi(tokens[4]) == 1;// 1 means boundary vert
-	}
-	nodeFile.close();
-
-	//normalize the nodes to be in the range of -5 to 5
-	glm::vec3 bboxSize = bboxMax - bboxMin;
-	glm::vec3 bboxCenter = (bboxMax + bboxMin) / 2.0f;
-	float maxDim = glm::max(glm::max(bboxSize.x, bboxSize.y), bboxSize.z);
-	for (int i = 0; i < numNodes; i++)
-	{
-		nodes[i] = (nodes[i] - bboxCenter) / maxDim * 5.0f;
-	}
-
-	//------------------ele file----------------------
+	// Read ele file and isolate surface mesh
+	std::unordered_set<glm::ivec3, TripleHash> surfFaceIdx;
+	std::unordered_map<glm::ivec3, int, TripleHash> face2InVertIdx;
+	std::unordered_set<glm::ivec2, PairHash> edgeIdxs;
 	std::ifstream eleFile(elePath, std::ios::in);
-	if (!eleFile.is_open())
-	{
-		throw std::exception("Could not open ele file");
-	}
+	int numTets, numVertsPerTet, hasAttrs;
+	eleFile >> numTets >> numVertsPerTet >> hasAttrs;
+	int nTet = 0;
+	while (!eleFile.eof() && nTet++ < numTets) {
+		int idx;
+		eleFile >> idx;
+		glm::ivec4 tet;
+		eleFile >> tet.x >> tet.y >> tet.z >> tet.w;
+		tet -= glm::ivec4(firstNodeIdx);
 
-	//first line includes space seperated # elements, # nodes per element, # attributes
-	parseFileLine(eleFile, line);
-	std::istringstream iss2(line);
-	std::vector<std::string> tokens2{ std::istream_iterator<std::string>{iss2},
-		std::istream_iterator<std::string>{} };
-	const unsigned int numElements = std::stoi(tokens2[0]);
-	const unsigned int numNodesPerElement = std::stoi(tokens2[1]);
-	const unsigned int numAttributes2 = std::stoi(tokens2[2]);
-	
-	if (numNodesPerElement != 4)
-		throw std::exception("Only tetrahedral meshes are supported");
-	if (numElements <= 0)
-		throw std::exception("Invalid number of elements");
-	
-	std::vector<glm::ivec4> elements;
-	
-	//read the rest of the file with a loop and store the vertices.
-	for (int i = 0; i < numElements; i++)
-	{
-		parseFileLine(eleFile, line);
-		std::istringstream iss(line);
-		std::vector<std::string> tokens{ std::istream_iterator<std::string>{iss},
-			std::istream_iterator<std::string>{} };
-		glm::ivec4 element = glm::ivec4(std::stoi(tokens[1]), std::stoi(tokens[2]), std::stoi(tokens[3]), std::stoi(tokens[4]));
-		elements.push_back(element - glm::ivec4(minIndex));
-	}
-	eleFile.close();
-	if (numBoundaryMarkers == 0)//well the file doesnt have a boundary marker...
-	{
-		printf("No boundary marker found, marking boundary nodes...\n");
-		mark_boundary_nodes(elements, boundary);
-		printf("Done marking boundary %d nodes\n", std::count(boundary.begin(), boundary.end(), true));
-	}
-	printf("======Done reading Tetgen files=====\n\t# nodes:%d \n\t# elements:%d\n", numNodes, numElements);
-	printf("======Generating surface mesh & springs=====\n");
-	//generate springs
-	for (const auto node : nodes)
-	{
-		sNodes.push_back(SpringNode(node));
-	}
-	//create a std unordered map to avoid duplicating the same spring twice
-	std::unordered_map<std::pair<unsigned int, unsigned int>, unsigned int, zOrderHash> springMap;
-	for (const auto tet : elements) {
-		for (int i = 0; i < 4; i++)
-		{
-			for (int j = 0; j < 4; j++)
-			{
-				if (i == j)//skip self
-					continue;
-				//check if the spring already exists
-				if (springMap.find(std::pair<unsigned int, unsigned int>(tet[i], tet[j])) != springMap.end())
-					continue;
+		// Add edges to surface face set
+		for (glm::ivec4 tetFace : std::array<glm::ivec4, 4>{ { {0, 1, 3, 2}, { 1,2,3,0 }, { 0,3,2,1 }, { 0,1,2,3 }}}) {
+			glm::ivec3 face(tet[tetFace.x], tet[tetFace.y], tet[tetFace.z]);
+			if (surfFaceIdx.find(face) != surfFaceIdx.end()) {
+				int tmp[3];
+				for (int i = 0; i < 3; i++) {
+					tmp[i] = face[i];
+				}
+				std::sort(tmp, tmp + 3);
+				printf("erased[%d]: %d %d %d\n",cantor(cantor(tmp[0],tmp[1]), tmp[2]), tmp[0], tmp[1], tmp[2]);
 				
-				else
-				{	
-					springMap.insert({ std::pair<unsigned int, unsigned int>(tet[j], tet[i]), 1 });
-					springs.push_back(Spring({tet[i], tet[j]}, 
-						glm::length(sNodes.at(tet[i]).position - sNodes.at(tet[j]).position)));
-				}
+				surfFaceIdx.erase(face);
+				face2InVertIdx.erase(face);
 			}
+			else {
+				surfFaceIdx.insert(face);
+				//copy the values in face to a tmp array and sort and print the values
+				int tmp[3];
+				for (int i = 0; i < 3; i++) {
+					tmp[i] = face[i];
+				}
+				std::sort(tmp, tmp + 3);
+				printf("inserted[%d]: %d %d %d\n", cantor(cantor(tmp[0], tmp[1]), tmp[2]), tmp[0], tmp[1], tmp[2]);
+				face2InVertIdx.emplace(face, tet[tetFace.w]);
+			}
+		}
+
+		// Add edges to set
+		for (glm::ivec2 tetEdge : std::array<glm::ivec2, 6> { { {0, 1}, { 1,2 }, { 0,2 }, { 0,3 }, { 1,3 }, { 2,3 }}}) {
+			edgeIdxs.insert({ tet[tetEdge.x], tet[tetEdge.y] });
 		}
 	}
-	//generate the mesh
-	//A map to input data to our face structure
-	std::unordered_map<int, int> tetgen2Face;
-	//go over tets if they have a boundary nodes push them as a face
-	for (int i = 0; i < elements.size(); i++)
-	{
-		const glm::ivec4 indices = elements.at(i);
 
-		glm::vec3 boundaryVertices[4] = {glm::vec3(NAN),glm::vec3(NAN),glm::vec3(NAN), glm::vec3(NAN)};
-		int boundaryIndices[4] = { -1,-1,-1,-1 };
-		int boundaryCount = 0;//for indexing the array up there
-		glm::vec3 inwardVertex;
-		for (int j = 0; j < 4; j++)
-		{
-			if (boundary.at(indices[j]))
-			{
-				boundaryVertices[boundaryCount] = nodes.at(indices[j]);
-				boundaryIndices[boundaryCount++] = indices[j];
-			}
-			else
-				inwardVertex = nodes.at(indices[j]);
+	// Indices of vertices on the surface of the mesh
+	std::unordered_set<int> surfVertIdxs;
+	for (glm::ivec3 face : surfFaceIdx) {
+		for (int i = 0; i < 3; i++) {
+			surfVertIdxs.insert(face[i]);
 		}
-		//if any of the boundary vertices is nan this tet is not a boundary tet, push as a internal spring and skip!
-		if (boundaryCount < 3)
-			continue;
-		if (boundaryCount == 3)
-		{
-			glm::ivec3 indicesForVertices(-1, -1, -1);//init as new vertices, so no known index(-1)
-			int numNewVert = 0;
-			for (int j = 0; j < 3; j++)//check if that vertex already exists
-			{
-				auto foundIndex = tetgen2Face.find(boundaryIndices[j]);
-				if(foundIndex != tetgen2Face.end())//duplicate vertex, so get the values from the map
-					indicesForVertices[j] = foundIndex->second;
-				else
-				{
-					tetgen2Face.insert(std::make_pair(boundaryIndices[j], this->vertices.size() + numNewVert));
-					sNodes.at(boundaryIndices[j]).faceIndex = this->vertices.size() + numNewVert;
-					numNewVert++;
-				}
-			}
-			GenerateFaceFrom(boundaryVertices[0], boundaryVertices[1], boundaryVertices[2],
-				inwardVertex, indicesForVertices);
-		}
-		if (boundaryCount == 4)
-		{
-			//push all 4 faces...
-			//-------------0-------------
-			glm::ivec3 curIndices = { boundaryIndices[0], boundaryIndices[2], boundaryIndices[1] };
-			inwardVertex = boundaryVertices[3];
-			glm::ivec3 indicesForVertices(-1, -1, -1);//init as new vertices, so no known index(-1)
-			int numNewVert = 0;
-			for (int j = 0; j < 3; j++)//check if that vertex already exists
-			{
-				auto foundIndex = tetgen2Face.find(curIndices[j]);
-				if (foundIndex != tetgen2Face.end())
-					indicesForVertices[j] = foundIndex->second;
-				else
-				{
-					tetgen2Face.insert(std::make_pair(curIndices[j], this->vertices.size() + numNewVert));
-					sNodes.at(boundaryIndices[j]).faceIndex = this->vertices.size() + numNewVert;
-					numNewVert++;
-				}
-			}
-			GenerateFaceFrom(boundaryVertices[0], boundaryVertices[2], boundaryVertices[1],
-				inwardVertex, indicesForVertices);
-			//-------------1-------------
-			curIndices = { boundaryIndices[1], boundaryIndices[2], boundaryIndices[3] };
-			inwardVertex = boundaryVertices[0];
-			indicesForVertices = glm::ivec3(-1, -1, -1);//init as new vertices, so no known index(-1)
-			numNewVert = 0;
-			for (int j = 0; j < 3; j++)//check if that vertex already exists
-			{
-				auto foundIndex = tetgen2Face.find(curIndices[j]);
-				if (foundIndex != tetgen2Face.end())
-					indicesForVertices[j] = foundIndex->second;
-				else
-				{
-					tetgen2Face.insert(std::make_pair(curIndices[j], this->vertices.size() + numNewVert));
-					sNodes.at(boundaryIndices[j]).faceIndex = this->vertices.size() + numNewVert;
-					numNewVert++;
-				}
-			}
-			GenerateFaceFrom(boundaryVertices[1], boundaryVertices[2], boundaryVertices[3],
-				inwardVertex, indicesForVertices);
-			//-------------2-------------
-			curIndices = { boundaryIndices[3], boundaryIndices[2], boundaryIndices[0] };
-			inwardVertex = boundaryVertices[1];
-			indicesForVertices = glm::ivec3(-1, -1, -1);//init as new vertices, so no known index(-1)
-			numNewVert = 0;
-			for (int j = 0; j < 3; j++)//check if that vertex already exists
-			{
-				auto foundIndex = tetgen2Face.find(curIndices[j]);
-				if (foundIndex != tetgen2Face.end())
-					indicesForVertices[j] = foundIndex->second;
-				else
-				{
-					tetgen2Face.insert(std::make_pair(curIndices[j], this->vertices.size() + numNewVert));
-					sNodes.at(boundaryIndices[j]).faceIndex = this->vertices.size() + numNewVert;
-					numNewVert++;
-				}
-			}
-			GenerateFaceFrom(boundaryVertices[3], boundaryVertices[2], boundaryVertices[0],
-				inwardVertex, indicesForVertices);
-			//-------------3-------------
-			curIndices = { boundaryIndices[0], boundaryIndices[1], boundaryIndices[3] };
-			inwardVertex = boundaryVertices[2];
-			indicesForVertices = glm::ivec3(-1, -1, -1);//init as new vertices, so no known index(-1)
-			numNewVert = 0;
-			for (int j = 0; j < 3; j++)//check if that vertex already exists
-			{
-				auto foundIndex = tetgen2Face.find(curIndices[j]);
-				if (foundIndex != tetgen2Face.end())
-					indicesForVertices[j] = foundIndex->second;
-				else
-				{
-					tetgen2Face.insert(std::make_pair(curIndices[j], this->vertices.size() + numNewVert));
-					sNodes.at(boundaryIndices[j]).faceIndex = this->vertices.size() + numNewVert;
-					numNewVert++;
-				}
-			}
-			GenerateFaceFrom(boundaryVertices[0], boundaryVertices[3], boundaryVertices[1],
-				inwardVertex, indicesForVertices);
-		}
-
-		//loop over all of the mesh normals and normalize them using cpp for each parallel loop
-		/*std::for_each(std::execution::par, this->vertexNormals.begin(), this->vertexNormals.end(), 
-			[](glm::vec3& n){ n = glm::normalize(n); });*/
-		for(auto& n : this->vertexNormals)
-			n = glm::normalize(n);
-
 	}
-	if (numBoundaryMarkers == 0)
-		this->ComputeNormals();
-	printf("======Done=====\n\t#verts: %d\n\t#normals %d\n\t#text co: %d\n\t#faces: %d\n\t#springs: %d\n\t#nodes: %d\n", 
-		this->vertices.size(), this->vertexNormals.size(), this->textureCoords.size(), this->faces.size(),
-		springs.size(), sNodes.size());
-	
+
+	// Map volume node index to surface vertex index
+	for (int idx : surfVertIdxs) {
+		volIdx2SurfIdx.emplace(idx, this->vertices.size());
+		this->vertices.push_back(glm::make_vec3(nodes.segment<3>(idx).data()));
+		this->textureCoords.push_back({ 0.0f, 0.0f });
+	}
+
+	// Create surface triangles
+	this->vertexNormals.resize(this->vertices.size(), glm::vec3(0.0f));
+	for (glm::ivec3 face : surfFaceIdx) {
+		const glm::ivec3 f(volIdx2SurfIdx[face[0]], volIdx2SurfIdx[face[1]], volIdx2SurfIdx[face[2]]);
+		this->faces.push_back(f);
+
+		// Compute normal for face
+		const glm::vec3 e1 = this->vertices[f[1]] - this->vertices[f[0]];
+		const glm::vec3 e2 = this->vertices[f[2]] - this->vertices[f[0]];
+		glm::vec3 normal = glm::normalize(glm::cross(e2, e1));
+		const glm::vec3 inwardVec = glm::make_vec3(nodes.segment<3>(face2InVertIdx.at(face) * 3).data());
+		if (glm::dot(normal, inwardVec) >= 0) {
+			normal *= -1.0f;
+		}
+
+		for (int i = 0; i < 3; i++) {
+			this->vertexNormals[f[i]] += normal;
+		}
+	}
+
+
+	// Normalize vertex normals
+	for (auto& n : this->vertexNormals)
+		n = glm::normalize(n);
+
+	// Create springs
+	for (const glm::ivec2& edge : edgeIdxs) {
+		Eigen::Vector3f a = nodes.segment<3>(edge[0]);
+		Eigen::Vector3f b = nodes.segment<3>(edge[1]);
+		springs.emplace_back(edge, (a - b).norm());
+	}
+	printf("==========Done==========\n\t#verts: %d\n\t#normals: %d\n\t#faces: %d\n\t#springs:%d #nodes:%d\n",
+		this->GetNumVertices(), this->GetNumNormals(), this->GetNumFaces(),
+		springs.size(), nodes.size() / 3);
 }
 
 void CTriMesh::Update()
@@ -782,15 +576,7 @@ void CRigidBody::initializeInertiaTensor(const CTriMesh* mesh, CTransform* trans
 	inertiaAtRest[2][2] = eigenValues(2).real();*/
 }
 
-Eigen::SparseMatrix<float> CSoftBody::CalculateStiffnessMatrix() {
-	// Number of nodes in the soft body
-	const int nNodes = nodes.size();
-
-	// Create a sparse matrix with 3*nNodes rows and columns
-	Eigen::SparseMatrix<float> K(3 * nNodes, 3 * nNodes);
-
-	// Reserve space for the non-zero entries in the matrix
-	K.reserve(27 * springs.size());
+void CSoftBody::CalculateStiffnessMatrix() {
 
 	// Loop over all springs
 	for (const Spring& spring : springs) {
@@ -799,8 +585,8 @@ Eigen::SparseMatrix<float> CSoftBody::CalculateStiffnessMatrix() {
 		const int j = spring.nodes[1];
 
 		// Positions of the two nodes
-		const Eigen::Vector3f& pi = { nodes[i].position.x,  nodes[i].position.y, nodes[i].position.z};
-		const Eigen::Vector3f& pj = { nodes[j].position.x,  nodes[j].position.y, nodes[j].position.z };
+		const Eigen::Vector3f& pi = nodePositions.segment<3>(i * 3);
+		const Eigen::Vector3f& pj = nodePositions.segment<3>(j * 3);
 		const float curLenght = (pj - pi).norm();
 		
 		const Eigen::Matrix3f Kij = spring.k * (-Eigen::Matrix3f::Identity() + spring.restLength / curLenght *
@@ -811,41 +597,27 @@ Eigen::SparseMatrix<float> CSoftBody::CalculateStiffnessMatrix() {
 		{
 			for (size_t jj = 0; jj < 3; jj++)
 			{
-				K.coeffRef(i * 3 + ii, j * 3 + jj) = Kij(ii, jj);
-				K.coeffRef(i * 3 + jj, j * 3 + ii) = -Kij(ii, jj);
+				stiffnessMatrix.coeffRef(i * 3 + ii, j * 3 + jj) = Kij(ii, jj);
+				stiffnessMatrix.coeffRef(i * 3 + jj, j * 3 + ii) = -Kij(ii, jj);
 			}
 
 		}
 	}
-
-	// Compress the matrix (this sorts the non-zero entries and makes the matrix more efficient to use)
-	//K.makeCompressed();
-
-	// Return the stiffness matrix
-	return K;
 }
 
 
 void CSoftBody::TakeFwEulerStep(float dt)
 {
-	// Calculate the mass matrix
-	Eigen::SparseMatrix<float> massMatrix(nodes.size() * 3, nodes.size() * 3);
-	massMatrix.setZero();
-	for (int i = 0; i < nodes.size() * 3; i++)
-	{
-		massMatrix.coeffRef(i, i) = 1.0f;
-	}
-
 	// Calculate the force vector
-	Eigen::VectorXf forceVector(nodes.size() * 3);
-	forceVector.setZero();
+	Eigen::VectorXf intrForces(nodePositions.size());
+	intrForces.setZero();
 	for (Spring& spring : springs)
 	{
-		SpringNode& node0 = nodes[spring.nodes[0]];
-		SpringNode& node1 = nodes[spring.nodes[1]];
-		glm::vec3 force = spring.CalculateForce(node0, node1);
-		forceVector.segment<3>(spring.nodes[0] * 3) += Eigen::Map<Eigen::Vector3f>(&force[0]);
-		forceVector.segment<3>(spring.nodes[1] * 3) -= Eigen::Map<Eigen::Vector3f>(&force[0]);
+		const Eigen::Vector3f& node0 = nodePositions.segment<3>(spring.nodes[0] * 3);
+		const Eigen::Vector3f& node1 = nodePositions.segment<3>(spring.nodes[1] * 3);
+		auto force = spring.CalculateForce(node0, node1);
+		intrForces.segment<3>(spring.nodes[0] * 3) = force;
+		intrForces.segment<3>(spring.nodes[1] * 3) = -force;
 	}
 
 	// Apply the external forces
@@ -855,9 +627,9 @@ void CSoftBody::TakeFwEulerStep(float dt)
 	//	Eigen::Vector3f gravityForce = Eigen::Vector3f(0.0f, -9.81f * node.mass, 0.0f);
 	//	forceVector.segment<3>(&node.position.x - &nodes[0].position.x) += gravityForce;
 	//}
-
+	CalculateStiffnessMatrix();
 	// Solve for v_{t+1} where (M - dt*dt *K) * vv_{t+1} = M * v_{t} + dt * f_{t}
-	Eigen::SparseMatrix<float> MminusdtK = massMatrix - dt * dt * CalculateStiffnessMatrix();
+	Eigen::SparseMatrix<float> MminusdtK = massMatrix - dt * dt * stiffnessMatrix;
 	Eigen::BiCGSTAB<Eigen::SparseMatrix<float>> solver;
 	solver.compute(MminusdtK);
 	if (solver.info() != Eigen::Success)
@@ -866,25 +638,14 @@ void CSoftBody::TakeFwEulerStep(float dt)
 		return;
 	}
 
-	Eigen::VectorXf velVector(nodes.size() * 3);
-	for (size_t i = 0; i < nodes.size(); i++)
-	{
-		velVector.segment<3>(i * 3) = Eigen::Map<Eigen::Vector3f>(&nodes[i].velocity[0]);
-	}
-
-	Eigen::VectorXf newVelVector = solver.solve(massMatrix * velVector + dt * forceVector);
+	nodeVelocities = solver.solve(massMatrix * nodeVelocities + dt * intrForces);
 	if (solver.info() != Eigen::Success)
 	{
 		std::cerr << "Failed to solve linear system." << std::endl;
 		return;
 	}
-
-	// Update the positions and velocities of the nodes
-	for (size_t i = 0; i < nodes.size(); i++)
-	{
-		nodes[i].velocity = glm::vec3(newVelVector.segment<3>(i * 3)[0], newVelVector.segment<3>(i * 3)[1], newVelVector.segment<3>(i * 3)[2]);
-		nodes[i].position += nodes[i].velocity * dt;
-	}
+	nodePositions += nodeVelocities * dt;
+	
 }
 
 void CRigidBody::TakeFwEulerStep(float dt)
@@ -1196,14 +957,15 @@ entt::entity Scene::CreateModelObject(const std::string& nodePath, const std::st
 
 	CTriMesh mesh;
 	std::vector<Spring> springs;
-	std::vector<SpringNode> nodes;
-	mesh.InitializeFrom(nodePath, elePath,springs, nodes);
+	Eigen::VectorXf nodePositions;
+	std::unordered_map<int, int> volIdx2SurfIdx;
+	mesh.InitializeFrom(nodePath, elePath, springs, nodePositions, volIdx2SurfIdx);
 	registry.emplace<CTriMesh>(entity, mesh);
 	auto& transform = registry.emplace<CTransform>(entity, position, rotation, scale);
 	transform.SetPivot(mesh.GetBoundingBoxCenter());
 	auto& material = registry.emplace<CPhongMaterial>(entity);
 	
-	registry.emplace<CSoftBody>(entity, springs, nodes);
+	registry.emplace<CSoftBody>(entity, springs, nodePositions, volIdx2SurfIdx);
 	registry.emplace<CBoxCollider>(entity, mesh.GetBoundingBoxMin(), mesh.GetBoundingBoxMax());
 
 	return entity;

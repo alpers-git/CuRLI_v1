@@ -32,7 +32,7 @@ public:
 					Event event;
 					event.type = Event::Type::SoftbodySim;
 					event.softbodySim.e = entity;
-					GLFWHandler::GetInstance().QueueEvent(event);
+					//GLFWHandler::GetInstance().QueueEvent(event);
 				});
 
 		t = GLFWHandler::GetInstance().GetTime();
@@ -115,8 +115,8 @@ public:
 				ApplicationState::GetInstance().physicsInteraction = true;
 				//sb->ApplyLinearImpulse((-deltaPos.x * right + deltaPos.y * up) * 0.1f);
 				//random number between 0 and numOfNodes in the selected softbody
-				int randomNode = rand() % sb->nodes.size();
-				sb->nodes[randomNode].acceleration += (-deltaPos.x * right + deltaPos.y * up) * 0.1f;
+				int randomNode = rand() % (sb->nodePositions.size()/3);
+				sb->nodeVelocities.segment<3>(randomNode) += Eigen::Map<Eigen::Vector3f>( &((-deltaPos.x * right + deltaPos.y * up) * 0.1f)[0]);
 			}
 			if (m2Down && shiftDown)
 			{

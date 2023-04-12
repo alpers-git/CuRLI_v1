@@ -293,22 +293,6 @@ private:
 	}
 };
 
-struct SpringNode
-{
-	SpringNode(glm::vec3 position, float mass = 1.0f)
-	{
-		this->position = position;
-		this->mass = mass;
-	}
-	
-	glm::vec3 position;
-	glm::vec3 velocity = glm::vec3(0.0f);
-	glm::vec3 acceleration = glm::vec3(0.0f);
-	//glm::vec3 force;
-	float mass = 1.0f;
-	int faceIndex = -1;//-1 = non-boundary
-};
-
 struct Spring
 {
 	Spring(glm::ivec2 nodes, float restLength)
@@ -326,13 +310,13 @@ struct Spring
 	float damping = 0.01f;
 	glm::ivec2 nodes;
 
-	glm::vec3 CalculateForce(SpringNode& node0, SpringNode& node1) const
+	Eigen::Vector3f CalculateForce(const Eigen::Vector3f& node0, const Eigen::Vector3f& node1) const
 	{
-		glm::vec3 springVector = node0.position - node1.position;
-		float currentLength = glm::length(springVector);
-		springVector = glm::normalize(springVector);
-		glm::vec3 springForce = -k * (currentLength - restLength) * springVector;
-		glm::vec3 dampingForce = -damping * (node1.velocity - node0.velocity);
+		Eigen::Vector3f springVector = node0 - node1;
+		float currentLength = springVector.norm();
+		springVector.normalize();
+		Eigen::Vector3f springForce = -k * (currentLength - restLength) * springVector;
+		Eigen::Vector3f dampingForce = Eigen::Vector3f::Zero();//-damping * (node1.velocity - node0.velocity);
 		return springForce + dampingForce;
 	}
 };
@@ -603,7 +587,7 @@ public:
 	*/
 	void InitializeFrom(cy::TriMesh& mesh);
 	void InitializeFrom(const std::string& nodePath, const std::string elePath,
-		std::vector<Spring>& springs, std::vector<SpringNode>& nodes);
+		std::vector<Spring>& springs, Eigen::VectorXf& nodes, std::unordered_map<int, int>& volIdx2SurfIdx);
 
 	inline void ComputeBoundingBox()
 	{
@@ -1121,19 +1105,40 @@ struct CSoftBody : Component
 	CSoftBody()
 	{}
 	
-	CSoftBody(std::vector<Spring> springs, std::vector<SpringNode> nodes)
+	CSoftBody(std::vector<Spring>& springs, 
+		Eigen::VectorXf& nodes,
+		std::unordered_map<int, int>& nodes2SurfIds)
 	{
-		this->nodes = nodes;
 		this->springs = springs;
+		this->nodePositions = nodes;
+		this->nodeVelocities = Eigen::VectorXf::Zero(nodes.size());
+		this->nodeExtForces = Eigen::VectorXf::Zero(nodes.size());
+		this->nodes2SurfIds = nodes2SurfIds;
+		
+		//initialize the mass matrix since its constant
+		massMatrix = Eigen::SparseMatrix<float>(nodePositions.size(), nodePositions.size());
+		
+		for (int i = 0; i < nodePositions.size(); i++)
+			massMatrix.insert(i, i) = 1.f;
+		
+		stiffnessMatrix = Eigen::SparseMatrix<float>(nodePositions.size(), nodePositions.size());
 	}
 
 	void Update();
 	void TakeFwEulerStep(float dt);
 	
-	Eigen::SparseMatrix<float> CalculateStiffnessMatrix();
+	void CalculateStiffnessMatrix();
+	
+	std::unordered_map<int, int> nodes2SurfIds;
+	Eigen::VectorXf nodePositions;
+	Eigen::VectorXf nodeVelocities;
+	Eigen::VectorXf nodeExtForces;
 	
 	std::vector<Spring> springs;
-	std::vector<SpringNode> nodes;
+	
+	Eigen::SparseMatrix<float> stiffnessMatrix;
+	Eigen::SparseMatrix<float> massMatrix;
+	
 };
 
 struct CRigidBody : Component

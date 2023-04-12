@@ -11,6 +11,7 @@
 #include <imgui.h>
 #include <ImguiHelpers.h>
 #include <ApplicationState.h>
+#include <glm/gtc/type_ptr.hpp>
 
 
 template <class T>
@@ -413,14 +414,11 @@ protected:
 		auto* mesh = scene->registry.try_get<CTriMesh>(e);
 		if (mesh != nullptr)
 		{
-			//for each node with face index !=-1 update the vertex position in the mesh
-			for (const auto node : softbody.nodes)
+			for (const auto [nodeIdx, meshIdx] : softbody.nodes2SurfIds)
 			{
-				if (node.faceIndex != -1)
-				{
-					mesh->GetVertex(node.faceIndex) = node.position;
-				}
+				mesh->GetVertex(meshIdx) = glm::make_vec3(softbody.nodePositions.segment<3>(nodeIdx).data());
 			}
+			
 
 			//now update the buffer in program vaos
 			auto vao = program->vaos[entity2VAOIndex[e]];
