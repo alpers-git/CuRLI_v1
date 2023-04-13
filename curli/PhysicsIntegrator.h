@@ -16,7 +16,7 @@ public:
 
 	void Update()
 	{
-		float deltaTime = (GLFWHandler::GetInstance().GetTime() - t)*10.0f;//Time between two frames scaled up 10 times
+		float deltaTime = (GLFWHandler::GetInstance().GetTime() - t)*ApplicationState::GetInstance().simulationSpeed;//Time between two frames scaled up 10 times
 
 		for (float step = 0; step < deltaTime; step += tStepSize)
 		{
@@ -25,6 +25,8 @@ public:
 			static_cast<T*>(this)->Integrate(tStepSize);
 		}
 
+		static int i = 0;
+		
 		scene->registry.view<CSoftBody>()
 			.each([&](const auto entity, CSoftBody sb)
 				{
@@ -32,10 +34,15 @@ public:
 					Event event;
 					event.type = Event::Type::SoftbodySim;
 					event.softbodySim.e = entity;
-					//GLFWHandler::GetInstance().QueueEvent(event);
+					if (i % 5 == 0 && sb.dirty)
+					{
+						GLFWHandler::GetInstance().QueueEvent(event);
+						sb.dirty = false;
+					}
 				});
 
 		t = GLFWHandler::GetInstance().GetTime();
+		i++;
 	}
 
 	/*
@@ -116,7 +123,11 @@ public:
 				//sb->ApplyLinearImpulse((-deltaPos.x * right + deltaPos.y * up) * 0.1f);
 				//random number between 0 and numOfNodes in the selected softbody
 				int randomNode = rand() % (sb->nodePositions.size()/3);
-				sb->nodeVelocities.segment<3>(randomNode) += Eigen::Map<Eigen::Vector3f>( &((-deltaPos.x * right + deltaPos.y * up) * 0.1f)[0]);
+				Eigen::Vector3f force = 
+					Eigen::Vector3f(-deltaPos.x * right.x + deltaPos.y * up.x,
+						-deltaPos.x * right.y + deltaPos.y * up.y,
+						-deltaPos.x * right.z + deltaPos.y * up.z);
+				sb->ApplyImpulse(force * 0.1f, randomNode);
 			}
 			if (m2Down && shiftDown)
 			{
@@ -164,7 +175,7 @@ protected:
 	}
 	
 	std::shared_ptr<Scene> scene;
-	const float tStepSize = 0.0001f;
+	const float tStepSize = 0.001f;
 	float t = 0.0f;
 	
 	bool m1Down = false;
@@ -272,6 +283,61 @@ public:
 		.each([dt, this](auto entity, CSoftBody& sb)
 		{
 			sb.TakeFwEulerStep(dt);
+			//test collision
+			entt::entity e = scene->registry.view<CPhysicsBounds>().front();
+			//check if null entity
+			if (e != entt::null)
+			{
+				auto* bounds = scene->registry.try_get<CPhysicsBounds>(e);
+				if (bounds)
+				{
+					for (int i = 0; i < sb.nodePositions.size() / 3; i++)
+					{
+						Eigen::Ref<Eigen::Vector3f> p = sb.nodePositions.segment<3>(i * 3);
+						Eigen::Vector3f colNormal;
+						bool collision = false;
+						if (bounds->GetMin()[0] > p(0))
+						{
+							colNormal = Eigen::Vector3f(1, 0, 0);
+							collision = true;
+						}
+						else if (bounds->GetMax()[0] < p(0))
+						{
+							colNormal = Eigen::Vector3f(-1, 0, 0);
+							collision = true;
+						}
+						if (bounds->GetMin()[1] > p(1))
+						{
+							colNormal = Eigen::Vector3f(0, 1, 0);
+							collision = true;
+						}
+						else if (bounds->GetMax()[1] < p(1))
+						{
+							colNormal = Eigen::Vector3f(0, -1, 0);
+							collision = true;
+						}
+						else
+						if (bounds->GetMin()[2] > p(2))
+						{
+							colNormal = Eigen::Vector3f(0, 0, 1);
+							collision = true;
+						}
+						else if (bounds->GetMax()[2] < p(2))
+						{
+							colNormal = Eigen::Vector3f(0, 0, -1);
+							collision = true;
+						}
+						
+						if (collision)
+						{
+							Eigen::Vector3f vIn = sb.nodeVelocities.segment<3>(i * 3);
+							Eigen::Vector3f impulse = vIn.dot(colNormal) * colNormal * -2.f;
+							sb.ApplyImpulse(impulse, i);
+							/*printf("Collision. Applied impulse %f %f %f\n", impulse(0), impulse(1), impulse(2));*/
+						}
+					}
+				}
+			}
 		});
 	}
 };

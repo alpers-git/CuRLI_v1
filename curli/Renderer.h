@@ -42,15 +42,18 @@ public:
 	//Renders the Scene and clears the Frame
 	void Render()
 	{
-		GLFWHandler::GetInstance().SwapBuffers();
+		if (frameCounter % ApplicationState::GetInstance().renderEveryNthFrame == 0)
+		{
+			GLFWHandler::GetInstance().SwapBuffers();
 		
-		//Scene changes
-		static_cast<T*>(this)->FirstPass();
+			//Scene changes
+			static_cast<T*>(this)->FirstPass();
 		
-		//glClear(clearFlags);
-		program->Clear();
-		//Rendering
-		static_cast<T*>(this)->MainPass();
+			//glClear(clearFlags);
+			program->Clear();
+			//Rendering
+			static_cast<T*>(this)->MainPass();
+		}
 		frameCounter++;
 	}
 	//Cleans up after render loop exits
@@ -416,13 +419,14 @@ protected:
 		{
 			for (const auto [nodeIdx, meshIdx] : softbody.nodes2SurfIds)
 			{
-				mesh->GetVertex(meshIdx) = glm::make_vec3(softbody.nodePositions.segment<3>(nodeIdx).data());
+				mesh->GetVertex(meshIdx) = glm::make_vec3(softbody.nodePositions.segment<3>(nodeIdx *3).data());
 			}
 			
 
 			//now update the buffer in program vaos
 			auto vao = program->vaos[entity2VAOIndex[e]];
-			vao.GetVBO(0).SetData(mesh->GetVertexDataPtr(), mesh->GetNumVertices(), GL_FLOAT);//0th buffer is always vPos buffer
+			vao.GetVBO(0).SetData(mesh->GetVertexDataPtr(), 
+				mesh->GetNumVertices(), GL_FLOAT);//0th buffer is always vPos buffer
 		}
 	}
 };

@@ -179,7 +179,7 @@ void CTriMesh::InitializeFrom(cy::TriMesh& mesh)
 	this->vertices.resize(minAttribCount);
 	std::fill(this->vertices.begin(), this->vertices.end(), glm::vec3(NAN));
 	this->vertexNormals.resize(minAttribCount);
-	std::fill(this->vertexNormals.begin(), this->vertexNormals.end(), glm::vec3(NAN));
+	std::fill(this->vertexNormals.begin(), this->vertexNormals.end(), glm::vec3(0.0f));
 	this->textureCoords.resize(minAttribCount);
 	if(hasTextureCoords) std::fill(this->textureCoords.begin(), this->textureCoords.end(), glm::vec2(NAN));
 	this->faces.resize(mesh.NF());
@@ -388,17 +388,28 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 	nodeFile >> numNodes >> numDims >> numAttrs >> hasBdry;
 	int nodeIdx = 0;
 	nodes.resize(numNodes * 3);
+	Eigen::AlignedBox3f bbox;
 	while (!nodeFile.eof() && nodeIdx < numNodes) {
 		int idx, bdry;
 		nodeFile >> idx;
 		firstNodeIdx = std::min(firstNodeIdx, idx);
 		for (int i = 0; i < 3; i++) {
 			nodeFile >> nodes[nodeIdx * 3 + i];
+			bbox.extend(Eigen::Vector3f(nodes[nodeIdx * 3 + i], nodes[nodeIdx * 3 + i], nodes[nodeIdx * 3 + i]));
 		}
 		if (hasBdry) {
 			nodeFile >> bdry;
 		}
 		nodeIdx += 1;
+	}
+
+	//go over all the nodes and normalize them to -5 5 range
+	float maxDim = std::max(bbox.sizes().x(), std::max(bbox.sizes().y(), bbox.sizes().z()));
+	float scale = 10.0f / maxDim;
+	for (int i = 0; i < numNodes; i++) {
+		for (int j = 0; j < 3; j++) {
+			nodes[i * 3 + j] = (nodes[i * 3 + j] - bbox.center()[j]) * scale;
+		}
 	}
 
 	// Read ele file and isolate surface mesh
@@ -469,10 +480,12 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 		const glm::vec3 e1 = this->vertices[f[1]] - this->vertices[f[0]];
 		const glm::vec3 e2 = this->vertices[f[2]] - this->vertices[f[0]];
 		glm::vec3 normal = glm::normalize(glm::cross(e2, e1));
-		const glm::vec3 inwardVec = glm::make_vec3(nodes.segment<3>(face2InVertIdx.at(face) * 3).data()) - this->vertices[f[0]];
+		const glm::vec3 inwardVec = glm::make_vec3(nodes.segment<3>(face2InVertIdx.at(face) * 3).data()) -
+			this->vertices[f[0]];
 		if (glm::dot(normal, inwardVec) >= 0) {
 			normal *= -1.0f;
 		}
+		assert(!glm::any(glm::isnan(normal)));
 
 		for (int i = 0; i < 3; i++) {
 			this->vertexNormals[f[i]] += normal;
@@ -561,7 +574,7 @@ void CRigidBody::initializeInertiaTensor(const CTriMesh* mesh, CTransform* trans
 	inertiaAtRest[2][2] = eigenValues(2).real();*/
 }
 
-void CSoftBody::CalculateStiffnessMatrix() {
+void CSoftBody::UpdateStiffnessMatrix() {
 
 	// Loop over all springs
 	for (const Spring& spring : springs) {
@@ -590,6 +603,29 @@ void CSoftBody::CalculateStiffnessMatrix() {
 	}
 }
 
+void CSoftBody::UpdateMassMatrix()
+{
+	massMatrix = Eigen::SparseMatrix<float>(nodePositions.size(), nodePositions.size());
+
+	for (int i = 0; i < nodePositions.size(); i++)
+		massMatrix.insert(i, i) = glm::max(massPerNode, 0.01f);
+}
+
+void CSoftBody::SetSpringKs(float k)
+{
+	k = glm::max(k, 0.001f);
+	//parallel for each using cpp set all springs.k values to k
+	std::for_each(springs.begin(), springs.end(), [k](Spring& spring) {
+		spring.k = k;
+		});
+}
+
+void CSoftBody::ApplyImpulse(Eigen::Vector3f imp, int nodeIdx)
+{
+	nodeExtForces.segment<3>(nodeIdx * 3) += imp / massPerNode;
+	//nodeVelocities.segment<3>(nodeIdx * 3) += imp / massPerNode;
+}
+
 
 void CSoftBody::TakeFwEulerStep(float dt)
 {
@@ -601,18 +637,26 @@ void CSoftBody::TakeFwEulerStep(float dt)
 		const Eigen::Vector3f& node0 = nodePositions.segment<3>(spring.nodes[0] * 3);
 		const Eigen::Vector3f& node1 = nodePositions.segment<3>(spring.nodes[1] * 3);
 		auto force = spring.CalculateForce(node0, node1);
-		intrForces.segment<3>(spring.nodes[0] * 3) = force;
-		intrForces.segment<3>(spring.nodes[1] * 3) = -force;
+		force += -spring.damping * (nodeVelocities.segment<3>(spring.nodes[0] * 3) -
+			nodeVelocities.segment<3>(spring.nodes[1] * 3));
+		intrForces.segment<3>(spring.nodes[0] * 3) += force;
+		intrForces.segment<3>(spring.nodes[1] * 3) -= force;
 	}
 
-	// Apply the external forces
-	//for (SpringNode& node : nodes)
-	//{
-	//	// Gravity force
-	//	Eigen::Vector3f gravityForce = Eigen::Vector3f(0.0f, -9.81f * node.mass, 0.0f);
-	//	forceVector.segment<3>(&node.position.x - &nodes[0].position.x) += gravityForce;
-	//}
-	CalculateStiffnessMatrix();
+	// Add gravitational force
+	const Eigen::Vector3f gravity(0, 0, -gravity * 200.f);
+	for (int i = 0; i < nodePositions.size(); i += 3)
+	{
+		intrForces.segment<3>(i) += glm::max(massPerNode, 0.01f) * gravity;
+	}
+
+	// Add external forces
+	intrForces += (nodeExtForces - nodeVelocities * drag);
+	
+	nodeExtForces -= dt * massPerNode * nodeVelocities;
+	
+	
+	UpdateStiffnessMatrix();
 	// Solve for v_{t+1} where (M - dt*dt *K) * vv_{t+1} = M * v_{t} + dt * f_{t}
 	Eigen::SparseMatrix<float> MminusdtK = massMatrix - dt * dt * stiffnessMatrix;
 	Eigen::BiCGSTAB<Eigen::SparseMatrix<float>> solver;
@@ -629,8 +673,12 @@ void CSoftBody::TakeFwEulerStep(float dt)
 		std::cerr << "Failed to solve linear system." << std::endl;
 		return;
 	}
+	//check if nodeVelocities are all zero
+	if (nodeVelocities.all() == 0)
+	{
+		dirty = true;
+	}
 	nodePositions += nodeVelocities * dt;
-	
 }
 
 void CRigidBody::TakeFwEulerStep(float dt)

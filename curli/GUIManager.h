@@ -122,10 +122,16 @@ namespace gui
 			const ImGuiViewport* stats_viewport = ImGui::GetMainViewport();
 			ImGui::SetNextWindowSize(ImVec2(stats_viewport->WorkSize.x / 8, 0));
 			
-			ImGui::SetNextWindowPos(ImVec2(5, stats_viewport->WorkSize.y - ImGui::GetCursorPos().y -20));
+			ImGui::SetNextWindowPos(ImVec2(5, stats_viewport->WorkSize.y - ImGui::GetCursorPos().y - ImGui::GetTextLineHeight() * 8));
 			ImGui::Begin("Stats", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
-			ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
-			ImGui::Text("Frame Time: %.3f ms", 1000.0f / ImGui::GetIO().Framerate);
+			float nthFrame = ApplicationState::GetInstance().renderEveryNthFrame;
+
+			ImGui::InputInt("Render nth Frame", &ApplicationState::GetInstance().renderEveryNthFrame);
+
+			ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate / nthFrame);
+			ImGui::Text("Frame Time: %.3f ms", 1000.0f / ImGui::GetIO().Framerate * nthFrame);
+			ImGui::Separator();
+			ImGui::SliderFloat("Simmulation Speed", &ApplicationState::GetInstance().simulationSpeed, 0.f, 100.f);
 			ImGui::End();
 			
 		}
@@ -305,7 +311,7 @@ namespace gui
 						"PhongMaterial", "Image Map", "Light", 
 						"Skybox", "Physics Bounds",
 						"VelocityField2D", "ForceField2D",
-						"RigidBody", "Box Collider"};
+						"RigidBody", "Box Collider", "SoftBody"};
 				if (ImGui::BeginListBox("Add Component", 
 					ImVec2(0, 5 * ImGui::GetTextLineHeightWithSpacing())))
 				{
@@ -367,6 +373,9 @@ namespace gui
 									scene->registry.emplace_or_replace<CBoxCollider>(selectedSceneObject, glm::vec3(0.0f), glm::vec3(0.0f));
 							}
 								break;
+							case CType::SoftBody:
+								scene->registry.emplace_or_replace<CSoftBody>(selectedSceneObject);//empty
+								break;
 							case CType::Count:
 								break;
 							default:
@@ -414,6 +423,9 @@ namespace gui
 								break;
 							case CType::BoxCollider:
 								scene->registry.erase<CBoxCollider>(selectedSceneObject);
+								break;
+							case CType::SoftBody:
+								scene->registry.erase<CSoftBody>(selectedSceneObject);
 								break;
 							case CType::Count:
 								break;
@@ -497,6 +509,8 @@ namespace gui
 				{
 							if (e== selectedSceneObject && ImGui::BeginTabItem("Transform"))
 							{
+								if (scene->registry.any_of<CSoftBody, CRigidBody>(e))
+									ImGui::BeginDisabled();
 								glm::vec3 p = t.GetPosition();
 								if (ImGui::DragFloat3("Position", &p[0]))
 									t.SetPosition(p);
@@ -515,6 +529,9 @@ namespace gui
 								else 
 									ImGui::Text("Parent: None");
 								ImGui::SameLine();
+
+								if (scene->registry.any_of<CSoftBody, CRigidBody>(e))
+									ImGui::EndDisabled();
 								
 								if (ImGui::Button("Set Parent"))
 								{
@@ -899,6 +916,41 @@ namespace gui
 								if (ImGui::DragFloat3("Min", &min[0], 0.01f)) c.SetMin(min);
 								if (ImGui::DragFloat3("Max", &max[0], 0.01f)) c.SetMax(max);
 								ImGui::DragFloat("Elasticity", &c.elasticity, 0.0001f, 0.0f);
+								ImGui::EndTabItem();
+							}
+						});
+				//draw CSoftBody tab
+				scene->registry.view<CSoftBody>()
+					.each([&](auto e, auto& s)
+						{
+							if (e == selectedSceneObject && ImGui::BeginTabItem("Soft Body"))
+							{
+								ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+								ImGui::PushItemWidth(viewportPanelSize.x / 4);
+								if (ImGui::DragFloat("Node Mass", &s.massPerNode, 0.01, 0.001))
+								{
+									s.massPerNode = max(s.massPerNode, 0.01f);
+									s.UpdateMassMatrix();
+								}
+								ImGui::SameLine();
+								ImGui::DragFloat("Gravity", &s.gravity, 0.001f);
+								static float stiffnessPerSpring = 10.f;
+								if (ImGui::DragFloat("Stiffness", &stiffnessPerSpring, 0.01, 0.001))
+								{
+									s.SetSpringKs(stiffnessPerSpring);
+								}
+								ImGui::SameLine();
+								ImGui::DragFloat("Drag", &s.drag, 0.01, 0.001);
+								ImGui::PopItemWidth();
+
+
+								ImGui::Separator();
+								ImGui::Text("# Nodes:");
+								ImGui::SameLine();
+								ImGui::TextColored(ImColor(0.6f, 0.7f, 0.8f), "%d", s.nodePositions.size()/3);
+								ImGui::Text("# Springs:");
+								ImGui::SameLine();
+								ImGui::TextColored(ImColor(0.6f, 0.7f, 0.8f), "%d", s.springs.size());
 								ImGui::EndTabItem();
 							}
 						});

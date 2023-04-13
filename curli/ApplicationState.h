@@ -15,6 +15,8 @@ public:
 	entt::entity selectedObject;
 	bool physicsInteraction = false;
 	bool renderingWireframe = false;
+	int renderEveryNthFrame = 2;
+	float simulationSpeed = 10.0f;
 
 	ApplicationState(const ApplicationState&) = delete;
 	void operator=(GLFWHandler const&) = delete;

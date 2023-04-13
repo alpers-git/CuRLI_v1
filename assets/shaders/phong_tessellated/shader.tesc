@@ -18,8 +18,18 @@ layout(location = 11) out vec3 w_space_pos_tese[];
 layout(location = 12) out vec3 w_space_norm_tese[];
 
 uniform int tessellation_level;
+uniform int shading_mode;//0 = phong-color, 1 = editor mode
 void main()
 {
+    if(shading_mode == 1)
+    {
+        gl_TessLevelOuter[0] = 1;
+        gl_TessLevelOuter[1] = 1;
+        gl_TessLevelOuter[2] = 1;
+
+        gl_TessLevelInner[0] = 1;
+        gl_TessLevelInner[1] = 1;
+    }
     // Set the level of tessellation to 4
     gl_TessLevelOuter[0] = tessellation_level;
     gl_TessLevelOuter[1] = tessellation_level;

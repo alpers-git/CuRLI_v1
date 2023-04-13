@@ -306,8 +306,8 @@ struct Spring
 		this->restLength = glm::length(node0Pos - node1Pos);
 	}
 	float restLength;
-	float k = 1.0f;//stiffness
-	float damping = 0.01f;
+	float k = 10.0f;//stiffness
+	float damping = 0.1f;
 	glm::ivec2 nodes;
 
 	Eigen::Vector3f CalculateForce(const Eigen::Vector3f& node0, const Eigen::Vector3f& node1) const
@@ -1115,11 +1115,9 @@ struct CSoftBody : Component
 		this->nodeExtForces = Eigen::VectorXf::Zero(nodes.size());
 		this->nodes2SurfIds = nodes2SurfIds;
 		
+		massPerNode = 1.f / (float)nodePositions.size();
 		//initialize the mass matrix since its constant
-		massMatrix = Eigen::SparseMatrix<float>(nodePositions.size(), nodePositions.size());
-		
-		for (int i = 0; i < nodePositions.size(); i++)
-			massMatrix.insert(i, i) = 1.f;
+		UpdateMassMatrix();
 		
 		stiffnessMatrix = Eigen::SparseMatrix<float>(nodePositions.size(), nodePositions.size());
 	}
@@ -1127,8 +1125,12 @@ struct CSoftBody : Component
 	void Update();
 	void TakeFwEulerStep(float dt);
 	
-	void CalculateStiffnessMatrix();
-	
+	void UpdateStiffnessMatrix();
+	void UpdateMassMatrix();
+	void SetSpringKs(float k);
+
+	void ApplyImpulse(Eigen::Vector3f imp, int nodeIdx);
+
 	std::unordered_map<int, int> nodes2SurfIds;
 	Eigen::VectorXf nodePositions;
 	Eigen::VectorXf nodeVelocities;
@@ -1138,7 +1140,11 @@ struct CSoftBody : Component
 	
 	Eigen::SparseMatrix<float> stiffnessMatrix;
 	Eigen::SparseMatrix<float> massMatrix;
-	
+	float massPerNode = 0.1f;
+	float gravity = 0.f;
+	float drag = 0.0f;
+
+	bool dirty = false;
 };
 
 struct CRigidBody : Component
