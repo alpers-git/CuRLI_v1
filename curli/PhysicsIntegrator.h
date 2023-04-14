@@ -3,6 +3,7 @@
 #include <GLFWHandler.h>
 #include <glm/gtx/component_wise.hpp>
 #include <ApplicationState.h>
+#include <future>
 
 template <typename T>
 class PhysicsIntegrator
@@ -16,14 +17,12 @@ public:
 
 	void Update()
 	{
-		float deltaTime = (GLFWHandler::GetInstance().GetTime() - t)*ApplicationState::GetInstance().simulationSpeed;//Time between two frames scaled up 10 times
-		float tStepSize = deltaTime / (float)stepCount;
-		for (float step = 0; step < deltaTime; step += tStepSize)
-		{
-			//Synchronize the physics objects before integration
-			static_cast<T*>(this)->Synchronize();
-			static_cast<T*>(this)->Integrate(tStepSize);
-		}
+			float deltaTime = (GLFWHandler::GetInstance().GetTime() - t) * ApplicationState::GetInstance().simulationSpeed;
+			float tStepSize = deltaTime / static_cast<float>(stepCount);
+			for (float step = 0; step < deltaTime; step += tStepSize) {
+				static_cast<T*>(this)->Synchronize();
+				static_cast<T*>(this)->Integrate(tStepSize);
+			}
 
 		static int i = 0;
 		
@@ -175,7 +174,7 @@ protected:
 	}
 	
 	std::shared_ptr<Scene> scene;
-	int stepCount = 1;
+	int stepCount = 2;
 	float t = 0.0f;
 	
 	bool m1Down = false;

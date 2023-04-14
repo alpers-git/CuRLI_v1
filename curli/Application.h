@@ -34,23 +34,30 @@ public:
 		guiManager->Initialize(windowManager.GetWindowPointer());
 
 		//Create a rendering loop with glfw
-		while (windowManager.IsRunning())
-		{
-			//Update Physics
-			physicsIntegrator->Update();
+		while (windowManager.IsRunning()) {
+			// Update Physics
+			std::future<void> physicsResult = std::async(std::launch::async, [this]() {
+				physicsIntegrator->Update();
+				});
 
-			//Update the scene
-			scene->Update();
-			
-			//Render the scene
-			renderer->Render();
+			// Update the Scene
+			std::future<void> sceneResult = std::async(std::launch::async, [this]() {
+				scene->Update();
+				});
 
-			//Draw the GUI
+			// Draw the GUI
 			guiManager->DrawGUI();
-			//renderer->DrawGUI();
 
-			//Event handling
+
+			// Handle Events
 			windowManager.DispatchEvents(*renderer, *physicsIntegrator);
+
+			// Wait for the results of each function call to complete
+			physicsResult.get();
+			sceneResult.get();
+
+			// Render the Scene
+			renderer->Render();
 		}
 
 		guiManager->Terminate();
