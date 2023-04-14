@@ -354,21 +354,32 @@ unsigned int zOrder3D(unsigned int x, unsigned int y, unsigned int z) {
 }
 
 struct TripleHash {
-	size_t operator()(const glm::ivec3& t) const {
+	size_t hash(const glm::ivec3& t) const {
 		std::array<size_t, 3> a = { (size_t)t.x, (size_t)t.y, (size_t)t.z };
 		std::sort(a.begin(), a.end());
 		return cantor(cantor(a[0], a[1]), a[2]);
+	}
+	size_t operator()(const glm::ivec3& t) const {
+		return hash(t);
+	}
+	bool operator()(const glm::ivec3& a, const glm::ivec3& b) const {
+		return hash(a) == hash(b);
 	}
 };
 
 
 // Hash function for unordered_map that uses the Z-order curve value
 struct PairHash {
+	size_t hash(const glm::ivec2& t) const {
+		std::array<size_t, 2> a = { (size_t)t.x, (size_t)t.y };
+		std::sort(a.begin(), a.end());
+		return cantor(a[0], a[1]);
+	}
 	size_t operator()(const glm::ivec2& p) const {
-		unsigned int x = p.x;
-		unsigned int y = p.y;
-		if (x > y) std::swap(x, y);  // ensure x is smaller than y
-		return cantor(x, y);
+		return hash(p);
+	}
+	bool operator()(const glm::ivec2& a, const glm::ivec2& b) const {
+		return hash(a) == hash(b);
 	}
 };
 
@@ -413,10 +424,9 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 	}
 
 	// Read ele file and isolate surface mesh
-	std::unordered_map<glm::ivec3, int, TripleHash> cnt;
-	std::unordered_set<glm::ivec3, TripleHash> surfFaceIdx;
-	std::unordered_map<glm::ivec3, int, TripleHash> face2InVertIdx;
-	std::unordered_set<glm::ivec2, PairHash> edgeIdxs;
+	std::unordered_map<glm::ivec3, int, TripleHash, TripleHash> surfFaceIdx;
+	std::unordered_map<glm::ivec3, int, TripleHash, TripleHash> face2InVertIdx;
+	std::unordered_set<glm::ivec2, PairHash, PairHash> edgeIdxs;
 	std::ifstream eleFile(elePath, std::ios::in);
 	int numTets, numVertsPerTet, hasAttrs;
 	eleFile >> numTets >> numVertsPerTet >> hasAttrs;
@@ -431,40 +441,39 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 		// Add edges to surface face set
 		for (glm::ivec4 tetFace : std::array<glm::ivec4, 4>{ { {0, 1, 3, 2}, { 1,2,3,0 }, { 0,3,2,1 }, { 0,1,2,3 }}}) {
 			glm::ivec3 face(tet[tetFace.x], tet[tetFace.y], tet[tetFace.z]);
-			if (cnt.count(face)) {
-				cnt[face] += 1;
+			if (!surfFaceIdx.count(face)) {
+				surfFaceIdx.emplace(face, 0);
 			}
-			else {
-				cnt[face] = 1;
-			}
-			if (surfFaceIdx.count(face)) {
-				assert(face2InVertIdx.count(face));
-				surfFaceIdx.erase(face);
-				face2InVertIdx.erase(face);
-			}
-			else {
-				assert(!face2InVertIdx.count(face));
-				surfFaceIdx.insert(face);
-				face2InVertIdx.emplace(face, tet[tetFace.w]);
-			}
+			surfFaceIdx[face] += 1;
+			face2InVertIdx.emplace(face, tet[tetFace.w]);
 		}
+		//printf("[%d/%d tet] (%d surface faces) <%d,%d,%d,%d>\n", idx, numTets, surfFaceIdx.size(), tet.x, tet.y, tet.z, tet.w);
 
 		// Add edges to set
+		/*const std::array<std::pair<size_t, size_t>, 6> = {
+			std::make_pair<size_t, size_t>()
+		};*/
 		for (glm::ivec2 tetEdge : std::array<glm::ivec2, 6> { { {0, 1}, { 1,2 }, { 0,2 }, { 0,3 }, { 1,3 }, { 2,3 }}}) {
-			edgeIdxs.insert({ tet[tetEdge.x], tet[tetEdge.y] });
+			edgeIdxs.emplace(tet[tetEdge.x], tet[tetEdge.y]);
 		}
 	}
 
 	// Indices of vertices on the surface of the mesh
-	std::unordered_set<int> surfVertIdxs;
-	for (glm::ivec3 face : surfFaceIdx) {
+	std::unordered_set<int> exteriorVertexIndices;
+	int m = 0;
+	for (const auto [face, count] : surfFaceIdx) {
+		if (count == 2) {
+			m += 1;
+		}
+		if (count != 1) continue;
 		for (int i = 0; i < 3; i++) {
-			surfVertIdxs.insert(face[i]);
+			exteriorVertexIndices.insert(face[i]);
 		}
 	}
+	printf("# interior faces = %d, exterior faces = %d\n", m, surfFaceIdx.size() - m);
 
 	// Map volume node index to surface vertex index
-	for (int idx : surfVertIdxs) {
+	for (int idx : exteriorVertexIndices) {
 		volIdx2SurfIdx.emplace(idx, this->vertices.size());
 		this->vertices.push_back(glm::make_vec3(nodes.segment<3>(idx * 3).data()));
 		this->textureCoords.push_back({ 0.0f, 0.0f });
@@ -472,7 +481,8 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 
 	// Create surface triangles
 	this->vertexNormals.resize(this->vertices.size(), glm::vec3(0.0f));
-	for (glm::ivec3 face : surfFaceIdx) {
+	for (const auto [face, count] : surfFaceIdx) {
+		if (count != 1) continue;
 		const glm::ivec3 f(volIdx2SurfIdx[face[0]], volIdx2SurfIdx[face[1]], volIdx2SurfIdx[face[2]]);
 		this->faces.push_back(f);
 
@@ -498,13 +508,13 @@ void CTriMesh::InitializeFrom(const std::string& nodePath, const std::string ele
 		n = glm::normalize(n);
 
 	// Create springs
-	for (const glm::ivec2& edge : edgeIdxs) {
-		Eigen::Vector3f a = nodes.segment<3>(edge[0] * 3);
-		Eigen::Vector3f b = nodes.segment<3>(edge[1] * 3);
+	for (const glm::ivec2 &edge : edgeIdxs) {
+		Eigen::Vector3f a = nodes.segment<3>(edge.x * 3);
+		Eigen::Vector3f b = nodes.segment<3>(edge.y * 3);
 		springs.emplace_back(edge, (a - b).norm());
 	}
-	printf("==========Done==========\n\t#verts: %d\n\t#normals: %d\n\t#faces: %d\n\t#springs:%d #nodes:%d\n",
-		this->GetNumVertices(), this->GetNumNormals(), this->GetNumFaces(),
+	printf("==========Done==========\n\ttets: %d\n\t#verts: %d\n\t#normals: %d\n\t#faces: %d\n\t#springs:%d #nodes:%d\n",
+		numTets, this->GetNumVertices(), this->GetNumNormals(), this->GetNumFaces(),
 		springs.size(), nodes.size() / 3);
 }
 
@@ -606,9 +616,11 @@ void CSoftBody::UpdateStiffnessMatrix() {
 void CSoftBody::UpdateMassMatrix()
 {
 	massMatrix = Eigen::SparseMatrix<float>(nodePositions.size(), nodePositions.size());
+	massMatrix.reserve(Eigen::VectorXi::Constant(nodePositions.size(), 6 * 9));
 
 	for (int i = 0; i < nodePositions.size(); i++)
 		massMatrix.insert(i, i) = glm::max(massPerNode, 0.01f);
+	massMatrix.makeCompressed();
 }
 
 void CSoftBody::SetSpringKs(float k)
@@ -626,59 +638,80 @@ void CSoftBody::ApplyImpulse(Eigen::Vector3f imp, int nodeIdx)
 	//nodeVelocities.segment<3>(nodeIdx * 3) += imp / massPerNode;
 }
 
-
-void CSoftBody::TakeFwEulerStep(float dt)
+void CSoftBody::UpdateNodeForces(const Eigen::VectorXf& nodePos)
 {
-	// Calculate the force vector
-	Eigen::VectorXf intrForces(nodePositions.size());
-	intrForces.setZero();
+	// Calculate internal forces
+	nodeTotalForces.setZero(nodePos.size());
 	for (Spring& spring : springs)
 	{
-		const Eigen::Vector3f& node0 = nodePositions.segment<3>(spring.nodes[0] * 3);
-		const Eigen::Vector3f& node1 = nodePositions.segment<3>(spring.nodes[1] * 3);
+		const Eigen::Vector3f& node0 = nodePos.segment<3>(spring.nodes[0] * 3);
+		const Eigen::Vector3f& node1 = nodePos.segment<3>(spring.nodes[1] * 3);
 		auto force = spring.CalculateForce(node0, node1);
-		force += -spring.damping * (nodeVelocities.segment<3>(spring.nodes[0] * 3) -
-			nodeVelocities.segment<3>(spring.nodes[1] * 3));
-		intrForces.segment<3>(spring.nodes[0] * 3) += force;
-		intrForces.segment<3>(spring.nodes[1] * 3) -= force;
+		/*force += -spring.damping * (nodeVelocities.segment<3>(spring.nodes[0] * 3) -
+			nodeVelocities.segment<3>(spring.nodes[1] * 3));*/
+		nodeTotalForces.segment<3>(spring.nodes[0] * 3) += force;
+		nodeTotalForces.segment<3>(spring.nodes[1] * 3) -= force;
 	}
 
 	// Add gravitational force
-	const Eigen::Vector3f gravity(0, 0, -gravity * 200.f);
-	for (int i = 0; i < nodePositions.size(); i += 3)
+	const Eigen::Vector3f gravity(0, 0, -gravity * 1.f);
+	for (int i = 0; i < nodePos.size(); i += 3)
 	{
-		intrForces.segment<3>(i) += glm::max(massPerNode, 0.01f) * gravity;
+		nodeTotalForces.segment<3>(i) += glm::max(massPerNode, 0.01f) * gravity * 200.f;
 	}
 
 	// Add external forces
-	intrForces += (nodeExtForces - nodeVelocities * drag);
-	
-	nodeExtForces -= dt * massPerNode * nodeVelocities;
-	
+	nodeTotalForces = nodeTotalForces + nodeExtForces;
+
+}
+
+
+void CSoftBody::TakeFwEulerStep(float dt)
+{
+	UpdateNodeForces(nodePositions);
 	
 	UpdateStiffnessMatrix();
 	// Solve for v_{t+1} where (M - dt*dt *K) * vv_{t+1} = M * v_{t} + dt * f_{t}
-	Eigen::SparseMatrix<float> MminusdtK = massMatrix - dt * dt * stiffnessMatrix;
+	float engDiffSq;
+	const Eigen::VectorXf prevMomentum = massMatrix * nodeVelocities;
+	Eigen::SparseMatrix<float> MminusdtsK = massMatrix - dt * dt * stiffnessMatrix;
 	Eigen::BiCGSTAB<Eigen::SparseMatrix<float>> solver;
-	solver.compute(MminusdtK);
+	solver.compute(MminusdtsK);
+	
 	if (solver.info() != Eigen::Success)
 	{
 		std::cerr << "Failed to decompose matrix." << std::endl;
 		return;
 	}
-
-	nodeVelocities = solver.solve(massMatrix * nodeVelocities + dt * intrForces);
-	if (solver.info() != Eigen::Success)
+	
+	if (nodeTotalForces.norm() < 0.0001f)
 	{
-		std::cerr << "Failed to solve linear system." << std::endl;
+		//printf("Forces are too small\n");
 		return;
 	}
+	int counter = 100;
+	do
+	{
+		nodeVelocities = solver.solve(massMatrix * nodeVelocities + dt * nodeTotalForces);
+		if (solver.info() != Eigen::Success)
+		{
+			std::cerr << "Failed to solve linear system." << std::endl;
+			return;
+		}
+		
+		UpdateNodeForces(nodePositions + nodeVelocities * dt);
+		engDiffSq = (massMatrix * nodeVelocities - prevMomentum - dt * nodeTotalForces).squaredNorm();
+		//prevMomentum = massMatrix * nodeVelocities;
+		
+	} while (engDiffSq > 0.01f && counter-- > 0);
 	//check if nodeVelocities are all zero
-	if (nodeVelocities.all() == 0)
+	if (nodeVelocities.any() > 0.001f)
 	{
 		dirty = true;
 	}
+	
 	nodePositions += nodeVelocities * dt;
+	nodeExtForces.setZero();
 }
 
 void CRigidBody::TakeFwEulerStep(float dt)

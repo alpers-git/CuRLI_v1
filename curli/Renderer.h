@@ -191,7 +191,8 @@ protected:
 				GL_FLOAT,
 				"pos",
 				3,
-				program->GetID());
+				program->GetID(),
+				scene->registry.any_of<CSoftBody>(e) ? GL_DYNAMIC_DRAW : GL_STATIC_DRAW);
 			program->vaos.back().AddVBO(vertexVBO);
 
 			if (mesh->GetNumNormals() > 0)
@@ -202,7 +203,8 @@ protected:
 					GL_FLOAT,
 					"norm",
 					3,
-					program->GetID());
+					program->GetID(),
+					scene->registry.any_of<CSoftBody>(e) ? GL_DYNAMIC_DRAW : GL_STATIC_DRAW);
 				program->vaos.back().AddVBO(normalsVBO);
 			}
 			if (mesh->GetNumTextureVertices() > 0 && mesh->GetTextureDataPtr() != nullptr)
@@ -417,16 +419,23 @@ protected:
 		auto* mesh = scene->registry.try_get<CTriMesh>(e);
 		if (mesh != nullptr)
 		{
+			int i = 0;
 			for (const auto [nodeIdx, meshIdx] : softbody.nodes2SurfIds)
 			{
-				mesh->GetVertex(meshIdx) = glm::make_vec3(softbody.nodePositions.segment<3>(nodeIdx *3).data());
+				if(i++%(frameCounter% 2 + 1) == 0)
+					mesh->GetVertex(meshIdx) = glm::make_vec3(softbody.nodePositions.segment<3>(nodeIdx *3).data());
 			}
-			
+			//mesh->ComputeNormals();
 
-			//now update the buffer in program vaos
-			auto vao = program->vaos[entity2VAOIndex[e]];
-			vao.GetVBO(0).SetData(mesh->GetVertexDataPtr(), 
-				mesh->GetNumVertices(), GL_FLOAT);//0th buffer is always vPos buffer
+			if (i++ % (frameCounter % 2 + 1) == 0)
+			{
+				//now update the buffer in program vaos
+				auto vao = program->vaos[entity2VAOIndex[e]];
+				vao.GetVBO(0).SetData(mesh->GetVertexDataPtr(), 
+					mesh->GetNumVertices(), GL_FLOAT, GL_DYNAMIC_DRAW);//0th buffer is always vPos buffer
+				//vao.GetVBO(1).SetData(mesh->GetNormalDataPtr(),
+				//	mesh->GetNumNormals(), GL_FLOAT);//1st buffer is always vNormal buffer
+			}
 		}
 	}
 };
@@ -1245,11 +1254,11 @@ public:
 			//throw std::runtime_error("Failed to create wireframe program");
 		
 		//load shaders to the main program 
-		if (!program->CreatePipelineFromFiles("../assets/shaders/phong_tessellated/shader.vert",
-			"../assets/shaders/phong_tessellated/shader.frag", 
+		if (!program->CreatePipelineFromFiles("../assets/shaders/phong_textured/shader.vert",
+			"../assets/shaders/phong_textured/shader.frag"/*, 
 			nullptr,
 			"../assets/shaders/phong_tessellated/shader.tesc",
-			"../assets/shaders/phong_tessellated/shader.tese", 3
+			"../assets/shaders/phong_tessellated/shader.tese", 3*/
 			));
 			//throw std::runtime_error("Failed to create main program");
 		
@@ -1606,8 +1615,8 @@ public:
 			program->SetUniform("normals_to_view_space",
 				glm::transpose(glm::inverse(glm::mat3(mv))));
 			program->SetUniform("camera_pos", scene->camera.GetLookAtEye());
-			program->SetUniform("displacement_multiplier", 0.0f);
-			program->SetUniform("tessellation_level", 1);
+			//program->SetUniform("displacement_multiplier", 0.0f);
+			//program->SetUniform("tessellation_level", 1);
 
 			CImageMaps* imgMaps = scene->registry.try_get<CImageMaps>(entity);
 			if (imgMaps && !imgMaps->scheduledTextureUpdate)
@@ -1644,10 +1653,10 @@ public:
 							program->SetUniform(uniformName2.c_str(), ((int)it->first));
 							if (it->first == ImageMap::BindingSlot::DISPLACEMENT)
 							{
-								program->SetUniform("tessellation_level", mesh.tessellationLevel);
+							/*	program->SetUniform("tessellation_level", mesh.tessellationLevel);
 								program->SetUniform("displacement_multiplier",
 									imgMaps->GetImageMap(ImageMap::BindingSlot::DISPLACEMENT).dispMultiplier);
-								program->SetUniform("displacement_map", 4);
+								program->SetUniform("displacement_map", 4);*/
 								//program->textures[texIndex].Bind();
 							}
 						}
@@ -1656,7 +1665,7 @@ public:
 			}
 			program->SetUniform("shading_mode", ((int)mesh.GetShadingMode()));
 			if (entity2VAOIndex.find(entity) != entity2VAOIndex.end())
-				program->vaos[entity2VAOIndex[entity]].Draw(GL_PATCHES);
+				program->vaos[entity2VAOIndex[entity]].Draw(/*GL_PATCHES*/);
 			//Reset uniforms
 			for (int i = 0; i < 5; i++)
 			{
@@ -1674,8 +1683,8 @@ public:
 			}
 				
 		});
-		program->SetUniform("displacement_multiplier", 0.0f);
-		program->SetUniform("tessellation_level", 1);
+		/*program->SetUniform("displacement_multiplier", 0.0f);
+		program->SetUniform("tessellation_level", 1);*/
 		
 		//Render skybox
 		GL_CALL(glDepthMask(GL_FALSE));//TODO
@@ -1692,7 +1701,7 @@ public:
 						program->SetUniform("shading_mode", 2);//skybox shading mode
 						program->cubeMaps[cubemapIndex].Bind();
 						program->SetUniform("env_map", 30);
-						program->vaos[entity2VAOIndex[entity]].Draw(GL_PATCHES);
+						program->vaos[entity2VAOIndex[entity]].Draw(/*GL_PATCHES*/);
 
 						program->cubeMaps[cubemapIndex].Unbind();
 					}

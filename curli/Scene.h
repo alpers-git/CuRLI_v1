@@ -1113,13 +1113,16 @@ struct CSoftBody : Component
 		this->nodePositions = nodes;
 		this->nodeVelocities = Eigen::VectorXf::Zero(nodes.size());
 		this->nodeExtForces = Eigen::VectorXf::Zero(nodes.size());
+		this->nodeTotalForces = Eigen::VectorXf::Zero(nodes.size());
 		this->nodes2SurfIds = nodes2SurfIds;
 		
-		massPerNode = 1.f / (float)nodePositions.size();
-		//initialize the mass matrix since its constant
+		massPerNode = glm::max(1.f / (float)nodePositions.size(), 0.01f);
 		UpdateMassMatrix();
-		
+
 		stiffnessMatrix = Eigen::SparseMatrix<float>(nodePositions.size(), nodePositions.size());
+		stiffnessMatrix.reserve(Eigen::VectorXi::Constant(nodePositions.size(), 6 * 9));
+		UpdateStiffnessMatrix();
+		stiffnessMatrix.makeCompressed();
 	}
 
 	void Update();
@@ -1145,6 +1148,9 @@ struct CSoftBody : Component
 	float drag = 0.0f;
 
 	bool dirty = false;
+private:
+	Eigen::VectorXf nodeTotalForces;
+	void UpdateNodeForces(const Eigen::VectorXf& nodePos);
 };
 
 struct CRigidBody : Component

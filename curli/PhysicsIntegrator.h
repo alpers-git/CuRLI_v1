@@ -17,7 +17,7 @@ public:
 	void Update()
 	{
 		float deltaTime = (GLFWHandler::GetInstance().GetTime() - t)*ApplicationState::GetInstance().simulationSpeed;//Time between two frames scaled up 10 times
-
+		float tStepSize = deltaTime / (float)stepCount;
 		for (float step = 0; step < deltaTime; step += tStepSize)
 		{
 			//Synchronize the physics objects before integration
@@ -34,7 +34,7 @@ public:
 					Event event;
 					event.type = Event::Type::SoftbodySim;
 					event.softbodySim.e = entity;
-					if (i % 5 == 0 && sb.dirty)
+					if (sb.dirty)
 					{
 						GLFWHandler::GetInstance().QueueEvent(event);
 						sb.dirty = false;
@@ -127,7 +127,7 @@ public:
 					Eigen::Vector3f(-deltaPos.x * right.x + deltaPos.y * up.x,
 						-deltaPos.x * right.y + deltaPos.y * up.y,
 						-deltaPos.x * right.z + deltaPos.y * up.z);
-				sb->ApplyImpulse(force * 0.1f, randomNode);
+				sb->ApplyImpulse(force * 10.f, randomNode);
 			}
 			if (m2Down && shiftDown)
 			{
@@ -175,7 +175,7 @@ protected:
 	}
 	
 	std::shared_ptr<Scene> scene;
-	const float tStepSize = 0.001f;
+	int stepCount = 1;
 	float t = 0.0f;
 	
 	bool m1Down = false;
@@ -294,45 +294,33 @@ public:
 					for (int i = 0; i < sb.nodePositions.size() / 3; i++)
 					{
 						Eigen::Ref<Eigen::Vector3f> p = sb.nodePositions.segment<3>(i * 3);
-						Eigen::Vector3f colNormal;
+						Eigen::Vector3f colNormal = Eigen::Vector3f(0, 0, 0);
+						float perturb;
 						bool collision = false;
-						if (bounds->GetMin()[0] > p(0))
+#pragma unroll
+						for (int j = 0; j < 3; j++)
 						{
-							colNormal = Eigen::Vector3f(1, 0, 0);
-							collision = true;
-						}
-						else if (bounds->GetMax()[0] < p(0))
-						{
-							colNormal = Eigen::Vector3f(-1, 0, 0);
-							collision = true;
-						}
-						if (bounds->GetMin()[1] > p(1))
-						{
-							colNormal = Eigen::Vector3f(0, 1, 0);
-							collision = true;
-						}
-						else if (bounds->GetMax()[1] < p(1))
-						{
-							colNormal = Eigen::Vector3f(0, -1, 0);
-							collision = true;
-						}
-						else
-						if (bounds->GetMin()[2] > p(2))
-						{
-							colNormal = Eigen::Vector3f(0, 0, 1);
-							collision = true;
-						}
-						else if (bounds->GetMax()[2] < p(2))
-						{
-							colNormal = Eigen::Vector3f(0, 0, -1);
-							collision = true;
+							if (bounds->GetMin()[j] > p(j))
+							{
+								colNormal[j] = 1;
+								collision = true;
+								perturb = bounds->GetMin()[j] - p(j);
+							}
+							else if (bounds->GetMax()[j] < p(j))
+							{
+								colNormal[j] = -1.f;
+								collision = true;
+								perturb = bounds->GetMax()[j] - p(j);
+							}
 						}
 						
 						if (collision)
 						{
+							colNormal.normalize();
 							Eigen::Vector3f vIn = sb.nodeVelocities.segment<3>(i * 3);
 							Eigen::Vector3f impulse = vIn.dot(colNormal) * colNormal * -2.f;
 							sb.ApplyImpulse(impulse, i);
+							p += perturb * colNormal;
 							/*printf("Collision. Applied impulse %f %f %f\n", impulse(0), impulse(1), impulse(2));*/
 						}
 					}
