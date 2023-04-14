@@ -601,9 +601,9 @@ void CSoftBody::UpdateStiffnessMatrix() {
 			(Eigen::Matrix3f::Identity() - (pj - pi) * (pj - pi).transpose() / (pj - pi).squaredNorm()));
 
 		// Fill in the matrix entries corresponding to the i-th node and jth node using double for loops
-		for (size_t ii = 0; ii < 3; ii++)
+		for (size_t jj = 0; jj < 3; jj++)
 		{
-			for (size_t jj = 0; jj < 3; jj++)
+			for (size_t ii = 0; ii < 3; ii++)
 			{
 				stiffnessMatrix.coeffRef(i * 3 + ii, j * 3 + jj) = Kij(ii, jj);
 				stiffnessMatrix.coeffRef(i * 3 + jj, j * 3 + ii) = -Kij(ii, jj);
@@ -615,8 +615,6 @@ void CSoftBody::UpdateStiffnessMatrix() {
 
 void CSoftBody::UpdateMassMatrix()
 {
-	massMatrix = Eigen::SparseMatrix<float>(nodePositions.size(), nodePositions.size());
-	massMatrix.reserve(Eigen::VectorXi::Constant(nodePositions.size(), 6 * 9));
 
 	for (int i = 0; i < nodePositions.size(); i++)
 		massMatrix.insert(i, i) = glm::max(massPerNode, 0.01f);
@@ -657,7 +655,7 @@ void CSoftBody::UpdateNodeForces(const Eigen::VectorXf& nodePos)
 	const Eigen::Vector3f gravity(0, 0, -gravity * 1.f);
 	for (int i = 0; i < nodePos.size(); i += 3)
 	{
-		nodeTotalForces.segment<3>(i) += glm::max(massPerNode, 0.01f) * gravity * 200.f;
+		nodeTotalForces.segment<3>(i) += glm::max(massPerNode, 0.01f) * gravity;
 	}
 
 	// Add external forces
@@ -673,7 +671,6 @@ void CSoftBody::TakeFwEulerStep(float dt)
 	UpdateStiffnessMatrix();
 	// Solve for v_{t+1} where (M - dt*dt *K) * vv_{t+1} = M * v_{t} + dt * f_{t}
 	float engDiffSq;
-	const Eigen::VectorXf prevMomentum = massMatrix * nodeVelocities;
 	Eigen::SparseMatrix<float> MminusdtsK = massMatrix - dt * dt * stiffnessMatrix;
 	Eigen::BiCGSTAB<Eigen::SparseMatrix<float>> solver;
 	solver.compute(MminusdtsK);
@@ -692,16 +689,18 @@ void CSoftBody::TakeFwEulerStep(float dt)
 	int counter = 100;
 	do
 	{
+		const Eigen::VectorXf prevMomentum = massMatrix * nodeVelocities;
 		nodeVelocities = solver.solve(massMatrix * nodeVelocities + dt * nodeTotalForces);
 		if (solver.info() != Eigen::Success)
 		{
-			std::cerr << "Failed to solve linear system." << std::endl;
+			std::cerr << "Failed to solve linear system." << solver.info() << std::endl;
 			return;
 		}
 		
 		UpdateNodeForces(nodePositions + nodeVelocities * dt);
 		engDiffSq = (massMatrix * nodeVelocities - prevMomentum - dt * nodeTotalForces).squaredNorm();
 		//prevMomentum = massMatrix * nodeVelocities;
+		//nodeExtForces -= nodeVelocities * (1.f + drag);
 		
 	} while (engDiffSq > 0.01f && counter-- > 0);
 	//check if nodeVelocities are all zero

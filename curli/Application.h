@@ -17,6 +17,12 @@ public:
 		
 		ParseArguments(argc, argv);
 		renderer->ParseArguments(argc, argv);
+
+		auto plane = scene->GetSceneObject("plane");
+		if (plane != entt::tombstone)
+		{
+			scene->registry.get<CTransform>(plane).SetPosition(glm::vec3(0.0f, -10.f, 0.0f));
+		}
 		
 		
 	}

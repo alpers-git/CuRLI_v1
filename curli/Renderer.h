@@ -417,6 +417,7 @@ protected:
 		//get the softbody
 		auto& softbody = scene->registry.get<CSoftBody>(e);
 		auto* mesh = scene->registry.try_get<CTriMesh>(e);
+		int nthframe = ApplicationState::GetInstance().renderEveryNthFrame;
 		if (mesh != nullptr)
 		{
 			int i = 0;

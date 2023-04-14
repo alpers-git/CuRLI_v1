@@ -1117,6 +1117,8 @@ struct CSoftBody : Component
 		this->nodes2SurfIds = nodes2SurfIds;
 		
 		massPerNode = glm::max(1.f / (float)nodePositions.size(), 0.01f);
+		massMatrix = Eigen::SparseMatrix<float>(nodePositions.size(), nodePositions.size());
+		massMatrix.reserve(Eigen::VectorXi::Constant(nodePositions.size(), 6 * 9));
 		UpdateMassMatrix();
 
 		stiffnessMatrix = Eigen::SparseMatrix<float>(nodePositions.size(), nodePositions.size());

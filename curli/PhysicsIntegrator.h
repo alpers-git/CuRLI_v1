@@ -75,7 +75,13 @@ public:
 	*/
 	void OnMouseButton(int button, int action, int mods) {
 		if (button == GLFW_MOUSE_BUTTON_1 && action == GLFW_PRESS)
+		{
 			m1Down = true;
+			entt::entity curEntity = ApplicationState::GetInstance().selectedObject;
+			auto* sb = scene->registry.try_get<CSoftBody>(curEntity);
+			if(sb)
+				randomNode = rand() % (sb->nodePositions.size() / 3);
+		}
 		else if (button == GLFW_MOUSE_BUTTON_1 && action == GLFW_RELEASE)
 			m1Down = false;
 		else if (button == GLFW_MOUSE_BUTTON_2 && action == GLFW_PRESS)
@@ -119,14 +125,11 @@ public:
 			if (m1Down && shiftDown)
 			{
 				ApplicationState::GetInstance().physicsInteraction = true;
-				//sb->ApplyLinearImpulse((-deltaPos.x * right + deltaPos.y * up) * 0.1f);
-				//random number between 0 and numOfNodes in the selected softbody
-				int randomNode = rand() % (sb->nodePositions.size()/3);
 				Eigen::Vector3f force = 
 					Eigen::Vector3f(-deltaPos.x * right.x + deltaPos.y * up.x,
 						-deltaPos.x * right.y + deltaPos.y * up.y,
 						-deltaPos.x * right.z + deltaPos.y * up.z);
-				sb->ApplyImpulse(force * 10.f, randomNode);
+				sb->ApplyImpulse(force * 0.1f, randomNode);
 			}
 			if (m2Down && shiftDown)
 			{
@@ -182,6 +185,7 @@ protected:
 	glm::vec2 prevMousePos;
 
 	bool shiftDown = false;
+	int randomNode;
 };
 
 class EmptyIntegrator : public PhysicsIntegrator<EmptyIntegrator>
@@ -304,12 +308,14 @@ public:
 								colNormal[j] = 1;
 								collision = true;
 								perturb = bounds->GetMin()[j] - p(j);
+								//p.cwiseMax(Eigen::Vector3f(bounds->GetMin()[0], bounds->GetMin()[1], bounds->GetMin()[2]));
 							}
 							else if (bounds->GetMax()[j] < p(j))
 							{
 								colNormal[j] = -1.f;
 								collision = true;
 								perturb = bounds->GetMax()[j] - p(j);
+								//p.cwiseMin(Eigen::Vector3f(bounds->GetMax()[0], bounds->GetMax()[1], bounds->GetMax()[2]));
 							}
 						}
 						
