@@ -630,13 +630,22 @@ void CSoftBody::SetSpringKs(float k)
 		});
 }
 
+void CSoftBody::SetSpringDampings(float d)
+{
+	d = glm::max(d, 0.0f);
+	//parallel for each using cpp set all springs.k values to k
+	std::for_each(springs.begin(), springs.end(), [d](Spring& spring) {
+		spring.damping = d;
+		});
+}
+
 void CSoftBody::ApplyImpulse(Eigen::Vector3f imp, int nodeIdx)
 {
 	nodeExtForces.segment<3>(nodeIdx * 3) += imp / massPerNode;
 	//nodeVelocities.segment<3>(nodeIdx * 3) += imp / massPerNode;
 }
 
-void CSoftBody::UpdateNodeForces(const Eigen::VectorXf& nodePos)
+void CSoftBody::UpdateNodeForces(const Eigen::VectorXf& nodePos, const Eigen::VectorXf& nodeVel)
 {
 	// Calculate internal forces
 	nodeTotalForces.setZero(nodePos.size());
@@ -645,8 +654,8 @@ void CSoftBody::UpdateNodeForces(const Eigen::VectorXf& nodePos)
 		const Eigen::Vector3f& node0 = nodePos.segment<3>(spring.nodes[0] * 3);
 		const Eigen::Vector3f& node1 = nodePos.segment<3>(spring.nodes[1] * 3);
 		auto force = spring.CalculateForce(node0, node1);
-		/*force += -spring.damping * (nodeVelocities.segment<3>(spring.nodes[0] * 3) -
-			nodeVelocities.segment<3>(spring.nodes[1] * 3));*/
+		force += -spring.damping * (nodeVel.segment<3>(spring.nodes[0] * 3) -
+			nodeVel.segment<3>(spring.nodes[1] * 3));
 		nodeTotalForces.segment<3>(spring.nodes[0] * 3) += force;
 		nodeTotalForces.segment<3>(spring.nodes[1] * 3) -= force;
 	}
@@ -663,14 +672,28 @@ void CSoftBody::UpdateNodeForces(const Eigen::VectorXf& nodePos)
 
 }
 
-
 void CSoftBody::TakeFwEulerStep(float dt)
 {
-	UpdateNodeForces(nodePositions);
+	UpdateNodeForces(nodePositions, nodeVelocities);
+	nodeVelocities += dt * nodeTotalForces / massPerNode;
+	nodePositions += dt * nodeVelocities;
+
+	if (nodeVelocities.any() > 0.001f)
+	{
+		dirty = true;
+	}
+	nodeExtForces.setZero(nodePositions.size());
+}
+
+
+void CSoftBody::TakeBwEulerStep(float dt)
+{
+	UpdateNodeForces(nodePositions, nodeVelocities);
 	
 	UpdateStiffnessMatrix();
 	// Solve for v_{t+1} where (M - dt*dt *K) * vv_{t+1} = M * v_{t} + dt * f_{t}
 	float engDiffSq;
+	const Eigen::VectorXf prevMomentum = massMatrix * nodeVelocities;
 	Eigen::SparseMatrix<float> MminusdtsK = massMatrix - dt * dt * stiffnessMatrix;
 	Eigen::BiCGSTAB<Eigen::SparseMatrix<float>> solver;
 	solver.compute(MminusdtsK);
@@ -689,7 +712,6 @@ void CSoftBody::TakeFwEulerStep(float dt)
 	int counter = 100;
 	do
 	{
-		const Eigen::VectorXf prevMomentum = massMatrix * nodeVelocities;
 		nodeVelocities = solver.solve(massMatrix * nodeVelocities + dt * nodeTotalForces);
 		if (solver.info() != Eigen::Success)
 		{
@@ -697,7 +719,7 @@ void CSoftBody::TakeFwEulerStep(float dt)
 			return;
 		}
 		
-		UpdateNodeForces(nodePositions + nodeVelocities * dt);
+		UpdateNodeForces(nodePositions + nodeVelocities * dt, nodeVelocities);
 		engDiffSq = (massMatrix * nodeVelocities - prevMomentum - dt * nodeTotalForces).squaredNorm();
 		//prevMomentum = massMatrix * nodeVelocities;
 		//nodeExtForces -= nodeVelocities * (1.f + drag);

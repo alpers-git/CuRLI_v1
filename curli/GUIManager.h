@@ -940,7 +940,12 @@ namespace gui
 									s.SetSpringKs(stiffnessPerSpring);
 								}
 								ImGui::SameLine();
-								ImGui::DragFloat("Drag", &s.drag, 0.01, 0.001);
+								ImGui::DragFloat("Drag", &s.drag, 0.01, 0.001); 
+								static float damping = 1.0f;
+								if (ImGui::DragFloat("Damping", &damping, 0.01, 0.001))
+								{
+									s.SetSpringDampings(damping);
+								}
 								ImGui::PopItemWidth();
 
 

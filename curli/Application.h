@@ -59,8 +59,8 @@ public:
 			windowManager.DispatchEvents(*renderer, *physicsIntegrator);
 
 			// Wait for the results of each function call to complete
-			physicsResult.get();
-			sceneResult.get();
+			//physicsResult.get();
+			//sceneResult.get();
 
 			// Render the Scene
 			renderer->Render();

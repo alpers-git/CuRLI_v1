@@ -1129,10 +1129,12 @@ struct CSoftBody : Component
 
 	void Update();
 	void TakeFwEulerStep(float dt);
+	void TakeBwEulerStep(float dt);
 	
 	void UpdateStiffnessMatrix();
 	void UpdateMassMatrix();
 	void SetSpringKs(float k);
+	void SetSpringDampings(float k);
 
 	void ApplyImpulse(Eigen::Vector3f imp, int nodeIdx);
 
@@ -1152,7 +1154,7 @@ struct CSoftBody : Component
 	bool dirty = false;
 private:
 	Eigen::VectorXf nodeTotalForces;
-	void UpdateNodeForces(const Eigen::VectorXf& nodePos);
+	void UpdateNodeForces(const Eigen::VectorXf& nodePos, const Eigen::VectorXf& nodeVel);
 };
 
 struct CRigidBody : Component

@@ -177,7 +177,7 @@ protected:
 	}
 	
 	std::shared_ptr<Scene> scene;
-	int stepCount = 2;
+	int stepCount = 10;
 	float t = 0.0f;
 	
 	bool m1Down = false;
@@ -324,7 +324,7 @@ public:
 							colNormal.normalize();
 							Eigen::Vector3f vIn = sb.nodeVelocities.segment<3>(i * 3);
 							Eigen::Vector3f impulse = vIn.dot(colNormal) * colNormal * -2.f;
-							sb.ApplyImpulse(impulse, i);
+							sb.ApplyImpulse(impulse * 0.8f, i);
 							p += perturb * colNormal;
 							/*printf("Collision. Applied impulse %f %f %f\n", impulse(0), impulse(1), impulse(2));*/
 						}
