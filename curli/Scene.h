@@ -317,7 +317,7 @@ struct Spring
 		float currentLength = springVector.norm();
 		springVector.normalize();
 		Eigen::Vector3f springForce = k * (currentLength - restLength) * springVector;
-		Eigen::Vector3f dampingForce = damping * ((vel1 - vel0).dot(springVector) / currentLength) * (springVector / currentLength);
+		Eigen::Vector3f dampingForce = damping * ((vel1 - vel0).dot(springVector)) * (springVector);
 		return springForce + dampingForce;
 	}
 };
@@ -1117,7 +1117,7 @@ struct CSoftBody : Component
 		this->nodeTotalForces = Eigen::VectorXf::Zero(nodes.size());
 		this->nodes2SurfIds = nodes2SurfIds;
 		
-		massPerNode = glm::max(1.f / (float)nodePositions.size(), 0.01f);
+		massPerNode = glm::max(100.f / (float)nodePositions.size(), 0.01f);
 		massMatrix = Eigen::SparseMatrix<float>(nodePositions.size(), nodePositions.size());
 		massMatrix.reserve(Eigen::VectorXi::Constant(nodePositions.size(), 6 * 9));
 		UpdateMassMatrix();

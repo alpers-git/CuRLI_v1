@@ -929,7 +929,7 @@ namespace gui
 								ImGui::PushItemWidth(viewportPanelSize.x / 4);
 								if (ImGui::DragFloat("Node Mass", &s.massPerNode, 0.01, 0.001))
 								{
-									s.massPerNode = max(s.massPerNode, 0.01f);
+									s.massPerNode = max(s.massPerNode, 0.0001f);
 									s.UpdateMassMatrix();
 								}
 								ImGui::SameLine();

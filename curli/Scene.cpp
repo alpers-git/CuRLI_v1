@@ -632,7 +632,7 @@ void CSoftBody::SetSpringKs(float k)
 {
 	k = glm::max(k, 0.001f);
 	//parallel for each using cpp set all springs.k values to k
-	std::for_each(springs.begin(), springs.end(), [k](Spring& spring) {
+	std::for_each(std::execution::par_unseq, springs.begin(), springs.end(), [k](Spring& spring) {
 		spring.k = k;
 		});
 }
@@ -641,7 +641,7 @@ void CSoftBody::SetSpringDampings(float d)
 {
 	d = glm::max(d, 0.0f);
 	//parallel for each using cpp set all springs.k values to k
-	std::for_each(springs.begin(), springs.end(), [d](Spring& spring) {
+	std::for_each(std::execution::par_unseq, springs.begin(), springs.end(), [d](Spring& spring) {
 		spring.damping = d;
 		});
 }
@@ -656,7 +656,7 @@ void CSoftBody::UpdateNodeForces()
 {
 	// Calculate internal forces
 	nodeTotalForces.setZero(nodePositions.size());
-	for (Spring& spring : springs)
+	std::for_each(std::execution::par_unseq, springs.begin(), springs.end(), [this](const Spring& spring)
 	{
 		const Eigen::Vector3f& node0 = nodePositions.segment<3>(spring.nodes[0] * 3);
 		const Eigen::Vector3f& node1 = nodePositions.segment<3>(spring.nodes[1] * 3);
@@ -665,13 +665,13 @@ void CSoftBody::UpdateNodeForces()
 		auto force = spring.CalculateForce(node0, node1, vel0, vel1);
 		nodeTotalForces.segment<3>(spring.nodes[0] * 3) += force;
 		nodeTotalForces.segment<3>(spring.nodes[1] * 3) -= force;
-	}
+	});
 
 	// Add gravitational force
-	const Eigen::Vector3f gravity(0, 0, -gravity * 200.f);
+	const Eigen::Vector3f gravityVec(0, 0, -gravity * 1.f);
 	for (int i = 0; i < nodePositions.size(); i += 3)
 	{
-		nodeTotalForces.segment<3>(i) += glm::max(massPerNode, 0.01f) * gravity;
+		nodeTotalForces.segment<3>(i) += gravityVec;
 	}
 
 	// Add external forces
@@ -701,6 +701,7 @@ void CSoftBody::TakeBwEulerStep(float dt)
 	// Solve for v_{t+1} where (M - dt*dt *K) * vv_{t+1} = M * v_{t} + dt * f_{t}
 	Eigen::SparseMatrix<float> MminusdtsK = massMatrix - dt * dt * stiffnessMatrix;
 	Eigen::LeastSquaresConjugateGradient<Eigen::SparseMatrix<float>> solver;
+	solver.setMaxIterations(50);
 	solver.compute(MminusdtsK);
 	
 	if (solver.info() != Eigen::Success)
@@ -709,11 +710,6 @@ void CSoftBody::TakeBwEulerStep(float dt)
 		return;
 	}
 	
-	if (nodeTotalForces.norm() < 0.0001f)
-	{
-		//printf("Forces are too small\n");
-		return;
-	}
 	nodeVelocities = solver.solve(massMatrix * nodeVelocities + dt * nodeTotalForces);
 	
 	if (solver.info() != Eigen::Success)
@@ -747,6 +743,7 @@ void CRigidBody::TakeFwEulerStep(float dt)
 	const float magw = glm::length(_w);
 	ApplyAngularImpulse(-0.5f * drag * magw * _w * dt * 100.f);
 	const glm::vec3 w = GetAngularVelocity();
+	orientationQuat += (0.5f * dt) * glm::quat(0.0f, w) * orientationQuat;
 	orientationQuat += (0.5f * dt) * glm::quat(0.0f, w) * orientationQuat;
 	orientationQuat = glm::normalize(orientationQuat);
 
