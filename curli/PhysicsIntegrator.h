@@ -129,7 +129,7 @@ public:
 					Eigen::Vector3f(-deltaPos.x * right.x + deltaPos.y * up.x,
 						-deltaPos.x * right.y + deltaPos.y * up.y,
 						-deltaPos.x * right.z + deltaPos.y * up.z);
-				sb->ApplyImpulse(force * 60.f, randomNode);
+				sb->ApplyImpulse(force * 6000.f, randomNode);
 			}
 			if (m2Down && shiftDown)
 			{
@@ -177,7 +177,7 @@ protected:
 	}
 	
 	std::shared_ptr<Scene> scene;
-	int stepCount = 60;
+	int stepCount = 10;
 	float t = 0.0f;
 	
 	bool m1Down = false;
@@ -285,7 +285,7 @@ public:
 		scene->registry.view<CSoftBody>()
 		.each([dt, this](auto entity, CSoftBody& sb)
 		{
-			sb.TakeFwEulerStep(dt);
+			sb.TakeBwEulerStep(dt);
 			//test collision
 			entt::entity e = scene->registry.view<CPhysicsBounds>().front();
 			//check if null entity

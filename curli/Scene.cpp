@@ -599,8 +599,8 @@ void CSoftBody::UpdateStiffnessMatrix(float dt) {
 		const float curLenght = (pj - pi).norm();
 		
 		const Eigen::Matrix3f Kii = spring.k * (-Eigen::Matrix3f::Identity() + spring.restLength / curLenght *
-			(Eigen::Matrix3f::Identity() - (pj - pi) * (pj - pi).transpose() / (pj - pi).squaredNorm())) +
-			spring.damping * (pj - pi) * (pj - pi).transpose() / (pj - pi).squaredNorm() * Eigen::Matrix3f::Identity() / dt;
+			(Eigen::Matrix3f::Identity() - (pj - pi) * (pj - pi).transpose() / (pj - pi).squaredNorm())) -
+			spring.damping * (Eigen::Matrix3f::Identity() * (pj - pi) * (pj - pi).transpose()) / (curLenght * curLenght * dt);
 		const Eigen::Matrix3f Kjj = Kii;
 		const Eigen::Matrix3f Kij = -Kii;
 		const Eigen::Matrix3f Kji = Kij;
@@ -715,7 +715,7 @@ void CSoftBody::TakeBwEulerStep(float dt)
 	if (solver.info() != Eigen::Success)
 	{
 		std::cerr << "Failed to solve" << std::endl;
-		return;
+		//return;
 	}
 
 	//check if nodeVelocities are all zero
