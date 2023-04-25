@@ -310,13 +310,14 @@ struct Spring
 	float damping = 0.1f;
 	glm::ivec2 nodes;
 
-	Eigen::Vector3f CalculateForce(const Eigen::Vector3f& node0, const Eigen::Vector3f& node1) const
+	Eigen::Vector3f CalculateForce(const Eigen::Vector3f& node0, const Eigen::Vector3f& node1,
+		const Eigen::Vector3f& vel0, const Eigen::Vector3f& vel1) const
 	{
-		Eigen::Vector3f springVector = node0 - node1;
+		Eigen::Vector3f springVector = node1 - node0;
 		float currentLength = springVector.norm();
 		springVector.normalize();
-		Eigen::Vector3f springForce = -k * (currentLength - restLength) * springVector;
-		Eigen::Vector3f dampingForce = Eigen::Vector3f::Zero();//-damping * (node1.velocity - node0.velocity);
+		Eigen::Vector3f springForce = k * (currentLength - restLength) * springVector;
+		Eigen::Vector3f dampingForce = damping * ((vel1 - vel0).dot(springVector) / currentLength) * (springVector / currentLength);
 		return springForce + dampingForce;
 	}
 };
@@ -1123,7 +1124,7 @@ struct CSoftBody : Component
 
 		stiffnessMatrix = Eigen::SparseMatrix<float>(nodePositions.size(), nodePositions.size());
 		stiffnessMatrix.reserve(Eigen::VectorXi::Constant(nodePositions.size(), 6 * 9));
-		UpdateStiffnessMatrix();
+		UpdateStiffnessMatrix(.01f);
 		stiffnessMatrix.makeCompressed();
 	}
 
@@ -1131,7 +1132,7 @@ struct CSoftBody : Component
 	void TakeFwEulerStep(float dt);
 	void TakeBwEulerStep(float dt);
 	
-	void UpdateStiffnessMatrix();
+	void UpdateStiffnessMatrix(float dt);
 	void UpdateMassMatrix();
 	void SetSpringKs(float k);
 	void SetSpringDampings(float k);
@@ -1154,7 +1155,7 @@ struct CSoftBody : Component
 	bool dirty = false;
 private:
 	Eigen::VectorXf nodeTotalForces;
-	void UpdateNodeForces(const Eigen::VectorXf& nodePos, const Eigen::VectorXf& nodeVel);
+	void UpdateNodeForces();
 };
 
 struct CRigidBody : Component

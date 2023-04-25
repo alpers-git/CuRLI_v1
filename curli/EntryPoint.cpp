@@ -4,7 +4,7 @@
 
 int main(int argc, char const *argv[])
 {
-	Eigen::initParallel();
+	//Eigen::initParallel();
 	printf("Set Eigen thread count to %d\n", Eigen::nbThreads());
 	Application<MultiTargetRenderer, gui::ControlPanel, FwEulerIntegrator> app(argc, argv);
 	app.Run();
